@@ -21,7 +21,7 @@ const iconMap = {
 
 const toneStyles: Record<
   ServiceCard["tone"],
-  { card: string; eyebrow: string; headline: string; line: string; button: string; art: "white" }
+  { card: string; eyebrow: string; headline: string; line: string; button: string }
 > = {
   orange: {
     card: "bg-terracotta",
@@ -29,7 +29,6 @@ const toneStyles: Record<
     headline: "text-white",
     line: "text-white/85",
     button: "bg-white text-terracotta hover:bg-white/90",
-    art: "white",
   },
   grey: {
     card: "bg-grey",
@@ -37,7 +36,6 @@ const toneStyles: Record<
     headline: "text-navy",
     line: "text-navy/70",
     button: "bg-terracotta text-white hover:bg-terracotta-dark",
-    art: "white",
   },
   "grey-green": {
     card: "bg-grey",
@@ -45,7 +43,6 @@ const toneStyles: Record<
     headline: "text-navy",
     line: "text-navy/70",
     button: "bg-green text-white hover:bg-green-dark",
-    art: "white",
   },
 };
 
@@ -71,7 +68,7 @@ export function ServiceCards() {
                 key={s.id}
                 className={`flex flex-col items-center rounded-[24px] px-6 py-10 text-center sm:px-8 ${tone.card}`}
               >
-                <ProductArt icon={<Icon className="h-full w-full" />} tone={tone.art} size="sm" />
+                <ProductArt icon={<Icon className="h-full w-full" />} size="sm" />
                 <p className={`mt-6 text-xs font-bold uppercase tracking-[0.18em] ${tone.eyebrow}`}>
                   {s.eyebrow}
                 </p>

@@ -30,9 +30,7 @@ export function PromoStrip() {
   const isCold = current.tone === "cold";
 
   return (
-    <div
-      className={`transition-colors duration-700 ${isCold ? "bg-[#3D6FB4]" : "bg-[#F5C244]"}`}
-    >
+    <div className={`transition-colors duration-700 ${isCold ? "bg-blue" : "bg-yellow"}`}>
       <Link
         href="/book"
         aria-label="Book a visit"

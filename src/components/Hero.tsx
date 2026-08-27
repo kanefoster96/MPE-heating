@@ -9,7 +9,6 @@ export function Hero() {
       <div className="mx-auto flex max-w-6xl justify-center px-4 pt-10 sm:px-6 sm:pt-14 lg:pt-16">
         <ProductArt
           icon={<BoilerIcon className="h-full w-full" />}
-          tone="white"
           size="lg"
           className="-rotate-3"
         />

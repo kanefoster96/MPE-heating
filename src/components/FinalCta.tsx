@@ -6,7 +6,7 @@ export function FinalCta() {
   return (
     <section className="bg-terracotta py-14 sm:py-20">
       <div className="mx-auto flex max-w-3xl flex-col items-center px-4 text-center sm:px-6">
-        <ProductArt icon={<BoilerIcon className="h-full w-full" />} tone="white" size="md" className="-rotate-3" />
+        <ProductArt icon={<BoilerIcon className="h-full w-full" />} size="md" className="-rotate-3" />
         <h2 className="mt-8 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
           {finalCta.headline}
         </h2>

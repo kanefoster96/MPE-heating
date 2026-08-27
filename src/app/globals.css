@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --color-cream: #f7f5f2;
+  --color-white: #ffffff;
+  --color-terracotta: #e8623a;
+  --color-terracotta-dark: #cf5029;
+  --color-terracotta-light: #fbe4db;
+  --color-navy: #1f2a3a;
+  --color-navy-light: #2c3a4f;
+  --color-grey: #f0f0f0;
+  --color-grey-dark: #64748b;
+  --color-line: #e4e0d9;
+}
+
+@theme inline {
+  --color-cream: var(--color-cream);
+  --color-white: var(--color-white);
+  --color-terracotta: var(--color-terracotta);
+  --color-terracotta-dark: var(--color-terracotta-dark);
+  --color-terracotta-light: var(--color-terracotta-light);
+  --color-navy: var(--color-navy);
+  --color-navy-light: var(--color-navy-light);
+  --color-grey: var(--color-grey);
+  --color-grey-dark: var(--color-grey-dark);
+  --color-line: var(--color-line);
+  --font-sans: var(--font-outfit);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-navy);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@keyframes marquee-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: marquee-fade-in 0.5s ease-out both;
+}
+
+/* Hide scrollbar for swipeable review rails but keep it scrollable */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

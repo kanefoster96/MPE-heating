@@ -2,16 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { business } from "@/lib/content";
 import { MenuIcon, CloseIcon, PhoneIcon } from "./icons";
 
-const links = [
-  { label: "Boiler repair", href: "#services" },
-  { label: "Servicing", href: "#services" },
-  { label: "New boilers", href: "#services" },
-  { label: "Commercial", href: "#commercial" },
-  { label: "FAQs", href: "#faq" },
-];
+const links = ["Boiler repair", "Servicing", "New boilers", "Commercial", "FAQs"];
 
 export function Nav() {
   const [open, setOpen] = useState(false);
@@ -19,7 +14,7 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <a href="#top" className="shrink-0">
+        <Link href="/" className="shrink-0">
           <Image
             src="/mpe-logo.png"
             alt={business.fullName}
@@ -28,13 +23,11 @@ export function Nav() {
             priority
             className="h-9 w-auto sm:h-11"
           />
-        </a>
+        </Link>
 
         <nav className="hidden lg:flex items-center gap-8 text-sm font-medium text-navy/80">
-          {links.map((l) => (
-            <a key={l.label} href={l.href} className="transition-colors hover:text-terracotta">
-              {l.label}
-            </a>
+          {links.map((label) => (
+            <span key={label}>{label}</span>
           ))}
         </nav>
 
@@ -61,15 +54,9 @@ export function Nav() {
       {open && (
         <nav className="border-t border-line bg-white px-4 py-3 lg:hidden">
           <ul className="flex flex-col divide-y divide-line">
-            {links.map((l) => (
-              <li key={l.label}>
-                <a
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  className="block py-3 text-base font-medium text-navy"
-                >
-                  {l.label}
-                </a>
+            {links.map((label) => (
+              <li key={label} className="block py-3 text-base font-medium text-navy">
+                {label}
               </li>
             ))}
           </ul>

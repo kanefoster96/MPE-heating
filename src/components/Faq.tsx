@@ -18,7 +18,7 @@ export function Faq() {
   };
 
   return (
-    <section id="faq" className="bg-cream py-14 sm:py-20">
+    <section className="bg-cream py-14 sm:py-20">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <div className="mb-10 text-center">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">

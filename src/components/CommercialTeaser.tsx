@@ -4,7 +4,7 @@ import { ProductArt } from "./ProductArt";
 
 export function CommercialTeaser() {
   return (
-    <section id="commercial" className="bg-cream py-4 sm:py-6">
+    <section className="bg-cream py-4 sm:py-6">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex flex-col items-center gap-8 rounded-[28px] bg-[#2A4E6E] px-6 py-10 text-center sm:flex-row sm:justify-between sm:px-12 sm:py-12 sm:text-left">
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-8">

@@ -236,8 +236,8 @@ export const finalCta = {
   cta: "Book a visit",
 };
 
-export const footerLinks = [
-  { label: "Commercial", href: "#commercial" },
+export const footerLinks: { label: string; href?: string }[] = [
+  { label: "Commercial" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
 ];

@@ -26,7 +26,7 @@ export function HowItWorks() {
             const Icon = iconMap[step.icon];
             return (
               <div key={step.number} className="flex flex-col items-center text-center">
-                <ProductArt icon={<Icon className="h-full w-full" />} tone="white" size="sm" />
+                <ProductArt icon={<Icon className="h-full w-full" />} size="sm" />
                 <div className="mt-6 flex h-9 w-9 items-center justify-center rounded-full bg-terracotta text-sm font-bold text-white">
                   {step.number}
                 </div>

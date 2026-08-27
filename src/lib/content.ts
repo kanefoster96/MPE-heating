@@ -4,7 +4,6 @@
 export const business = {
   name: "MPE",
   fullName: "MPE Gas, Heating, Plumbing & Electrics",
-  engineerName: "Fergal",
   phoneDisplay: "07000 123 456",
   phoneHref: "tel:07000123456",
   whatsappHref: "https://wa.me/447000123456",
@@ -22,7 +21,7 @@ export const promo = {
 export const hero = {
   label: "Boiler Repairs",
   headline: "Boiler broken? Same-day repairs across the North East",
-  subline: "Gas Safe engineer, price agreed before any work starts.",
+  subline: "Gas Safe registered engineers, price agreed before any work starts.",
   cta: "Book a visit",
   ticks: [
     "Same-day response",
@@ -127,7 +126,7 @@ export const howItWorks = [
   },
   {
     number: 2,
-    title: `${business.engineerName} arrives`,
+    title: "Your engineer arrives",
     text: "Fully kitted out and on time, with ID and a smile.",
     icon: "doorstep" as const,
   },
@@ -148,7 +147,7 @@ export const guarantee = {
 export const reviews = [
   {
     quote:
-      "Fergal was brilliant — diagnosed the fault straight away and had the heating back on within the hour. Really fair price too.",
+      "The engineer who came out was brilliant — diagnosed the fault straight away and had the heating back on within the hour. Really fair price too.",
     name: "Sarah T.",
     date: "2 days ago",
   },

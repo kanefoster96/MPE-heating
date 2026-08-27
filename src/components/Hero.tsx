@@ -38,7 +38,7 @@ export function Hero() {
             className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-navy/70 hover:text-navy"
           >
             <PhoneIcon className="h-4 w-4 text-terracotta" />
-            Call {business.engineerName} on {business.phoneDisplay}
+            Call our team on {business.phoneDisplay}
           </a>
 
           <ul className="mt-6 flex flex-col gap-2 text-sm text-navy/80 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-2">

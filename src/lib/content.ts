@@ -40,6 +40,10 @@ export const hero = {
 
 export const accreditations = ["Gas Safe Register", "TrustATrader", "City & Guilds"];
 
+// Boiler manufacturers whose units MPE installs and services — shown as a
+// wordmark marquee under the hero. Swap for real logo lockups if/when supplied.
+export const boilerBrands = ["Worcester Bosch", "Vaillant", "Baxi", "Ideal", "Glow-worm"];
+
 export type ServiceCard = {
   id: string;
   eyebrow: string;

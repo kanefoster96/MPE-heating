@@ -51,17 +51,27 @@ export function Nav() {
         </div>
       </div>
 
-      {open && (
-        <nav className="border-t border-line bg-white px-4 py-3 lg:hidden">
-          <ul className="flex flex-col divide-y divide-line">
-            {links.map((label) => (
-              <li key={label} className="block py-3 text-base font-medium text-navy">
-                {label}
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-out lg:hidden ${
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <nav
+            className={`border-t border-line bg-white px-4 py-3 transition-opacity duration-200 ${
+              open ? "opacity-100 delay-100" : "opacity-0"
+            }`}
+          >
+            <ul className="flex flex-col divide-y divide-line">
+              {links.map((label) => (
+                <li key={label} className="block py-3 text-base font-medium text-navy">
+                  {label}
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+      </div>
     </header>
   );
 }

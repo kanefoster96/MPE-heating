@@ -46,7 +46,7 @@ export type ServiceCard = {
   headline: string;
   line: string;
   cta: string;
-  tone: "orange" | "grey-deep" | "grey-green";
+  tone: "orange" | "grey" | "grey-green";
   icon: "boiler" | "service" | "newboiler" | "plumbing" | "electrics" | "landlord";
 };
 
@@ -66,7 +66,7 @@ export const services: ServiceCard[] = [
     headline: "Annual service from £79",
     line: "Keeps your warranty valid and your boiler safe.",
     cta: "Book a service",
-    tone: "grey-deep",
+    tone: "grey",
     icon: "service",
   },
   {
@@ -84,7 +84,7 @@ export const services: ServiceCard[] = [
     headline: "Leaks, taps, bathrooms and pipework",
     line: "Small jobs to full installs.",
     cta: "Book a plumber",
-    tone: "grey-deep",
+    tone: "grey",
     icon: "plumbing",
   },
   {
@@ -93,7 +93,7 @@ export const services: ServiceCard[] = [
     headline: "Fuse boards, rewires, EV chargers",
     line: "Part P certified, fully tested.",
     cta: "Book an electrician",
-    tone: "grey-deep",
+    tone: "grey",
     icon: "electrics",
   },
   {
@@ -102,7 +102,7 @@ export const services: ServiceCard[] = [
     headline: "Gas safety and electrical certificates",
     line: "CP12 and EICR, reminders every year.",
     cta: "Get certified",
-    tone: "grey-deep",
+    tone: "grey",
     icon: "landlord",
   },
 ];

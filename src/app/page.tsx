@@ -13,14 +13,13 @@ import { AreasCovered } from "@/components/AreasCovered";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
-import { StickyMobileBar } from "@/components/StickyMobileBar";
 
 export default function Home() {
   return (
     <>
       <Nav />
       <PromoStrip />
-      <main className="pb-16 sm:pb-0">
+      <main>
         <Hero />
         <AccreditationStrip />
         <ServiceCards />
@@ -35,7 +34,6 @@ export default function Home() {
       </main>
       <Footer />
       <FloatingWhatsapp />
-      <StickyMobileBar />
     </>
   );
 }

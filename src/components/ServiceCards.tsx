@@ -21,7 +21,7 @@ const iconMap = {
 
 const toneStyles: Record<
   ServiceCard["tone"],
-  { card: string; eyebrow: string; headline: string; line: string; button: string; art: "white" | "grey" | "navy" }
+  { card: string; eyebrow: string; headline: string; line: string; button: string; art: "white" }
 > = {
   orange: {
     card: "bg-terracotta",
@@ -31,20 +31,20 @@ const toneStyles: Record<
     button: "bg-white text-terracotta hover:bg-white/90",
     art: "white",
   },
-  grey: {
-    card: "bg-grey",
+  "grey-deep": {
+    card: "bg-grey-deep",
     eyebrow: "text-navy/50",
     headline: "text-navy",
     line: "text-navy/70",
     button: "bg-terracotta text-white hover:bg-terracotta-dark",
     art: "white",
   },
-  navy: {
-    card: "bg-navy",
-    eyebrow: "text-white/60",
-    headline: "text-white",
-    line: "text-white/80",
-    button: "bg-white text-navy hover:bg-white/90",
+  "grey-green": {
+    card: "bg-grey",
+    eyebrow: "text-navy/50",
+    headline: "text-navy",
+    line: "text-navy/70",
+    button: "bg-green text-white hover:bg-green-dark",
     art: "white",
   },
 };

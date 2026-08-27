@@ -31,8 +31,8 @@ const toneStyles: Record<
     button: "bg-white text-terracotta hover:bg-white/90",
     art: "white",
   },
-  "grey-deep": {
-    card: "bg-grey-deep",
+  grey: {
+    card: "bg-grey",
     eyebrow: "text-navy/50",
     headline: "text-navy",
     line: "text-navy/70",

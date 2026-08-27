@@ -1,4 +1,4 @@
-import { services, type ServiceCard } from "@/lib/content";
+import { services, business, type ServiceCard } from "@/lib/content";
 import {
   BoilerIcon,
   ServiceIcon,
@@ -51,7 +51,7 @@ const toneStyles: Record<
 
 export function ServiceCards() {
   return (
-    <section id="services" className="bg-cream py-14 sm:py-20">
+    <section className="bg-cream py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto mb-10 max-w-2xl text-center">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">
@@ -80,7 +80,7 @@ export function ServiceCards() {
                 </h3>
                 <p className={`mt-2 text-sm ${tone.line}`}>{s.line}</p>
                 <a
-                  href="#book"
+                  href={business.phoneHref}
                   className={`mt-6 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-colors ${tone.button}`}
                 >
                   {s.cta}

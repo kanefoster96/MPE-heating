@@ -1,4 +1,4 @@
-import { howItWorks } from "@/lib/content";
+import { howItWorks, business } from "@/lib/content";
 import { FormIcon, DoorstepIcon, WrenchFixIcon } from "./icons";
 import { ProductArt } from "./ProductArt";
 
@@ -39,7 +39,7 @@ export function HowItWorks() {
 
         <div className="mt-12 flex justify-center">
           <a
-            href="#book"
+            href={business.phoneHref}
             className="inline-flex items-center justify-center rounded-full bg-terracotta px-8 py-4 text-base font-semibold text-white shadow-[0_12px_25px_-10px_rgba(232,98,58,0.7)] transition-colors hover:bg-terracotta-dark"
           >
             Book a visit

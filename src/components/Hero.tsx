@@ -5,7 +5,7 @@ import { BoilerIcon } from "./icons";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden bg-terracotta" id="top">
+    <section className="relative overflow-hidden bg-terracotta">
       <div className="mx-auto flex max-w-6xl justify-center px-4 pt-10 sm:px-6 sm:pt-14 lg:pt-16">
         <ProductArt
           icon={<BoilerIcon className="h-full w-full" />}
@@ -26,7 +26,6 @@ export function Hero() {
           <p className="mt-4 text-base text-navy/70 sm:text-lg">{hero.subline}</p>
 
           <a
-            id="book"
             href={business.phoneHref}
             className="mt-6 block w-full rounded-full bg-terracotta py-4 text-center text-base font-semibold text-white shadow-[0_12px_25px_-10px_rgba(232,98,58,0.7)] transition-colors hover:bg-terracotta-dark"
           >

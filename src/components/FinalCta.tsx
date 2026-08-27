@@ -11,7 +11,7 @@ export function FinalCta() {
           {finalCta.headline}
         </h2>
         <a
-          href="#book"
+          href={business.phoneHref}
           className="mt-8 inline-flex w-full max-w-xs items-center justify-center rounded-full bg-white px-8 py-4 text-base font-semibold text-terracotta shadow-[0_12px_25px_-10px_rgba(0,0,0,0.3)] transition-colors hover:bg-white/90 sm:w-auto"
         >
           {finalCta.cta}

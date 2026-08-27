@@ -30,11 +30,17 @@ export function Footer() {
 
           <div className="flex flex-col gap-3 text-sm">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">Company</p>
-            {footerLinks.map((l) => (
-              <a key={l.label} href={l.href} className="text-white/80 hover:text-white">
-                {l.label}
-              </a>
-            ))}
+            {footerLinks.map((l) =>
+              l.href ? (
+                <a key={l.label} href={l.href} className="text-white/80 hover:text-white">
+                  {l.label}
+                </a>
+              ) : (
+                <span key={l.label} className="text-white/80">
+                  {l.label}
+                </span>
+              )
+            )}
           </div>
 
           <div className="flex flex-col gap-3">

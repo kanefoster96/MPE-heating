@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { business, footerLinks } from "@/lib/content";
 import { GasSafeMarkIcon, ShieldIcon, AwardIcon, PhoneIcon } from "./icons";
 
@@ -7,8 +8,13 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
           <div>
-            <p className="text-xl font-extrabold tracking-tight">{business.name}</p>
-            <p className="mt-1 text-sm text-white/60">{business.fullName}</p>
+            <Image
+              src="/mpe-logo.png"
+              alt={business.fullName}
+              width={1189}
+              height={513}
+              className="h-14 w-auto"
+            />
 
             <div className="mt-5 flex flex-col gap-2 text-sm text-white/80">
               <a href={business.phoneHref} className="inline-flex items-center gap-2 hover:text-white">

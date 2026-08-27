@@ -3,7 +3,7 @@
 
 export const business = {
   name: "MPE",
-  fullName: "MPE Heating & Plumbing",
+  fullName: "MPE Gas, Heating, Plumbing & Electrics",
   engineerName: "Fergal",
   phoneDisplay: "07000 123 456",
   phoneHref: "tel:07000123456",

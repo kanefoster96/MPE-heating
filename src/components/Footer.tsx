@@ -49,11 +49,10 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/40 sm:flex-row">
+        <div className="mt-12 border-t border-white/10 pt-6 text-center text-xs text-white/40">
           <p>
             &copy; {new Date().getFullYear()} {business.fullName}. All rights reserved.
           </p>
-          <p>Site by Pixel Kanvas.</p>
         </div>
       </div>
     </footer>

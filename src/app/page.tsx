@@ -1,6 +1,7 @@
 import { Nav } from "@/components/Nav";
 import { PromoStrip } from "@/components/PromoStrip";
 import { Hero } from "@/components/Hero";
+import { BrandsMarquee } from "@/components/BrandsMarquee";
 import { AccreditationStrip } from "@/components/AccreditationStrip";
 import { ServiceCards } from "@/components/ServiceCards";
 import { WhyMpe } from "@/components/WhyMpe";
@@ -21,6 +22,7 @@ export default function Home() {
       <PromoStrip />
       <main>
         <Hero />
+        <BrandsMarquee />
         <AccreditationStrip />
         <ServiceCards />
         <WhyMpe />

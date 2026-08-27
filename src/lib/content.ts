@@ -13,10 +13,18 @@ export const business = {
     "Covering Newcastle, North Tyneside, Gateshead, South Tyneside, Sunderland and Northumberland.",
 };
 
-export const promo = {
-  text: "£50 call-out, deducted from your final bill.",
-  cta: "Book now",
-};
+export type PromoMessage = { text: string; tone?: "cold" };
+
+// Rotates in the promo banner, one message every 5s. The first message stays
+// fixed as the lead-in; the rest cycle after it. tone: "cold" swaps the
+// banner to a blue "boiler's out" treatment instead of the default yellow.
+export const promoMessages: PromoMessage[] = [
+  { text: "£50 call-out, deducted from your final bill." },
+  { text: "Boiler broken down? Same-day response.", tone: "cold" },
+  { text: "No fix, no fee — you only pay if we solve it." },
+  { text: "Free, no-obligation quotes on new boilers." },
+  { text: "Gas Safe engineers, price agreed before we start." },
+];
 
 export const hero = {
   label: "Boiler Repairs",

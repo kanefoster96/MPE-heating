@@ -1,17 +1,52 @@
-import { business, promo } from "@/lib/content";
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { promoMessages } from "@/lib/content";
+
+const CYCLE_MS = 5000;
+const FADE_MS = 400;
 
 export function PromoStrip() {
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (promoMessages.length < 2) return;
+
+    const interval = setInterval(() => {
+      setVisible(false);
+      const swap = setTimeout(() => {
+        setIndex((i) => (i + 1) % promoMessages.length);
+        setVisible(true);
+      }, FADE_MS);
+      return () => clearTimeout(swap);
+    }, CYCLE_MS);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const current = promoMessages[index];
+  const isCold = current.tone === "cold";
+
   return (
-    <div className="bg-[#F5C244]">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
-        <p className="min-w-0 truncate text-xs font-medium text-navy sm:text-sm">{promo.text}</p>
-        <a
-          href={business.phoneHref}
-          className="inline-flex shrink-0 items-center justify-center rounded-full bg-navy px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-navy-light sm:text-sm"
+    <div
+      className={`transition-colors duration-700 ${isCold ? "bg-[#3D6FB4]" : "bg-[#F5C244]"}`}
+    >
+      <Link
+        href="/book"
+        aria-label="Book a visit"
+        className="mx-auto flex max-w-6xl items-center justify-center px-4 py-2.5 sm:px-6"
+      >
+        <p
+          style={{ transitionDuration: `${FADE_MS}ms` }}
+          className={`min-w-0 max-w-full truncate text-center text-xs font-medium transition-opacity sm:text-sm ${
+            isCold ? "text-white" : "text-navy"
+          } ${visible ? "opacity-100" : "opacity-0"}`}
         >
-          {promo.cta}
-        </a>
-      </div>
+          {current.text}
+        </p>
+      </Link>
     </div>
   );
 }

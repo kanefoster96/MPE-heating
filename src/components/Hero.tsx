@@ -1,16 +1,18 @@
+import Image from "next/image";
 import { business, hero } from "@/lib/content";
 import { CheckIcon, StarIcon, PhoneIcon } from "./icons";
-import { ProductArt } from "./ProductArt";
-import { BoilerIcon } from "./icons";
 
 export function Hero() {
   return (
     <section className="relative overflow-hidden bg-terracotta">
       <div className="mx-auto flex max-w-6xl justify-center px-4 pt-10 sm:px-6 sm:pt-14 lg:pt-16">
-        <ProductArt
-          icon={<BoilerIcon className="h-full w-full" />}
-          size="lg"
-          className="-rotate-3"
+        <Image
+          src="/worcester-boiler.png"
+          alt="Worcester Bosch boiler"
+          width={800}
+          height={800}
+          priority
+          className="h-56 w-56 drop-shadow-[0_20px_45px_rgba(31,42,58,0.35)] sm:h-64 sm:w-64"
         />
       </div>
 

@@ -7,12 +7,14 @@ export function AuthLayout({
   eyebrow,
   title,
   subtitle,
+  topSlot,
   children,
   footer,
 }: {
   eyebrow: string;
   title: string;
   subtitle: string;
+  topSlot?: ReactNode;
   children: ReactNode;
   footer: ReactNode;
 }) {
@@ -30,6 +32,7 @@ export function AuthLayout({
       </Link>
 
       <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-[0_20px_45px_-15px_rgba(31,42,58,0.25)] sm:p-10">
+        {topSlot && <div className="mb-6">{topSlot}</div>}
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">{eyebrow}</p>
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-navy sm:text-3xl">
           {title}

@@ -5,15 +5,22 @@ import { CheckIcon, StarIcon, PhoneIcon } from "./icons";
 export function Hero() {
   return (
     <section className="relative overflow-hidden bg-terracotta">
-      <div className="mx-auto flex max-w-6xl justify-center px-4 pt-10 sm:px-6 sm:pt-14 lg:pt-16">
+      <div className="mx-auto flex max-w-6xl items-center justify-center gap-5 px-4 pb-10 pt-12 sm:gap-10 sm:px-6 sm:pb-14 sm:pt-16 lg:pt-20">
         <Image
           src="/worcester-boiler.png"
           alt="Worcester Bosch boiler"
           width={800}
           height={800}
           priority
-          className="h-56 w-56 drop-shadow-[0_20px_45px_rgba(31,42,58,0.35)] sm:h-64 sm:w-64"
+          className="h-28 w-28 shrink-0 drop-shadow-[0_20px_45px_rgba(31,42,58,0.35)] sm:h-40 sm:w-40"
         />
+        <p className="text-xl font-extrabold leading-tight text-white sm:text-3xl lg:text-4xl">
+          {hero.imageCallout.map((line) => (
+            <span key={line} className="block">
+              {line}
+            </span>
+          ))}
+        </p>
       </div>
 
       <div className="relative mx-auto -mt-2 max-w-6xl px-4 pb-10 sm:px-6 sm:pb-14">

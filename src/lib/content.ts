@@ -31,6 +31,8 @@ export const hero = {
   headline: "Boiler broken? Same-day repairs across the North East",
   subline: "Gas Safe registered engineers, price agreed before any work starts.",
   cta: "Book a visit",
+  // Bold white overlay copy shown beside the boiler photo, above the main card.
+  imageCallout: ["Boiler flashing red?", "Book same-day response."],
   ticks: [
     "Same-day response",
     "£50 call-out deducted",

@@ -111,6 +111,15 @@ export const services: ServiceCard[] = [
   },
 ];
 
+// Full version for a future About page/section. whyMpeIntro below is the
+// condensed version used as a subline on the homepage today.
+export const about = {
+  text: "As a family-run business, we take pride in delivering honest, reliable, and professional services across electrical, plumbing, and gas works. We are committed to providing high-quality workmanship with a straightforward, no-nonsense approach and competitive pricing. Customer satisfaction is at the heart of what we do, and our reputation is built on the trust and positive feedback of those we've proudly served.",
+};
+
+export const whyMpeIntro =
+  "A family-run business built on honest, reliable work — straightforward pricing, no-nonsense service, and a reputation built on the customers we've proudly served.";
+
 export const whyMpe = [
   {
     icon: "price" as const,

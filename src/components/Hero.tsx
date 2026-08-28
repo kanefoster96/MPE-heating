@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { business, hero } from "@/lib/content";
 import { CheckIcon, StarIcon, PhoneIcon, AlertTriangleIcon } from "./icons";
+import { SameDayStat } from "./SameDayStat";
 
 export function Hero() {
   return (
@@ -62,7 +63,11 @@ export function Hero() {
             Call our team on {business.phoneDisplay}
           </a>
 
-          <ul className="mt-6 flex flex-col gap-2 text-sm text-navy/80 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-2">
+          <div className="mt-5 flex justify-center">
+            <SameDayStat />
+          </div>
+
+          <ul className="mt-4 flex flex-col gap-2 text-sm text-navy/80 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-2">
             {hero.ticks.map((t) => (
               <li key={t} className="flex items-center gap-2 sm:justify-center">
                 <CheckIcon className="h-4 w-4 shrink-0 text-terracotta" />

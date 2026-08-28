@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { business, finalCta } from "@/lib/content";
 import { BoilerIcon } from "./icons";
 import { ProductArt } from "./ProductArt";
@@ -10,12 +11,12 @@ export function FinalCta() {
         <h2 className="mt-8 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
           {finalCta.headline}
         </h2>
-        <a
-          href={business.phoneHref}
+        <Link
+          href="/contact"
           className="mt-8 inline-flex w-full max-w-xs items-center justify-center rounded-full bg-white px-8 py-4 text-base font-semibold text-terracotta shadow-[0_12px_25px_-10px_rgba(0,0,0,0.3)] transition-colors hover:bg-white/90 sm:w-auto"
         >
           {finalCta.cta}
-        </a>
+        </Link>
         <a
           href={business.phoneHref}
           className="mt-4 text-sm font-semibold text-white/90 hover:text-white"

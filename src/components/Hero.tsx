@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { business, hero } from "@/lib/content";
 import { CheckIcon, StarIcon, PhoneIcon, AlertTriangleIcon } from "./icons";
 
@@ -26,13 +27,13 @@ export function Hero() {
             <span className="mt-1 block font-extrabold">{hero.imageCallout.answer}</span>
           </p>
 
-          <a
-            href={business.phoneHref}
+          <Link
+            href="/contact"
             className="inline-flex items-center gap-2 rounded-full border border-white px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-terracotta sm:text-sm"
           >
             <AlertTriangleIcon className="h-4 w-4" />
             {hero.imageCallout.emergencyCta}
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -46,12 +47,12 @@ export function Hero() {
           </h1>
           <p className="mt-4 text-base text-navy/70 sm:text-lg">{hero.subline}</p>
 
-          <a
-            href={business.phoneHref}
+          <Link
+            href="/contact"
             className="bg-btn-gradient mt-6 block w-full rounded-full py-4 text-center text-base font-semibold text-white shadow-[0_12px_25px_-10px_rgba(232,98,58,0.7)]"
           >
             {hero.cta}
-          </a>
+          </Link>
 
           <a
             href={business.phoneHref}

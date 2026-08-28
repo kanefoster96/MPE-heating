@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { AuthLayout } from "@/components/AuthLayout";
 import { FormField } from "@/components/FormField";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
@@ -35,6 +36,7 @@ export default function ContactPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -53,10 +55,44 @@ export default function ContactPage() {
     const { error } = await sendMessageStub({ name, phone, email, message });
     setSubmitting(false);
 
-    setNotice(
-      error ?? "This isn't connected yet — the form is ready, the backend is next."
-    );
+    if (error) {
+      setNotice(error);
+      return;
+    }
+
+    setSubmitted(true);
   };
+
+  if (submitted) {
+    return (
+      <AuthLayout
+        eyebrow="Message sent"
+        title={`Thanks${name.trim() ? `, ${name.trim().split(" ")[0]}` : ""} — we've got it`}
+        subtitle="A member of the team will be in touch shortly to confirm."
+        hideContactLink
+      >
+        <div className="flex flex-col gap-5">
+          <p className="rounded-2xl bg-grey px-4 py-3 text-sm text-navy/70">
+            This isn&apos;t connected yet — the form is ready, the backend is next.
+          </p>
+
+          <div className="rounded-2xl border border-line p-5">
+            <p className="text-sm font-bold text-navy">While you wait, create an account</p>
+            <p className="mt-1.5 text-sm text-navy/70">
+              So the team has your address and boiler details ready before they call — no need
+              to repeat yourself.
+            </p>
+            <Link
+              href="/create-account"
+              className="bg-btn-gradient mt-4 inline-flex w-full items-center justify-center rounded-full py-3 text-sm font-semibold text-white sm:w-auto sm:px-6"
+            >
+              Create an account
+            </Link>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout

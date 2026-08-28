@@ -32,7 +32,7 @@ export function PromoStrip() {
   return (
     <div className={`transition-colors duration-700 ${isCold ? "bg-blue" : "bg-yellow"}`}>
       <Link
-        href="/book"
+        href="/contact"
         aria-label="Book a visit"
         className="mx-auto flex max-w-6xl items-center justify-center px-4 py-2.5 sm:px-6"
       >

@@ -406,6 +406,59 @@ export const servicingPage: ServicePage = {
   ],
 };
 
+export const newBoilersPage: ServicePage = {
+  slug: "new-boilers",
+  navLabel: "New boilers",
+  icon: "newboiler",
+  eyebrow: "New Boilers",
+  headline: "A new boiler, fitted properly — fixed price, no surprises",
+  subline:
+    "Free, no-obligation quotes on new boiler installations from all major manufacturers, fitted by a Gas Safe engineer.",
+  cta: "Get a quote",
+  ticks: ["Free quotes", "Fixed price", "Gas Safe registered"],
+  features: [
+    {
+      icon: "price",
+      title: "Free, no-obligation quote",
+      text: "We'll assess your home and give you a fixed price — no pressure to go ahead.",
+    },
+    {
+      icon: "boiler",
+      title: "All major brands",
+      text: "Worcester Bosch, Vaillant, Baxi, Ideal, Glow-worm and more, fitted to manufacturer spec.",
+    },
+    {
+      icon: "shield",
+      title: "Manufacturer's warranty",
+      text: "Every installation is registered so your manufacturer's warranty applies from day one.",
+    },
+    {
+      icon: "check",
+      title: "Old boiler removed",
+      text: "We take away and dispose of your old boiler as part of the job.",
+    },
+    {
+      icon: "gassafe",
+      title: "Building regs handled",
+      text: "We register the installation with Gas Safe and building control, so you don't have to.",
+    },
+    {
+      icon: "clock",
+      title: "Usually done in a day",
+      text: "Most installations are completed in a single visit, with minimal disruption.",
+    },
+  ],
+  checklistTitle: "Signs it might be time for a new boiler",
+  checklistItems: [
+    "Boiler is over 10-15 years old",
+    "Repairs are becoming frequent or expensive",
+    "Energy bills have crept up",
+    "Boiler is no longer covered by a warranty",
+    "Replacement parts are hard to find",
+    "It's noisy, leaking, or needs frequent resetting",
+  ],
+};
+
 export const finalCta = {
   headline: "Boiler playing up? Let's get it sorted.",
   cta: "Book a visit",

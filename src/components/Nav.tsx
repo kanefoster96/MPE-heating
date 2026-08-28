@@ -11,7 +11,7 @@ import { MenuIcon, CloseIcon, PhoneIcon, UserIcon } from "./icons";
 const links: { label: string; href?: string }[] = [
   { label: "Boiler repair", href: "/boiler-repair" },
   { label: "Servicing", href: "/servicing" },
-  { label: "New boilers" },
+  { label: "New boilers", href: "/new-boilers" },
   { label: "Commercial" },
   { label: "FAQs" },
 ];

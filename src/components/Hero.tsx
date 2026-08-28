@@ -14,12 +14,15 @@ export function Hero() {
           priority
           className="h-28 w-28 shrink-0 drop-shadow-[0_20px_45px_rgba(31,42,58,0.35)] sm:h-40 sm:w-40"
         />
-        <p className="text-xl font-extrabold leading-tight text-white sm:text-3xl lg:text-4xl">
-          {hero.imageCallout.map((line) => (
-            <span key={line} className="block">
-              {line}
+        <p className="text-xl leading-tight text-white sm:text-3xl lg:text-4xl">
+          <span className="flex items-center gap-2.5 italic sm:gap-3">
+            <span className="relative flex h-2.5 w-2.5 shrink-0 sm:h-3 sm:w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red opacity-75" />
+              <span className="relative inline-flex h-full w-full rounded-full bg-red" />
             </span>
-          ))}
+            {hero.imageCallout.question}
+          </span>
+          <span className="mt-1 block font-extrabold">{hero.imageCallout.answer}</span>
         </p>
       </div>
 

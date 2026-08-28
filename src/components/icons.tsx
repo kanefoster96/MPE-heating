@@ -245,3 +245,31 @@ export function GasSafeMarkIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function UserIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M4.5 20c1.4-3.6 4.5-5.5 7.5-5.5s6.1 1.9 7.5 5.5" />
+    </svg>
+  );
+}
+
+export function EyeIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M2.5 12S5.8 5.5 12 5.5 21.5 12 21.5 12 18.2 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="2.75" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3.5 3.5l17 17" />
+      <path d="M10.6 5.7c.45-.1.9-.15 1.4-.15 6.2 0 9.5 6.5 9.5 6.5a15 15 0 0 1-3.3 4.1M6.6 6.6C4.2 8.2 2.5 10.5 2.5 10.5S5.8 17 12 17c1 0 1.9-.15 2.75-.4" />
+      <path d="M9.9 10c-.25.35-.4.78-.4 1.25 0 1.24 1.01 2.25 2.25 2.25.47 0 .9-.14 1.25-.4" />
+    </svg>
+  );
+}

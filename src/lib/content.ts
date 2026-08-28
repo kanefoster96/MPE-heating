@@ -47,7 +47,7 @@ export type PromoMessage = { text: string; tone?: "cold" };
 // fixed as the lead-in; the rest cycle after it. tone: "cold" swaps the
 // banner to a blue "boiler's out" treatment instead of the default yellow.
 export const promoMessages: PromoMessage[] = [
-  { text: "£50 call-out, deducted from your final bill." },
+  { text: "£50 call-out — 100% comes off your bill when we fix it." },
   { text: "Boiler broken down? Same-day response.", tone: "cold" },
   { text: "£50 call-out, refunded when we fix it." },
   { text: "Free, no-obligation quotes on new boilers." },
@@ -99,7 +99,7 @@ export const services: ServiceCard[] = [
     id: "repair",
     eyebrow: "Boiler Repair",
     headline: "Same-day boiler repairs",
-    line: "£50 call-out, taken off your bill.",
+    line: "£50 call-out, 100% comes off your bill once fixed.",
     cta: "Book a repair",
     tone: "orange",
     icon: "boiler",
@@ -275,7 +275,7 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
     },
     {
       q: "How much is the call-out?",
-      a: "£50, which is deducted from your final bill if you go ahead with the repair. If you decide not to proceed, you only pay the £50 call-out.",
+      a: "£50 — and if you go ahead with the repair, 100% of that comes off your final bill, so you're never charged the call-out and the full price. You only end up paying the £50 on its own if you get the diagnosis and decide not to proceed.",
     },
     {
       q: "Do you give a price before starting work?",
@@ -381,7 +381,7 @@ export const boilerRepairPage: ServicePage = {
     {
       icon: "check",
       title: "£50 call-out, refunded when fixed",
-      text: "Not a hidden charge — it comes straight off your bill once we fix it.",
+      text: "Not a hidden charge — 100% of it comes off your bill once we fix it. You only pay the £50 on its own if you decide not to proceed after the diagnosis.",
     },
     {
       icon: "shield",

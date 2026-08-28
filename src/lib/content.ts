@@ -1,6 +1,31 @@
 // Central place for editable site copy & business details.
 // Swap placeholder values (phone, Gas Safe number, reviews) for the real thing before launch.
 
+// Single source of truth for the towns served — backs both the prose
+// sentence below (business.areas) and the structured areaServed list used
+// in JSON-LD (see src/lib/seo.ts), so they can never drift apart.
+const areasList = [
+  "Newcastle",
+  "Gateshead",
+  "Gosforth",
+  "Whitley Bay",
+  "Wallsend",
+  "South Shields",
+  "Cramlington",
+  "Ashington",
+  "Sunderland",
+  "Blyth",
+  "Morpeth",
+  "West Boldon",
+  "Washington",
+  "Redcar",
+];
+
+function joinWithAnd(items: string[]): string {
+  if (items.length < 2) return items.join("");
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
 export const business = {
   name: "MPE",
   fullName: "MPE Gas, Heating, Plumbing & Electrics",
@@ -9,8 +34,9 @@ export const business = {
   whatsappHref: "https://wa.me/447448628101",
   email: "fergal@mpenortheast.co.uk",
   gasSafeNumber: "552052",
-  areas:
-    "We operate across all areas in the North East, including Newcastle, Gateshead, Gosforth, Whitley Bay, Wallsend, South Shields, Cramlington, Ashington, Sunderland, Blyth, Morpeth, West Boldon, Washington and Redcar.",
+  region: "North East England",
+  areasList,
+  areas: `We operate across all areas in the North East, including ${joinWithAnd(areasList)}.`,
 };
 
 export type PromoMessage = { text: string; tone?: "cold" };
@@ -303,7 +329,7 @@ export const boilerRepairPage: ServicePage = {
   eyebrow: "Boiler Repair",
   headline: "Boiler fixed, fast — with a price you agreed first",
   subline:
-    "Same-day response where we can, Gas Safe engineers, and a 30-day guarantee on every repair we carry out.",
+    "Same-day response across the North East where we can, Gas Safe engineers, and a 30-day guarantee on every repair we carry out.",
   cta: "Book a repair",
   ticks: ["Gas Safe registered", "£50 call-out refunded when fixed", "30-day guarantee"],
   features: [
@@ -358,7 +384,7 @@ export const servicingPage: ServicePage = {
   eyebrow: "Boiler Servicing",
   headline: "Annual service from £79 — keep it safe, keep the warranty valid",
   subline:
-    "A full safety check and service from a Gas Safe engineer — most manufacturers require it to keep your boiler's warranty valid.",
+    "A full safety check and service from a Gas Safe engineer across the North East — most manufacturers require it to keep your boiler's warranty valid.",
   cta: "Book a service",
   ticks: ["From £79", "Gas Safe registered", "Takes around 45 minutes"],
   features: [
@@ -413,7 +439,7 @@ export const newBoilersPage: ServicePage = {
   eyebrow: "New Boilers",
   headline: "A new boiler, fitted properly — fixed price, no surprises",
   subline:
-    "Free, no-obligation quotes on new boiler installations from all major manufacturers, fitted by a Gas Safe engineer.",
+    "Free, no-obligation quotes on new boiler installations across the North East, from all major manufacturers, fitted by a Gas Safe engineer.",
   cta: "Get a quote",
   ticks: ["Free quotes", "Fixed price", "Gas Safe registered"],
   features: [
@@ -466,7 +492,7 @@ export const commercialPage: ServicePage = {
   eyebrow: "Commercial",
   headline: "Commercial gas, heating and electrics — sorted without disrupting your business",
   subline:
-    "Gas appliances, catering equipment, commercial boilers and EICR/gas safety certification, with priority call-outs so downtime doesn't cost you.",
+    "Gas appliances, catering equipment, commercial boilers and EICR/gas safety certification for businesses across the North East, with priority call-outs so downtime doesn't cost you.",
   cta: "Enquire about commercial services",
   ticks: ["Priority call-outs", "Gas Safe registered", "Account invoicing available"],
   features: [

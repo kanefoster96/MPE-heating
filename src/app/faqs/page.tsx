@@ -6,12 +6,16 @@ import { Faq } from "@/components/Faq";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
-import { faqsPage, business } from "@/lib/content";
+import { faqsPage, faqs } from "@/lib/content";
 import { QuestionIcon } from "@/components/icons";
+import { SITE_URL, faqPageJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: `FAQs | ${business.fullName}`,
+  title: "FAQs",
   description: faqsPage.subline,
+  alternates: { canonical: `${SITE_URL}/faqs` },
+  openGraph: { url: `${SITE_URL}/faqs` },
 };
 
 export default function FaqsPage() {
@@ -34,6 +38,7 @@ export default function FaqsPage() {
       </main>
       <Footer />
       <FloatingWhatsapp />
+      <JsonLd data={faqPageJsonLd([...faqs.homes, ...faqs.commercial])} />
     </>
   );
 }

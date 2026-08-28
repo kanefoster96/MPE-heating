@@ -9,12 +9,16 @@ import { Reviews } from "@/components/Reviews";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
-import { commercialPage, business } from "@/lib/content";
+import { commercialPage } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
+import { SITE_URL, serviceJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: `Commercial Services | ${business.fullName}`,
+  title: "Commercial Gas, Heating & Electrics",
   description: commercialPage.subline,
+  alternates: { canonical: `${SITE_URL}/${commercialPage.slug}` },
+  openGraph: { url: `${SITE_URL}/${commercialPage.slug}` },
 };
 
 export default function CommercialPage() {
@@ -63,6 +67,7 @@ export default function CommercialPage() {
       </main>
       <Footer />
       <FloatingWhatsapp />
+      <JsonLd data={serviceJsonLd(commercialPage)} />
     </>
   );
 }

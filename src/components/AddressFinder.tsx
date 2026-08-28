@@ -2,19 +2,19 @@
 
 import { useState } from "react";
 
-// TODO(address-api): wire this up to a real UK address lookup provider once
-// there's an API key for one — e.g. getAddress.io, Ideal Postcodes, or
-// Loqate. Royal Mail's address data (PAF) is commercially licensed, so
-// there's no free way to turn a postcode into a real list of properties;
-// every UK provider that does this is a paid API. Typical shape:
-//   GET https://api.getaddress.io/find/{postcode}?api-key=...
-// returning an array of formatted address lines — that's what actually gets
-// an exact property, since a postcode alone only narrows it to a street or
-// two. Until then this always returns no results and falls back to manual
-// entry below, which keeps the form fully usable either way.
-async function lookupAddressStub(_postcode: string): Promise<string[]> {
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  return [];
+// Calls our own /api/address-lookup route (never the address provider
+// directly — that keeps the real API key server-side). See that route for
+// how it's configured. `configured: false` means no API key is set at all
+// (only possible in production without IDEAL_POSTCODES_API_KEY); anything
+// else just means no addresses were found for that postcode.
+async function lookupAddress(postcode: string): Promise<{ addresses: string[]; configured: boolean }> {
+  try {
+    const res = await fetch(`/api/address-lookup?postcode=${encodeURIComponent(postcode)}`);
+    const data = await res.json();
+    return { addresses: data.addresses ?? [], configured: data.configured ?? true };
+  } catch {
+    return { addresses: [], configured: true };
+  }
 }
 
 export function AddressFinder({
@@ -29,13 +29,15 @@ export function AddressFinder({
   const [postcode, setPostcode] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<string[] | null>(null);
+  const [configured, setConfigured] = useState(true);
 
   const handleFind = async () => {
     if (!postcode.trim()) return;
     setSearching(true);
-    const found = await lookupAddressStub(postcode);
+    const { addresses, configured } = await lookupAddress(postcode);
     setSearching(false);
-    setResults(found);
+    setResults(addresses);
+    setConfigured(configured);
   };
 
   return (
@@ -91,7 +93,9 @@ export function AddressFinder({
 
       {results && results.length === 0 && (
         <p className="mt-2 text-xs text-navy/50">
-          Address lookup isn&rsquo;t connected yet — enter your address below.
+          {configured
+            ? "No addresses found for that postcode — check it, or enter your address below."
+            : "Address lookup isn't set up yet — enter your address below."}
         </p>
       )}
 

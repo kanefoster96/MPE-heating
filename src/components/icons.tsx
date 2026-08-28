@@ -86,6 +86,15 @@ export function StarIcon(props: IconProps) {
   );
 }
 
+export function SearchIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20.5 20.5 16 16" />
+    </svg>
+  );
+}
+
 export function QuestionIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

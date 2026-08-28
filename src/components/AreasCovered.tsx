@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { business } from "@/lib/content";
+import { areaPages } from "@/lib/areas";
 
-// Towns with their own dedicated local page — linked from the prose below
-// instead of plain text. Add to this as more area pages ship.
-const areaPageSlugs: Record<string, string> = {
-  "Whitley Bay": "/areas/whitley-bay",
-};
+// Every town in business.areasList now has its own page (src/lib/areas.ts)
+// — this map is built from that list rather than hand-maintained, so a
+// new area page ships already linked here.
+const areaPageSlugs: Record<string, string> = Object.fromEntries(
+  areaPages.map((area) => [area.name, `/areas/${area.slug}`])
+);
 
 export function AreasCovered() {
   const towns = business.areasList;
@@ -33,7 +35,11 @@ export function AreasCovered() {
                 </span>
               );
             })}
-            .
+            . See our{" "}
+            <Link href="/areas" className="font-semibold text-terracotta hover:underline">
+              full areas we cover page
+            </Link>{" "}
+            for local details on each.
           </p>
         </div>
       </div>

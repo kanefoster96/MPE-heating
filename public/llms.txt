@@ -26,7 +26,23 @@ Washington, Redcar, and the wider North East of England.
 
 ## Local pages
 
-- [Whitley Bay](https://mpenortheast.co.uk/areas/whitley-bay): Boiler repairs and heating engineers serving Whitley Bay and the North Tyneside coast.
+Every town below has its own page with local detail (distance from base, typical housing/boiler types, area-specific FAQs) — not a generic template.
+
+- [Areas We Cover index](https://mpenortheast.co.uk/areas): Full list of towns served, with links to each.
+- [Whitley Bay](https://mpenortheast.co.uk/areas/whitley-bay): MPE's home town, on the North Tyneside coast.
+- [Newcastle](https://mpenortheast.co.uk/areas/newcastle)
+- [Gateshead](https://mpenortheast.co.uk/areas/gateshead)
+- [Gosforth](https://mpenortheast.co.uk/areas/gosforth)
+- [Wallsend](https://mpenortheast.co.uk/areas/wallsend)
+- [South Shields](https://mpenortheast.co.uk/areas/south-shields)
+- [Cramlington](https://mpenortheast.co.uk/areas/cramlington)
+- [Ashington](https://mpenortheast.co.uk/areas/ashington)
+- [Sunderland](https://mpenortheast.co.uk/areas/sunderland)
+- [Blyth](https://mpenortheast.co.uk/areas/blyth)
+- [Morpeth](https://mpenortheast.co.uk/areas/morpeth)
+- [West Boldon](https://mpenortheast.co.uk/areas/west-boldon)
+- [Washington](https://mpenortheast.co.uk/areas/washington)
+- [Redcar](https://mpenortheast.co.uk/areas/redcar): The furthest-out town covered, on the Teesside coast — response times can be longer than closer areas.
 
 ## Advice & guides
 

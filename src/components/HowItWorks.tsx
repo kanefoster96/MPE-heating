@@ -40,7 +40,7 @@ export function HowItWorks() {
         <div className="mt-12 flex justify-center">
           <a
             href={business.phoneHref}
-            className="inline-flex items-center justify-center rounded-full bg-terracotta px-8 py-4 text-base font-semibold text-white shadow-[0_12px_25px_-10px_rgba(232,98,58,0.7)] transition-colors hover:bg-terracotta-dark"
+            className="bg-btn-gradient inline-flex items-center justify-center rounded-full px-8 py-4 text-base font-semibold text-white shadow-[0_12px_25px_-10px_rgba(232,98,58,0.7)]"
           >
             Book a visit
           </a>

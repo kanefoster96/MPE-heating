@@ -1,4 +1,4 @@
-import { whyMpe, business } from "@/lib/content";
+import { whyMpe, whyMpeIntro, business } from "@/lib/content";
 import { PriceTagIcon, ClockIcon, CheckIcon } from "./icons";
 
 const iconMap = {
@@ -18,6 +18,7 @@ export function WhyMpe() {
           <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">
             Boiler trouble, sorted properly
           </h2>
+          <p className="mt-4 text-sm text-navy/70 sm:text-base">{whyMpeIntro}</p>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-3">

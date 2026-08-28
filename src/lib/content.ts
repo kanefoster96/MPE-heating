@@ -512,6 +512,17 @@ export const commercialPage: ServicePage = {
   ],
 };
 
+// Doesn't use the ServicePage type (no features/checklist) — the page
+// itself reuses the existing Faq component for the actual content.
+export const faqsPage = {
+  eyebrow: "Questions",
+  headline: "Straight answers, no small print",
+  subline:
+    "Everything customers usually ask about pricing, response times and what's covered — for homes and commercial alike.",
+  cta: "Ask us anything",
+  ticks: ["Gas Safe registered", "Honest, upfront pricing", "No pressure, ever"],
+};
+
 export const finalCta = {
   headline: "Boiler playing up? Let's get it sorted.",
   cta: "Book a visit",

@@ -13,7 +13,7 @@ const links: { label: string; href?: string }[] = [
   { label: "Servicing", href: "/servicing" },
   { label: "New boilers", href: "/new-boilers" },
   { label: "Commercial", href: "/commercial" },
-  { label: "FAQs" },
+  { label: "FAQs", href: "/faqs" },
 ];
 
 export function Nav() {

@@ -1,4 +1,5 @@
-import { commercial, business } from "@/lib/content";
+import Link from "next/link";
+import { commercial } from "@/lib/content";
 import { BuildingIcon, ArrowRightIcon } from "./icons";
 import { ProductArt } from "./ProductArt";
 
@@ -18,13 +19,13 @@ export function CommercialTeaser() {
               </h2>
             </div>
           </div>
-          <a
-            href={`mailto:${business.email}`}
+          <Link
+            href="/commercial"
             className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-blue transition-colors hover:bg-white/90"
           >
             {commercial.cta}
             <ArrowRightIcon className="h-4 w-4" />
-          </a>
+          </Link>
         </div>
       </div>
     </section>

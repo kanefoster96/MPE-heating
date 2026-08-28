@@ -459,13 +459,66 @@ export const newBoilersPage: ServicePage = {
   ],
 };
 
+export const commercialPage: ServicePage = {
+  slug: "commercial",
+  navLabel: "Commercial",
+  icon: "building",
+  eyebrow: "Commercial",
+  headline: "Commercial gas, heating and electrics — sorted without disrupting your business",
+  subline:
+    "Gas appliances, catering equipment, commercial boilers and EICR/gas safety certification, with priority call-outs so downtime doesn't cost you.",
+  cta: "Enquire about commercial services",
+  ticks: ["Priority call-outs", "Gas Safe registered", "Account invoicing available"],
+  features: [
+    {
+      icon: "building",
+      title: "Commercial gas & catering equipment",
+      text: "Ovens, fryers, commercial boilers and gas appliances for offices, restaurants and salons.",
+    },
+    {
+      icon: "shield",
+      title: "Maintenance contracts",
+      text: "Scheduled maintenance with priority call-out included, so breakdowns don't catch you out.",
+    },
+    {
+      icon: "gassafe",
+      title: "EICR & gas safety certificates",
+      text: "Full commercial EICRs and gas safety inspections, with certification for compliance.",
+    },
+    {
+      icon: "clock",
+      title: "Fast response",
+      text: "We prioritise breakdowns that affect trading — most sites are seen within 24 hours.",
+    },
+    {
+      icon: "price",
+      title: "Account invoicing available",
+      text: "We can set up account invoicing for commercial and landlord clients.",
+    },
+    {
+      icon: "check",
+      title: "Landlord certificates",
+      text: "CP12 gas safety and EICR certificates, with reminders before they expire.",
+    },
+  ],
+  checklistTitle: "Commercial services we cover",
+  checklistItems: [
+    "Commercial boiler installation & repair",
+    "Catering equipment servicing",
+    "Gas safety inspections & CP12 certificates",
+    "Commercial EICR & electrical testing",
+    "Maintenance contracts with priority call-out",
+    "Landlord gas & electrical compliance",
+  ],
+};
+
 export const finalCta = {
   headline: "Boiler playing up? Let's get it sorted.",
   cta: "Book a visit",
 };
 
 export const footerLinks: { label: string; href?: string }[] = [
-  { label: "Commercial" },
+  { label: "Commercial", href: "/commercial" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
 ];

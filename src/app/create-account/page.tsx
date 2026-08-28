@@ -156,22 +156,21 @@ export default function CreateAccountPage() {
               error={errors.companyName}
             />
 
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                id="vatNumber"
-                label="VAT number (optional)"
-                type="text"
-                value={vatNumber}
-                onChange={(e) => setVatNumber(e.target.value)}
-              />
-              <FormField
-                id="companyRegNumber"
-                label="Company reg. no. (optional)"
-                type="text"
-                value={companyRegNumber}
-                onChange={(e) => setCompanyRegNumber(e.target.value)}
-              />
-            </div>
+            <FormField
+              id="vatNumber"
+              label="VAT number (optional)"
+              type="text"
+              value={vatNumber}
+              onChange={(e) => setVatNumber(e.target.value)}
+            />
+
+            <FormField
+              id="companyRegNumber"
+              label="Company registration number (optional)"
+              type="text"
+              value={companyRegNumber}
+              onChange={(e) => setCompanyRegNumber(e.target.value)}
+            />
           </>
         )}
 

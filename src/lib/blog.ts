@@ -1,12 +1,9 @@
 // Blog content — plain typed data rather than MDX, consistent with how
 // the rest of the site's copy lives in content.ts. Each post's `content`
-// is a small set of block types rendered by BlogArticle.tsx.
+// is a small set of block types (see richContent.ts) rendered by
+// RichContent.tsx.
 
-export type ContentBlock =
-  | { type: "p"; text: string }
-  | { type: "h2"; text: string }
-  | { type: "list"; items: string[] }
-  | { type: "callout"; text: string };
+import type { ContentBlock } from "./richContent";
 
 export type BlogPost = {
   slug: string;

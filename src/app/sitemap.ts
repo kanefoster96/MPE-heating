@@ -16,6 +16,9 @@ const routes = [
   { path: "/faqs", priority: 0.7, changeFrequency: "monthly" as const },
   { path: "/blog", priority: 0.7, changeFrequency: "weekly" as const },
   { path: "/contact", priority: 0.6, changeFrequency: "yearly" as const },
+  { path: "/about", priority: 0.5, changeFrequency: "yearly" as const },
+  { path: "/privacy", priority: 0.2, changeFrequency: "yearly" as const },
+  { path: "/terms", priority: 0.2, changeFrequency: "yearly" as const },
   ...areaPages.map((area) => ({
     path: `/areas/${area.slug}`,
     priority: 0.8,

@@ -56,4 +56,7 @@ Every town below has its own page with local detail (distance from base, typical
 ## Other pages
 
 - [FAQs](https://mpenortheast.co.uk/faqs): Answers on pricing, response times, Gas Safe registration, the 30-day guarantee, and commercial services.
+- [About Us](https://mpenortheast.co.uk/about): Who MPE are and what they do.
 - [Contact](https://mpenortheast.co.uk/contact): Booking and enquiry form.
+- [Terms & Conditions](https://mpenortheast.co.uk/terms)
+- [Privacy Policy](https://mpenortheast.co.uk/privacy)

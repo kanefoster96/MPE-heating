@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { AuthLayout } from "@/components/AuthLayout";
 import { AccountTypeToggle, type AccountType } from "@/components/AccountTypeToggle";
+import { AddressFinder } from "@/components/AddressFinder";
 import { FormField } from "@/components/FormField";
 import { PasswordField } from "@/components/PasswordField";
 import {
@@ -15,7 +16,7 @@ import {
 
 type Errors = Partial<{
   fullName: string;
-  businessName: string;
+  companyName: string;
   email: string;
   phone: string;
   password: string;
@@ -33,20 +34,24 @@ type Errors = Partial<{
 //         full_name: fullName,
 //         phone,
 //         address, // optional, either type
-//         account_type: accountType, // "personal" | "business"
-//         business_name: accountType === "business" ? businessName : null,
+//         account_type: accountType, // "home" | "commercial"
+//         company_name: accountType === "commercial" ? companyName : null,
+//         vat_number: accountType === "commercial" ? vatNumber : null,
+//         company_reg_number: accountType === "commercial" ? companyRegNumber : null,
 //       },
 //     },
 //   });
-// account_type/business_name are the "commercial" label the client asked
-// for — lets future marketing/CRM segment business vs personal customers.
+// account_type/company_name are the "commercial" label the client asked
+// for — lets future marketing/CRM segment home vs commercial customers.
 // Pull all of this into a `profiles` table via a Postgres trigger on
 // auth.users if you want it queryable, rather than only living in JWT
 // metadata.
 async function signUpStub(_fields: {
   accountType: AccountType;
   fullName: string;
-  businessName: string;
+  companyName: string;
+  vatNumber: string;
+  companyRegNumber: string;
   email: string;
   phone: string;
   address: string;
@@ -57,9 +62,11 @@ async function signUpStub(_fields: {
 }
 
 export default function CreateAccountPage() {
-  const [accountType, setAccountType] = useState<AccountType>("personal");
+  const [accountType, setAccountType] = useState<AccountType>("home");
   const [fullName, setFullName] = useState("");
-  const [businessName, setBusinessName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [vatNumber, setVatNumber] = useState("");
+  const [companyRegNumber, setCompanyRegNumber] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -70,7 +77,7 @@ export default function CreateAccountPage() {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const isBusiness = accountType === "business";
+  const isCommercial = accountType === "commercial";
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -78,8 +85,8 @@ export default function CreateAccountPage() {
 
     const nextErrors: Errors = {};
     if (fullName.trim().length < 2) nextErrors.fullName = "Enter your full name.";
-    if (isBusiness && businessName.trim().length < 2) {
-      nextErrors.businessName = "Enter your business name.";
+    if (isCommercial && companyName.trim().length < 2) {
+      nextErrors.companyName = "Enter your company name.";
     }
     if (!isValidEmail(email)) nextErrors.email = "Enter a valid email address.";
     if (!isValidPhone(phone)) nextErrors.phone = "Enter a valid phone number.";
@@ -96,7 +103,9 @@ export default function CreateAccountPage() {
     const { error } = await signUpStub({
       accountType,
       fullName,
-      businessName,
+      companyName,
+      vatNumber,
+      companyRegNumber,
       email,
       phone,
       address,
@@ -135,16 +144,35 @@ export default function CreateAccountPage() {
           error={errors.fullName}
         />
 
-        {isBusiness && (
-          <FormField
-            id="businessName"
-            label="Business name"
-            type="text"
-            autoComplete="organization"
-            value={businessName}
-            onChange={(e) => setBusinessName(e.target.value)}
-            error={errors.businessName}
-          />
+        {isCommercial && (
+          <>
+            <FormField
+              id="companyName"
+              label="Company name"
+              type="text"
+              autoComplete="organization"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              error={errors.companyName}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                id="vatNumber"
+                label="VAT number (optional)"
+                type="text"
+                value={vatNumber}
+                onChange={(e) => setVatNumber(e.target.value)}
+              />
+              <FormField
+                id="companyRegNumber"
+                label="Company reg. no. (optional)"
+                type="text"
+                value={companyRegNumber}
+                onChange={(e) => setCompanyRegNumber(e.target.value)}
+              />
+            </div>
+          </>
         )}
 
         <FormField
@@ -167,14 +195,10 @@ export default function CreateAccountPage() {
           error={errors.phone}
         />
 
-        <FormField
-          id="address"
-          label={isBusiness ? "Business address (optional)" : "Home address (optional)"}
-          type="text"
-          autoComplete="street-address"
-          placeholder="Street, town, postcode"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
+        <AddressFinder
+          label={isCommercial ? "Business address (optional)" : "Home address (optional)"}
+          address={address}
+          onAddressChange={setAddress}
         />
 
         <PasswordField

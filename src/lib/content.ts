@@ -21,7 +21,7 @@ export type PromoMessage = { text: string; tone?: "cold" };
 export const promoMessages: PromoMessage[] = [
   { text: "£50 call-out, deducted from your final bill." },
   { text: "Boiler broken down? Same-day response.", tone: "cold" },
-  { text: "No fix, no fee — you only pay if we solve it." },
+  { text: "£50 call-out, refunded when we fix it." },
   { text: "Free, no-obligation quotes on new boilers." },
   { text: "Gas Safe engineers, price agreed before we start." },
 ];
@@ -45,7 +45,7 @@ export const hero = {
   },
   ticks: [
     "Gas Safe registered",
-    "No fix, no fee",
+    "£50 call-out refunded when fixed",
     "30-day guarantee",
   ],
 };

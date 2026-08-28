@@ -86,6 +86,16 @@ export function StarIcon(props: IconProps) {
   );
 }
 
+export function AlertTriangleIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 4 3 20h18L12 4Z" />
+      <path d="M12 10.5v4" />
+      <circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function ShieldIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

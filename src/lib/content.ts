@@ -28,19 +28,24 @@ export const promoMessages: PromoMessage[] = [
 
 export const hero = {
   label: "Boiler Repairs",
-  headline: "Boiler broken? Same-day repairs across the North East",
-  subline: "Gas Safe registered engineers, price agreed before any work starts.",
+  // The outcome the customer gets.
+  headline: "Hot water and heating, working again",
+  // What MPE does for them to get there.
+  subline:
+    "Our engineers diagnose the fault, agree a fair price, and get it fixed — across the North East.",
   cta: "Book a visit",
   // White overlay copy shown beside the boiler photo, above the main card.
   // question is the italic lead-in (paired with a pulsing red dot), answer
-  // is the bold follow-up line.
+  // is the bold follow-up line, emergencyCta is the secondary pill button
+  // shown underneath.
   imageCallout: {
     question: "Boiler flashing red?",
     answer: "Book same-day response.",
+    emergencyCta: "Request emergency callout",
   },
   ticks: [
-    "Same-day response",
-    "£50 call-out deducted",
+    "Gas Safe registered",
+    "No fix, no fee",
     "30-day guarantee",
   ],
 };

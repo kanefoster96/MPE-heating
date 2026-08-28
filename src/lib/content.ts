@@ -10,7 +10,7 @@ export const business = {
   email: "info@mpeheating.co.uk",
   gasSafeNumber: "552052",
   areas:
-    "Covering Newcastle, North Tyneside, Gateshead, South Tyneside, Sunderland and Northumberland.",
+    "We operate across all areas in the North East, including Newcastle, Gateshead, Gosforth, Whitley Bay, Wallsend, South Shields, Cramlington, Ashington, Sunderland, Blyth, Morpeth, West Boldon, Washington and Redcar.",
 };
 
 export type PromoMessage = { text: string; tone?: "cold" };

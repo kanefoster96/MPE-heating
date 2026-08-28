@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { AuthLayout } from "@/components/AuthLayout";
+import { AccountTypeToggle, type AccountType } from "@/components/AccountTypeToggle";
 import { FormField } from "@/components/FormField";
 import { PasswordField } from "@/components/PasswordField";
 import {
@@ -14,6 +15,7 @@ import {
 
 type Errors = Partial<{
   fullName: string;
+  businessName: string;
   email: string;
   phone: string;
   password: string;
@@ -26,15 +28,28 @@ type Errors = Partial<{
 //   const { data, error } = await supabase.auth.signUp({
 //     email,
 //     password,
-//     options: { data: { full_name: fullName, phone } },
+//     options: {
+//       data: {
+//         full_name: fullName,
+//         phone,
+//         address, // optional, either type
+//         account_type: accountType, // "personal" | "business"
+//         business_name: accountType === "business" ? businessName : null,
+//       },
+//     },
 //   });
-// The full name and phone number ride in `options.data` (user metadata) —
-// pull them into a `profiles` table via a Postgres trigger on auth.users if
-// you want them queryable, rather than only living in the JWT metadata.
+// account_type/business_name are the "commercial" label the client asked
+// for — lets future marketing/CRM segment business vs personal customers.
+// Pull all of this into a `profiles` table via a Postgres trigger on
+// auth.users if you want it queryable, rather than only living in JWT
+// metadata.
 async function signUpStub(_fields: {
+  accountType: AccountType;
   fullName: string;
+  businessName: string;
   email: string;
   phone: string;
+  address: string;
   password: string;
 }): Promise<{ error: string | null }> {
   await new Promise((resolve) => setTimeout(resolve, 500));
@@ -42,9 +57,12 @@ async function signUpStub(_fields: {
 }
 
 export default function CreateAccountPage() {
+  const [accountType, setAccountType] = useState<AccountType>("personal");
   const [fullName, setFullName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -52,12 +70,17 @@ export default function CreateAccountPage() {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const isBusiness = accountType === "business";
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setNotice(null);
 
     const nextErrors: Errors = {};
     if (fullName.trim().length < 2) nextErrors.fullName = "Enter your full name.";
+    if (isBusiness && businessName.trim().length < 2) {
+      nextErrors.businessName = "Enter your business name.";
+    }
     if (!isValidEmail(email)) nextErrors.email = "Enter a valid email address.";
     if (!isValidPhone(phone)) nextErrors.phone = "Enter a valid phone number.";
     if (!passwordMeetsMinimum(password)) {
@@ -70,7 +93,15 @@ export default function CreateAccountPage() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
-    const { error } = await signUpStub({ fullName, email, phone, password });
+    const { error } = await signUpStub({
+      accountType,
+      fullName,
+      businessName,
+      email,
+      phone,
+      address,
+      password,
+    });
     setSubmitting(false);
 
     setNotice(
@@ -83,6 +114,7 @@ export default function CreateAccountPage() {
       eyebrow="Get started"
       title="Create your account"
       subtitle="Track bookings, invoices and messages in one place."
+      topSlot={<AccountTypeToggle value={accountType} onChange={setAccountType} />}
       footer={
         <>
           Already have an account?{" "}
@@ -103,6 +135,18 @@ export default function CreateAccountPage() {
           error={errors.fullName}
         />
 
+        {isBusiness && (
+          <FormField
+            id="businessName"
+            label="Business name"
+            type="text"
+            autoComplete="organization"
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+            error={errors.businessName}
+          />
+        )}
+
         <FormField
           id="email"
           label="Email address"
@@ -121,6 +165,16 @@ export default function CreateAccountPage() {
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           error={errors.phone}
+        />
+
+        <FormField
+          id="address"
+          label={isBusiness ? "Business address (optional)" : "Home address (optional)"}
+          type="text"
+          autoComplete="street-address"
+          placeholder="Street, town, postcode"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
         />
 
         <PasswordField

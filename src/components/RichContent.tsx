@@ -1,7 +1,9 @@
-import type { ContentBlock } from "@/lib/blog";
+import type { ContentBlock } from "@/lib/richContent";
 import { AlertTriangleIcon } from "./icons";
 
-export function BlogArticle({ blocks }: { blocks: ContentBlock[] }) {
+// Renders headings/paragraphs/lists/callouts for blog posts, and legal/
+// info pages (privacy, terms, about) that share the same simple structure.
+export function RichContent({ blocks }: { blocks: ContentBlock[] }) {
   return (
     <div className="flex flex-col gap-5">
       {blocks.map((block, i) => {

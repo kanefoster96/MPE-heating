@@ -1,6 +1,8 @@
 // Central place for editable site copy & business details.
 // Swap placeholder values (phone, Gas Safe number, reviews) for the real thing before launch.
 
+import type { ContentBlock } from "./richContent";
+
 // Single source of truth for the towns served — backs both the prose
 // sentence below (business.areas) and the structured areaServed list used
 // in JSON-LD (see src/lib/seo.ts), so they can never drift apart.
@@ -154,6 +156,34 @@ export const services: ServiceCard[] = [
 export const about = {
   text: "As a family-run business, we take pride in delivering honest, reliable, and professional services across electrical, plumbing, and gas works. We are committed to providing high-quality workmanship with a straightforward, no-nonsense approach and competitive pricing. Customer satisfaction is at the heart of what we do, and our reputation is built on the trust and positive feedback of those we've proudly served.",
 };
+
+// About page body — reuses about.text as the lead paragraph. Deliberately
+// doesn't name a specific founder or claim "X years in business": the
+// client asked earlier for copy that reads as a team rather than a single
+// person, and we don't have a confirmed founding date to state as fact.
+export const aboutPageContent: ContentBlock[] = [
+  { type: "p", text: about.text },
+  {
+    type: "p",
+    text: `We're Gas Safe registered (registration number ${business.gasSafeNumber}) and cover ${business.region} — see our full list of areas we cover for local detail on each.`,
+  },
+  { type: "h2", text: "What we do" },
+  {
+    type: "list",
+    items: [
+      "Boiler repairs — same-day response where we can, £50 call-out refunded when we fix it",
+      "Boiler servicing — annual service from £79, keeps your warranty valid",
+      "New boiler installations — free quotes, fixed price",
+      "Plumbing and electrics — leaks, taps, bathrooms, fuse boards, rewires, EV chargers",
+      "Commercial gas, catering equipment and compliance certificates",
+    ],
+  },
+  { type: "h2", text: "How we work" },
+  {
+    type: "p",
+    text: "Price agreed before any work starts. No pressure, no upselling — just an honest diagnosis and a fair price. Every repair comes with a 30-day guarantee, and if something's not right, we'll come back and put it right.",
+  },
+];
 
 export const whyMpeIntro =
   "A family-run business built on honest, reliable work — straightforward pricing, no-nonsense service, and a reputation built on the customers we've proudly served.";
@@ -555,6 +585,7 @@ export const finalCta = {
 };
 
 export const footerLinks: { label: string; href?: string }[] = [
+  { label: "About", href: "/about" },
   { label: "Commercial", href: "/commercial" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },

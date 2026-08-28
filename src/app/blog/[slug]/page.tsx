@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Nav } from "@/components/Nav";
 import { PromoStrip } from "@/components/PromoStrip";
-import { BlogArticle } from "@/components/BlogArticle";
+import { RichContent } from "@/components/RichContent";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
@@ -71,7 +71,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
           </p>
 
           <div className="mt-8 rounded-[28px] bg-white p-6 shadow-[0_20px_45px_-25px_rgba(31,42,58,0.3)] sm:p-10">
-            <BlogArticle blocks={post.content} />
+            <RichContent blocks={post.content} />
           </div>
 
           <Link

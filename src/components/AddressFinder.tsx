@@ -4,16 +4,25 @@ import { useState } from "react";
 
 // Calls our own /api/address-lookup route (never the address provider
 // directly — that keeps the real API key server-side). See that route for
-// how it's configured. `configured: false` means no API key is set at all
-// (only possible in production without IDEAL_POSTCODES_API_KEY); anything
-// else just means no addresses were found for that postcode.
-async function lookupAddress(postcode: string): Promise<{ addresses: string[]; configured: boolean }> {
+// how it's configured.
+//   configured: false  -> no API key set at all (only possible in
+//                         production without IDEAL_POSTCODES_API_KEY)
+//   unavailable: true  -> key is set but out of credit or rate-limited —
+//                         not the postcode's fault, so this gets its own
+//                         message rather than implying nothing was found
+async function lookupAddress(
+  postcode: string
+): Promise<{ addresses: string[]; configured: boolean; unavailable: boolean }> {
   try {
     const res = await fetch(`/api/address-lookup?postcode=${encodeURIComponent(postcode)}`);
     const data = await res.json();
-    return { addresses: data.addresses ?? [], configured: data.configured ?? true };
+    return {
+      addresses: data.addresses ?? [],
+      configured: data.configured ?? true,
+      unavailable: data.unavailable ?? false,
+    };
   } catch {
-    return { addresses: [], configured: true };
+    return { addresses: [], configured: true, unavailable: false };
   }
 }
 
@@ -30,14 +39,16 @@ export function AddressFinder({
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<string[] | null>(null);
   const [configured, setConfigured] = useState(true);
+  const [unavailable, setUnavailable] = useState(false);
 
   const handleFind = async () => {
     if (!postcode.trim()) return;
     setSearching(true);
-    const { addresses, configured } = await lookupAddress(postcode);
+    const { addresses, configured, unavailable } = await lookupAddress(postcode);
     setSearching(false);
     setResults(addresses);
     setConfigured(configured);
+    setUnavailable(unavailable);
   };
 
   return (
@@ -93,9 +104,11 @@ export function AddressFinder({
 
       {results && results.length === 0 && (
         <p className="mt-2 text-xs text-navy/50">
-          {configured
-            ? "No addresses found for that postcode — check it, or enter your address below."
-            : "Address lookup isn't set up yet — enter your address below."}
+          {unavailable
+            ? "Address lookup is temporarily unavailable — enter your address below."
+            : configured
+              ? "No addresses found for that postcode — check it, or enter your address below."
+              : "Address lookup isn't set up yet — enter your address below."}
         </p>
       )}
 

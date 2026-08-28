@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     (process.env.NODE_ENV !== "production" ? DEV_TEST_KEY : null);
 
   if (!apiKey) {
-    return NextResponse.json({ addresses: [], configured: false });
+    return NextResponse.json({ addresses: [], configured: false, unavailable: false });
   }
 
   try {
@@ -50,18 +50,28 @@ export async function GET(request: NextRequest) {
       postcode
     )}?api_key=${apiKey}`;
     const response = await fetch(url);
+
+    // 402 covers both "key balance depleted" (out of credits) and "lookup
+    // limit reached" (rate limit — this is exactly what happens once the
+    // shared dev ak_test key hits its 5/day cap). Either way it's not the
+    // postcode's fault, so the UI should say so rather than imply nothing
+    // was found there.
+    if (response.status === 402) {
+      return NextResponse.json({ addresses: [], configured: true, unavailable: true });
+    }
+
     const data = await response.json();
 
     if (!response.ok || !Array.isArray(data?.result)) {
-      return NextResponse.json({ addresses: [], configured: true });
+      return NextResponse.json({ addresses: [], configured: true, unavailable: false });
     }
 
     const addresses = (data.result as IdealPostcodesResult[])
       .map((r) => [r.line_1, r.line_2, r.line_3, r.post_town, r.postcode].filter(Boolean).join(", "))
       .filter(Boolean);
 
-    return NextResponse.json({ addresses, configured: true });
+    return NextResponse.json({ addresses, configured: true, unavailable: false });
   } catch {
-    return NextResponse.json({ addresses: [], configured: true });
+    return NextResponse.json({ addresses: [], configured: true, unavailable: false });
   }
 }

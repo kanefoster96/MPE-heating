@@ -71,6 +71,15 @@ export const hero = {
     answer: "Book same-day response.",
     emergencyCta: "Request emergency callout",
   },
+  // Placeholder figure — swap for the real same-day fix rate once we have
+  // the numbers to back it. value/label render as one line; explainer is
+  // the pop-up text behind the info icon next to it.
+  sameDayStat: {
+    value: "90%",
+    label: "of boilers fixed same-day",
+    explainer:
+      "Different boilers use different parts, so we can't promise a fix on the spot every time. But we carry the most common parts and faults for the most popular brands, so most jobs are done in one visit. On the rare occasion we can't finish it same-day, we'll reschedule your repair — usually within 24 hours.",
+  },
   ticks: [
     "Gas Safe registered",
     "£50 call-out refunded when fixed",

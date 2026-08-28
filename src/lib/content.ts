@@ -264,6 +264,93 @@ export const commercial = {
   cta: "Commercial services",
 };
 
+// Icon keys shared by every service sub-page's feature grid — mapped to
+// actual icon components in src/lib/featureIcons.tsx, not here, so this
+// file stays free of any component/JSX dependency.
+export type FeatureIcon =
+  | "price"
+  | "clock"
+  | "check"
+  | "shield"
+  | "gassafe"
+  | "boiler"
+  | "service"
+  | "newboiler"
+  | "plumbing"
+  | "electrics"
+  | "landlord"
+  | "building"
+  | "award";
+
+export type ServicePage = {
+  slug: string;
+  navLabel: string;
+  icon: FeatureIcon;
+  eyebrow: string;
+  headline: string;
+  subline: string;
+  cta: string;
+  ticks: string[];
+  features: { icon: FeatureIcon; title: string; text: string }[];
+  checklistTitle: string;
+  checklistItems: string[];
+};
+
+export const boilerRepairPage: ServicePage = {
+  slug: "boiler-repair",
+  navLabel: "Boiler repair",
+  icon: "boiler",
+  eyebrow: "Boiler Repair",
+  headline: "Boiler fixed, fast — with a price you agreed first",
+  subline:
+    "Same-day response where we can, Gas Safe engineers, and a 30-day guarantee on every repair we carry out.",
+  cta: "Book a repair",
+  ticks: ["Gas Safe registered", "£50 call-out refunded when fixed", "30-day guarantee"],
+  features: [
+    {
+      icon: "clock",
+      title: "Same-day response",
+      text: "Heating and hot water can't wait — most repairs are seen the same day.",
+    },
+    {
+      icon: "price",
+      title: "Price agreed first",
+      text: "We diagnose the fault and agree the cost with you before any work starts.",
+    },
+    {
+      icon: "gassafe",
+      title: "Gas Safe registered",
+      text: `Every engineer is Gas Safe registered (registration number ${business.gasSafeNumber}) and fully insured.`,
+    },
+    {
+      icon: "check",
+      title: "£50 call-out, refunded when fixed",
+      text: "Not a hidden charge — it comes straight off your bill once we fix it.",
+    },
+    {
+      icon: "shield",
+      title: "30-day guarantee",
+      text: "If the same fault comes back within 30 days, we'll return and put it right at no extra cost.",
+    },
+    {
+      icon: "boiler",
+      title: "All major brands",
+      text: "Worcester Bosch, Vaillant, Baxi, Ideal, Glow-worm and more.",
+    },
+  ],
+  checklistTitle: "Common boiler problems we fix",
+  checklistItems: [
+    "No heat or no hot water",
+    "Boiler losing pressure",
+    "Leaking or dripping boiler",
+    "Strange banging or gurgling noises",
+    "Pilot light won't stay lit",
+    "Boiler locked out or showing a fault code",
+    "Radiators not heating up properly",
+    "Thermostat or timer not working",
+  ],
+};
+
 export const finalCta = {
   headline: "Boiler playing up? Let's get it sorted.",
   cta: "Book a visit",

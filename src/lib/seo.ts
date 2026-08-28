@@ -1,4 +1,5 @@
 import { business, services, type ServicePage, type FaqItem } from "./content";
+import type { BlogPost } from "./blog";
 
 // Single source of truth for the production URL. Update SITE_URL (or set
 // NEXT_PUBLIC_SITE_URL) once the real domain is pointed at this deployment
@@ -68,6 +69,28 @@ export function serviceJsonLd(page: ServicePage) {
       name: business.fullName,
       telephone: phoneE164,
       url: SITE_URL,
+    },
+  };
+}
+
+export function articleJsonLd(post: BlogPost) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.description,
+    datePublished: post.publishedAt,
+    dateModified: post.publishedAt,
+    url: `${SITE_URL}/blog/${post.slug}`,
+    author: {
+      "@type": "Organization",
+      name: business.fullName,
+      url: SITE_URL,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: business.fullName,
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/mpe-logo.png` },
     },
   };
 }

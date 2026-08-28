@@ -38,7 +38,7 @@ export function PasswordField({
           autoComplete={autoComplete}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={`w-full rounded-2xl border px-4 py-3 pr-11 text-sm text-navy outline-none transition-colors focus:border-terracotta ${
+          className={`w-full rounded-2xl border px-4 py-3 pr-11 text-base text-navy outline-none transition-colors focus:border-terracotta ${
             error ? "border-terracotta" : "border-line"
           }`}
         />

@@ -60,7 +60,7 @@ export function AddressFinder({
           }}
           placeholder="Postcode"
           autoComplete="postal-code"
-          className="w-32 shrink-0 rounded-2xl border border-line px-4 py-3 text-sm text-navy outline-none transition-colors focus:border-terracotta sm:w-40"
+          className="w-32 shrink-0 rounded-2xl border border-line px-4 py-3 text-base text-navy outline-none transition-colors focus:border-terracotta sm:w-40"
         />
         <button
           type="button"
@@ -105,7 +105,7 @@ export function AddressFinder({
         onChange={(e) => onAddressChange(e.target.value)}
         placeholder="Full address"
         autoComplete="street-address"
-        className="mt-2 w-full rounded-2xl border border-line px-4 py-3 text-sm text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-terracotta"
+        className="mt-2 w-full rounded-2xl border border-line px-4 py-3 text-base text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-terracotta"
       />
     </div>
   );

@@ -10,7 +10,7 @@ import { MenuIcon, CloseIcon, PhoneIcon, UserIcon } from "./icons";
 // text rather than a link to a page that doesn't exist yet.
 const links: { label: string; href?: string }[] = [
   { label: "Boiler repair", href: "/boiler-repair" },
-  { label: "Servicing" },
+  { label: "Servicing", href: "/servicing" },
   { label: "New boilers" },
   { label: "Commercial" },
   { label: "FAQs" },

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { business, hero } from "@/lib/content";
-import { CheckIcon, StarIcon, PhoneIcon } from "./icons";
+import { CheckIcon, StarIcon, PhoneIcon, AlertTriangleIcon } from "./icons";
 
 export function Hero() {
   return (
@@ -14,16 +14,26 @@ export function Hero() {
           priority
           className="h-28 w-28 shrink-0 drop-shadow-[0_20px_45px_rgba(31,42,58,0.35)] sm:h-40 sm:w-40"
         />
-        <p className="text-xl leading-tight text-white sm:text-3xl lg:text-4xl">
-          <span className="flex items-center gap-2.5 italic sm:gap-3">
-            <span className="relative flex h-2.5 w-2.5 shrink-0 sm:h-3 sm:w-3">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red opacity-75" />
-              <span className="relative inline-flex h-full w-full rounded-full bg-red" />
+        <div className="flex flex-col items-start gap-3.5 sm:gap-4">
+          <p className="text-xl leading-tight text-white sm:text-3xl lg:text-4xl">
+            <span className="flex items-center gap-2.5 italic sm:gap-3">
+              <span className="relative flex h-2.5 w-2.5 shrink-0 sm:h-3 sm:w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red opacity-75" />
+                <span className="relative inline-flex h-full w-full rounded-full bg-red" />
+              </span>
+              {hero.imageCallout.question}
             </span>
-            {hero.imageCallout.question}
-          </span>
-          <span className="mt-1 block font-extrabold">{hero.imageCallout.answer}</span>
-        </p>
+            <span className="mt-1 block font-extrabold">{hero.imageCallout.answer}</span>
+          </p>
+
+          <a
+            href={business.phoneHref}
+            className="inline-flex items-center gap-2 rounded-full border border-white px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white hover:text-terracotta sm:text-sm"
+          >
+            <AlertTriangleIcon className="h-4 w-4" />
+            {hero.imageCallout.emergencyCta}
+          </a>
+        </div>
       </div>
 
       <div className="relative mx-auto -mt-2 max-w-6xl px-4 pb-10 sm:px-6 sm:pb-14">

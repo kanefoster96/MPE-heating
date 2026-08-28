@@ -1,4 +1,5 @@
-import { services, business, type ServiceCard } from "@/lib/content";
+import Link from "next/link";
+import { services, type ServiceCard } from "@/lib/content";
 import {
   BoilerIcon,
   ServiceIcon,
@@ -76,13 +77,13 @@ export function ServiceCards() {
                   {s.headline}
                 </h3>
                 <p className={`mt-2 text-sm ${tone.line}`}>{s.line}</p>
-                <a
-                  href={business.phoneHref}
+                <Link
+                  href="/contact"
                   className={`mt-6 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-colors ${tone.button}`}
                 >
                   {s.cta}
                   <ArrowRightIcon className="h-4 w-4" />
-                </a>
+                </Link>
               </article>
             );
           })}

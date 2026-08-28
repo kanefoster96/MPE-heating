@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { business } from "@/lib/content";
-import { MenuIcon, CloseIcon, PhoneIcon } from "./icons";
+import { MenuIcon, CloseIcon, PhoneIcon, UserIcon } from "./icons";
 
 const links = ["Boiler repair", "Servicing", "New boilers", "Commercial", "FAQs"];
 
@@ -32,6 +32,13 @@ export function Nav() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href="/login"
+            aria-label="Log in or create an account"
+            className="hidden h-10 w-10 items-center justify-center rounded-full text-navy transition-colors hover:bg-grey sm:inline-flex"
+          >
+            <UserIcon className="h-5 w-5" />
+          </Link>
           <a
             href={business.phoneHref}
             className="group inline-flex items-center gap-2 rounded-full border-2 border-terracotta px-3 py-2 text-sm font-semibold text-terracotta transition-colors hover:bg-terracotta hover:text-white active:bg-terracotta active:text-white sm:px-4"
@@ -68,6 +75,30 @@ export function Nav() {
                   {label}
                 </li>
               ))}
+            </ul>
+
+            <p className="pt-4 text-xs font-bold uppercase tracking-[0.18em] text-navy/40">
+              Account
+            </p>
+            <ul className="flex flex-col divide-y divide-line">
+              <li>
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="block py-3 text-base font-medium text-navy"
+                >
+                  Log in
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/create-account"
+                  onClick={() => setOpen(false)}
+                  className="block py-3 text-base font-medium text-terracotta"
+                >
+                  Create account
+                </Link>
+              </li>
             </ul>
           </nav>
         </div>

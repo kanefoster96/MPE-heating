@@ -15,7 +15,7 @@ export function FormField({ label, error, id, className, ...inputProps }: FormFi
         id={id}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`w-full rounded-2xl border px-4 py-3 text-sm text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-terracotta ${
+        className={`w-full rounded-2xl border px-4 py-3 text-base text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-terracotta ${
           error ? "border-terracotta" : "border-line"
         } ${className ?? ""}`}
         {...inputProps}

@@ -106,7 +106,7 @@ export default function ContactPage() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             aria-invalid={!!errors.message}
-            className={`w-full resize-none rounded-2xl border px-4 py-3 text-sm text-navy outline-none transition-colors focus:border-terracotta ${
+            className={`w-full resize-none rounded-2xl border px-4 py-3 text-base text-navy outline-none transition-colors focus:border-terracotta ${
               errors.message ? "border-terracotta" : "border-line"
             }`}
           />

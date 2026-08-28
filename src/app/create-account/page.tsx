@@ -43,9 +43,11 @@ type Errors = Partial<{
 //   });
 // account_type/company_name are the "commercial" label the client asked
 // for — lets future marketing/CRM segment home vs commercial customers.
-// Pull all of this into a `profiles` table via a Postgres trigger on
-// auth.users if you want it queryable, rather than only living in JWT
-// metadata.
+// This metadata shape is already picked up by the handle_new_user trigger
+// in supabase/migrations/20260828000000_init.sql, which copies it into a
+// queryable `profiles` row on signup — no extra wiring needed once
+// Supabase is connected. address isn't in that metadata shape today
+// though; it'll need adding to both this call and the trigger together.
 async function signUpStub(_fields: {
   accountType: AccountType;
   fullName: string;

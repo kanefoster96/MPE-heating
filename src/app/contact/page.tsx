@@ -13,11 +13,13 @@ type Errors = Partial<{
   message: string;
 }>;
 
-// TODO(backend): wire this up once ready — either insert into a Supabase
-// `contact_messages` table, or send it straight to Fergal as a
-// transactional email (Resend/Postmark etc). Email is optional here since
-// this site is phone/WhatsApp-first, so don't assume it's always present —
-// phone is the fallback contact method either way.
+// TODO(supabase): insert into the `bookings` table (see
+// supabase/migrations/20260828000000_init.sql) once a project is
+// connected — profile_id stays null for a guest submission like this one.
+// Also worth sending Fergal a transactional email (Resend/Postmark etc) so
+// he doesn't have to check the dashboard for every new booking. Email is
+// optional here since this site is phone/WhatsApp-first, so don't assume
+// it's always present — phone is the fallback contact method either way.
 async function sendMessageStub(_fields: {
   name: string;
   phone: string;

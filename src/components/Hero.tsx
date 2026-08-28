@@ -4,7 +4,7 @@ import { CheckIcon, StarIcon, PhoneIcon, AlertTriangleIcon } from "./icons";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden bg-terracotta">
+    <section className="relative overflow-hidden bg-flame-gradient">
       <div className="mx-auto flex max-w-6xl items-center justify-center gap-5 px-4 pb-10 pt-12 sm:gap-10 sm:px-6 sm:pb-14 sm:pt-16 lg:pt-20">
         <Image
           src="/worcester-boiler.png"
@@ -48,7 +48,7 @@ export function Hero() {
 
           <a
             href={business.phoneHref}
-            className="mt-6 block w-full rounded-full bg-terracotta py-4 text-center text-base font-semibold text-white shadow-[0_12px_25px_-10px_rgba(232,98,58,0.7)] transition-colors hover:bg-terracotta-dark"
+            className="bg-btn-gradient mt-6 block w-full rounded-full py-4 text-center text-base font-semibold text-white shadow-[0_12px_25px_-10px_rgba(232,98,58,0.7)]"
           >
             {hero.cta}
           </a>

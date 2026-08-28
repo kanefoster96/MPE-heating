@@ -251,7 +251,7 @@ export default function CreateAccountPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-1 inline-flex items-center justify-center rounded-full bg-terracotta py-3.5 text-sm font-semibold text-white transition-colors hover:bg-terracotta-dark disabled:opacity-60"
+          className="bg-btn-gradient mt-1 inline-flex items-center justify-center rounded-full py-3.5 text-sm font-semibold text-white disabled:opacity-60"
         >
           {submitting ? "Creating account…" : "Create account"}
         </button>

@@ -24,7 +24,7 @@ const toneStyles: Record<
   { card: string; eyebrow: string; headline: string; line: string; button: string }
 > = {
   orange: {
-    card: "bg-terracotta",
+    card: "bg-flame-gradient",
     eyebrow: "text-white/80",
     headline: "text-white",
     line: "text-white/85",
@@ -35,7 +35,7 @@ const toneStyles: Record<
     eyebrow: "text-navy/50",
     headline: "text-navy",
     line: "text-navy/70",
-    button: "bg-terracotta text-white hover:bg-terracotta-dark",
+    button: "bg-btn-gradient text-white",
   },
   "grey-green": {
     card: "bg-grey",

@@ -39,7 +39,7 @@ export function Hero() {
       </div>
 
       <div className="relative mx-auto -mt-2 max-w-6xl px-4 pb-10 sm:px-6 sm:pb-14">
-        <div className="rounded-t-[28px] bg-white px-5 py-8 shadow-[0_-15px_35px_-20px_rgba(31,42,58,0.3)] sm:rounded-[28px] sm:px-10 sm:py-10 lg:mx-auto lg:max-w-2xl lg:text-center">
+        <div className="rounded-t-[28px] bg-white px-5 py-8 text-center shadow-[0_-15px_35px_-20px_rgba(31,42,58,0.3)] sm:rounded-[28px] sm:px-10 sm:py-10 lg:mx-auto lg:max-w-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">
             {hero.label}
           </p>
@@ -59,7 +59,7 @@ export function Hero() {
             <SameDayStat />
           </div>
 
-          <ul className="mt-4 flex flex-col gap-2 text-sm text-navy/80 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-2">
+          <ul className="mt-4 flex flex-col items-center gap-2 text-sm text-navy/80 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-2">
             {hero.ticks.map((t) => (
               <li key={t} className="flex items-center gap-2 sm:justify-center">
                 <CheckIcon className="h-4 w-4 shrink-0 text-terracotta" />

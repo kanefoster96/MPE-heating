@@ -8,7 +8,7 @@ export const business = {
   phoneHref: "tel:07000123456",
   whatsappHref: "https://wa.me/447000123456",
   email: "info@mpeheating.co.uk",
-  gasSafeNumber: "123456",
+  gasSafeNumber: "552052",
   areas:
     "Covering Newcastle, North Tyneside, Gateshead, South Tyneside, Sunderland and Northumberland.",
 };

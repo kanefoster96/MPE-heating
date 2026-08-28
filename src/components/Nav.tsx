@@ -6,7 +6,15 @@ import Link from "next/link";
 import { business } from "@/lib/content";
 import { MenuIcon, CloseIcon, PhoneIcon, UserIcon } from "./icons";
 
-const links = ["Boiler repair", "Servicing", "New boilers", "Commercial", "FAQs"];
+// href is added as each menu page ships — an unset href renders as plain
+// text rather than a link to a page that doesn't exist yet.
+const links: { label: string; href?: string }[] = [
+  { label: "Boiler repair", href: "/boiler-repair" },
+  { label: "Servicing" },
+  { label: "New boilers" },
+  { label: "Commercial" },
+  { label: "FAQs" },
+];
 
 export function Nav() {
   const [open, setOpen] = useState(false);
@@ -26,9 +34,15 @@ export function Nav() {
         </Link>
 
         <nav className="hidden lg:flex items-center gap-8 text-sm font-medium text-navy/80">
-          {links.map((label) => (
-            <span key={label}>{label}</span>
-          ))}
+          {links.map((link) =>
+            link.href ? (
+              <Link key={link.label} href={link.href} className="transition-colors hover:text-terracotta">
+                {link.label}
+              </Link>
+            ) : (
+              <span key={link.label}>{link.label}</span>
+            )
+          )}
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -70,9 +84,21 @@ export function Nav() {
             }`}
           >
             <ul className="flex flex-col divide-y divide-line">
-              {links.map((label) => (
-                <li key={label} className="block py-3 text-base font-medium text-navy">
-                  {label}
+              {links.map((link) => (
+                <li key={link.label}>
+                  {link.href ? (
+                    <Link
+                      href={link.href}
+                      onClick={() => setOpen(false)}
+                      className="block py-3 text-base font-medium text-navy"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <span className="block py-3 text-base font-medium text-navy">
+                      {link.label}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

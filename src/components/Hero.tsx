@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { business, hero } from "@/lib/content";
-import { CheckIcon, StarIcon, PhoneIcon, AlertTriangleIcon } from "./icons";
+import { hero } from "@/lib/content";
+import { CheckIcon, StarIcon, AlertTriangleIcon } from "./icons";
 import { SameDayStat } from "./SameDayStat";
 
 export function Hero() {
@@ -54,14 +54,6 @@ export function Hero() {
           >
             {hero.cta}
           </Link>
-
-          <a
-            href={business.phoneHref}
-            className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-navy/70 hover:text-navy"
-          >
-            <PhoneIcon className="h-4 w-4 text-terracotta" />
-            Call our team on {business.phoneDisplay}
-          </a>
 
           <div className="mt-5 flex justify-center">
             <SameDayStat />

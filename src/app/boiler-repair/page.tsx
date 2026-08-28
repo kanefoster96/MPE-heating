@@ -9,12 +9,16 @@ import { Reviews } from "@/components/Reviews";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
-import { boilerRepairPage, business } from "@/lib/content";
+import { boilerRepairPage } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
+import { SITE_URL, serviceJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: `Boiler Repairs | ${business.fullName}`,
+  title: "Boiler Repairs North East",
   description: boilerRepairPage.subline,
+  alternates: { canonical: `${SITE_URL}/${boilerRepairPage.slug}` },
+  openGraph: { url: `${SITE_URL}/${boilerRepairPage.slug}` },
 };
 
 export default function BoilerRepairPage() {
@@ -59,6 +63,7 @@ export default function BoilerRepairPage() {
       </main>
       <Footer />
       <FloatingWhatsapp />
+      <JsonLd data={serviceJsonLd(boilerRepairPage)} />
     </>
   );
 }

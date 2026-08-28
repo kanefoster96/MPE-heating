@@ -351,6 +351,61 @@ export const boilerRepairPage: ServicePage = {
   ],
 };
 
+export const servicingPage: ServicePage = {
+  slug: "servicing",
+  navLabel: "Servicing",
+  icon: "service",
+  eyebrow: "Boiler Servicing",
+  headline: "Annual service from £79 — keep it safe, keep the warranty valid",
+  subline:
+    "A full safety check and service from a Gas Safe engineer — most manufacturers require it to keep your boiler's warranty valid.",
+  cta: "Book a service",
+  ticks: ["From £79", "Gas Safe registered", "Takes around 45 minutes"],
+  features: [
+    {
+      icon: "shield",
+      title: "Keeps your warranty valid",
+      text: "Most manufacturers require an annual service to keep your boiler's warranty valid.",
+    },
+    {
+      icon: "gassafe",
+      title: "Full safety check",
+      text: "We check for carbon monoxide risk, correct pressure, and safe operation throughout.",
+    },
+    {
+      icon: "check",
+      title: "Catches issues early",
+      text: "Spotting a worn part now is cheaper than an emergency repair later.",
+    },
+    {
+      icon: "price",
+      title: "Fixed price",
+      text: "From £79, agreed before we arrive — no surprises on the day.",
+    },
+    {
+      icon: "service",
+      title: "Full written report",
+      text: "Everything we checked, in writing, so you've got it on record.",
+    },
+    {
+      icon: "clock",
+      title: "A reminder every year",
+      text: "We'll get in touch when your next service is due, so you don't have to track it.",
+    },
+  ],
+  checklistTitle: "What's included in a service",
+  checklistItems: [
+    "Visual inspection of the boiler and flue",
+    "Case removed and internal components checked",
+    "Gas pressure and burner checked",
+    "Flue gas analysis (carbon monoxide check)",
+    "Safety devices tested",
+    "Condensate pipe checked for blockages",
+    "Boiler pressure and controls checked",
+    "Full report and Gas Safe certificate",
+  ],
+};
+
 export const finalCta = {
   headline: "Boiler playing up? Let's get it sorted.",
   cta: "Book a visit",

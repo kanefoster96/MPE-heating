@@ -1,11 +1,11 @@
-// Blog content — plain typed data rather than MDX, consistent with how
-// the rest of the site's copy lives in content.ts. Each post's `content`
-// is a small set of block types (see richContent.ts) rendered by
-// RichContent.tsx.
+// Help/advice article content — plain typed data rather than MDX,
+// consistent with how the rest of the site's copy lives in content.ts.
+// Each article's `content` is a small set of block types (see
+// richContent.ts) rendered by RichContent.tsx.
 
 import type { ContentBlock } from "./richContent";
 
-export type BlogPost = {
+export type HelpArticle = {
   slug: string;
   title: string;
   // Shown on the index card and used as the meta description.
@@ -22,7 +22,7 @@ const GAS_SAFETY_CALLOUT: ContentBlock = {
   text: "Never attempt gas work yourself — it's illegal as well as dangerous. If you ever smell gas, don't touch switches or naked flames: turn off the gas at the meter if it's safe to do so, open windows, leave the property, and call the National Gas Emergency Service on 0800 111 999.",
 };
 
-export const blogPosts: BlogPost[] = [
+export const helpArticles: HelpArticle[] = [
   {
     slug: "why-is-my-boiler-losing-pressure",
     title: "Why is my boiler losing pressure?",
@@ -230,6 +230,6 @@ export const blogPosts: BlogPost[] = [
   },
 ];
 
-export function getBlogPost(slug: string): BlogPost | undefined {
-  return blogPosts.find((post) => post.slug === slug);
+export function getHelpArticle(slug: string): HelpArticle | undefined {
+  return helpArticles.find((post) => post.slug === slug);
 }

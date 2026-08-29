@@ -1,7 +1,7 @@
 import type { ContentBlock } from "@/lib/richContent";
 import { AlertTriangleIcon } from "./icons";
 
-// Renders headings/paragraphs/lists/callouts for blog posts, and legal/
+// Renders headings/paragraphs/lists/callouts for help articles, and legal/
 // info pages (privacy, terms, about) that share the same simple structure.
 export function RichContent({ blocks }: { blocks: ContentBlock[] }) {
   return (

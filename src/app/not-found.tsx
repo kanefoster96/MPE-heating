@@ -31,7 +31,7 @@ export default function NotFound() {
             Back to homepage
           </Link>
           <Link
-            href="/blog"
+            href="/help"
             className="inline-flex w-full items-center justify-center rounded-full border-2 border-navy px-8 py-3.5 text-sm font-semibold text-navy transition-colors hover:bg-navy hover:text-white sm:w-auto"
           >
             Browse boiler advice

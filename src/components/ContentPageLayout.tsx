@@ -5,8 +5,8 @@ import { Footer } from "./Footer";
 import { FloatingWhatsapp } from "./FloatingWhatsapp";
 
 // Shared shell for simple content pages (privacy, terms, about) — same
-// header + white card treatment as a blog post, minus the blog-specific
-// bits (category, read time, related-service CTA).
+// header + white card treatment as a help article, minus the article-
+// specific bits (category, read time, related-service CTA).
 export function ContentPageLayout({
   eyebrow,
   title,

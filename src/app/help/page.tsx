@@ -6,19 +6,19 @@ import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
 import { FormIcon } from "@/components/icons";
-import { blogPosts } from "@/lib/blog";
+import { helpArticles } from "@/lib/help";
 import { SITE_URL } from "@/lib/seo";
-import { BlogList } from "./BlogList";
+import { HelpList } from "./HelpList";
 
 export const metadata: Metadata = {
   title: "Boiler Advice & Guides",
   description:
     "Common boiler problems explained, why servicing matters, and how to tell when it's time for a new boiler — advice from MPE's Gas Safe engineers.",
-  alternates: { canonical: `${SITE_URL}/blog` },
-  openGraph: { url: `${SITE_URL}/blog` },
+  alternates: { canonical: `${SITE_URL}/help` },
+  openGraph: { url: `${SITE_URL}/help` },
 };
 
-export default function BlogIndexPage() {
+export default function HelpIndexPage() {
   return (
     <>
       <Nav />
@@ -33,7 +33,7 @@ export default function BlogIndexPage() {
           ticks={["Gas Safe registered", "Written by engineers", "No jargon"]}
         />
 
-        <BlogList posts={blogPosts} />
+        <HelpList posts={helpArticles} />
 
         <FinalCta />
       </main>

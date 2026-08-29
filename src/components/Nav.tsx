@@ -14,7 +14,7 @@ const links: { label: string; href?: string }[] = [
   { label: "New boilers", href: "/new-boilers" },
   { label: "Commercial", href: "/commercial" },
   { label: "FAQs", href: "/faqs" },
-  { label: "Blog", href: "/blog" },
+  { label: "Help", href: "/help" },
 ];
 
 export function Nav() {

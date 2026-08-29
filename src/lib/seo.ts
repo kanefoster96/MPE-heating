@@ -1,5 +1,5 @@
 import { business, services, type ServicePage, type FaqItem } from "./content";
-import type { BlogPost } from "./blog";
+import type { HelpArticle } from "./help";
 
 // Single source of truth for the production URL. Update SITE_URL (or set
 // NEXT_PUBLIC_SITE_URL) once the real domain is pointed at this deployment
@@ -73,7 +73,7 @@ export function serviceJsonLd(page: ServicePage) {
   };
 }
 
-export function articleJsonLd(post: BlogPost) {
+export function articleJsonLd(post: HelpArticle) {
   return {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -81,7 +81,7 @@ export function articleJsonLd(post: BlogPost) {
     description: post.description,
     datePublished: post.publishedAt,
     dateModified: post.publishedAt,
-    url: `${SITE_URL}/blog/${post.slug}`,
+    url: `${SITE_URL}/help/${post.slug}`,
     author: {
       "@type": "Organization",
       name: business.fullName,

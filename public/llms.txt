@@ -46,12 +46,12 @@ Every town below has its own page with local detail (distance from base, typical
 
 ## Advice & guides
 
-- [Advice & Guides index](https://mpenortheast.co.uk/blog): Boiler advice written by MPE's Gas Safe engineers.
-- [Why is my boiler losing pressure?](https://mpenortheast.co.uk/blog/why-is-my-boiler-losing-pressure): Common causes and when to call an engineer.
-- [Boiler making strange noises?](https://mpenortheast.co.uk/blog/boiler-making-strange-noises): What banging, gurgling and whistling noises usually mean.
-- [My boiler won't turn on](https://mpenortheast.co.uk/blog/boiler-wont-turn-on): Safe checks to run before booking a callout.
-- [Why annual boiler servicing matters](https://mpenortheast.co.uk/blog/why-annual-boiler-servicing-matters): Warranty, safety and cost reasons to service every year.
-- [Signs you need a new boiler](https://mpenortheast.co.uk/blog/signs-you-need-a-new-boiler): Age, repair frequency, and other signs it's time to replace.
+- [Advice & Guides index](https://mpenortheast.co.uk/help): Boiler advice written by MPE's Gas Safe engineers.
+- [Why is my boiler losing pressure?](https://mpenortheast.co.uk/help/why-is-my-boiler-losing-pressure): Common causes and when to call an engineer.
+- [Boiler making strange noises?](https://mpenortheast.co.uk/help/boiler-making-strange-noises): What banging, gurgling and whistling noises usually mean.
+- [My boiler won't turn on](https://mpenortheast.co.uk/help/boiler-wont-turn-on): Safe checks to run before booking a callout.
+- [Why annual boiler servicing matters](https://mpenortheast.co.uk/help/why-annual-boiler-servicing-matters): Warranty, safety and cost reasons to service every year.
+- [Signs you need a new boiler](https://mpenortheast.co.uk/help/signs-you-need-a-new-boiler): Age, repair frequency, and other signs it's time to replace.
 
 ## Other pages
 

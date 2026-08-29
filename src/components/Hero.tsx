@@ -7,7 +7,7 @@ import { SameDayStat } from "./SameDayStat";
 export function Hero() {
   return (
     <section className="relative overflow-hidden bg-flame-gradient">
-      <div className="mx-auto flex max-w-6xl items-center justify-center gap-5 px-4 pb-10 pt-12 sm:gap-10 sm:px-6 sm:pb-14 sm:pt-16 lg:flex-col lg:gap-6 lg:pt-20">
+      <div className="mx-auto flex max-w-6xl items-center justify-center gap-5 px-4 pb-10 pt-12 sm:gap-10 sm:px-6 sm:pb-14 sm:pt-16 lg:hidden">
         <Image
           src="/worcester-boiler.png"
           alt="Worcester Bosch boiler"
@@ -16,9 +16,9 @@ export function Hero() {
           priority
           className="h-28 w-28 shrink-0 drop-shadow-[0_20px_45px_rgba(31,42,58,0.35)] sm:h-40 sm:w-40"
         />
-        <div className="flex flex-col items-start gap-3.5 sm:gap-4 lg:items-center">
-          <p className="text-xl leading-tight text-white sm:text-3xl lg:text-4xl lg:text-center">
-            <span className="flex items-center gap-2.5 italic sm:gap-3 lg:justify-center">
+        <div className="flex flex-col items-start gap-3.5 sm:gap-4">
+          <p className="text-xl leading-tight text-white sm:text-3xl">
+            <span className="flex items-center gap-2.5 italic sm:gap-3">
               <span className="relative flex h-2.5 w-2.5 shrink-0 sm:h-3 sm:w-3">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red opacity-75" />
                 <span className="relative inline-flex h-full w-full rounded-full bg-red" />
@@ -38,7 +38,7 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="relative mx-auto -mt-2 max-w-6xl px-4 pb-10 sm:px-6 sm:pb-14">
+      <div className="relative mx-auto -mt-2 max-w-6xl px-4 pb-10 sm:px-6 sm:pb-14 lg:mt-0 lg:pt-20">
         <div className="rounded-t-[28px] bg-white px-5 py-8 text-center shadow-[0_-15px_35px_-20px_rgba(31,42,58,0.3)] sm:rounded-[28px] sm:px-10 sm:py-10 lg:mx-auto lg:max-w-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">
             {hero.label}

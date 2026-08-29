@@ -16,11 +16,16 @@ export function BrandsMarquee() {
         Brands we install
       </p>
       <div className="group overflow-hidden" style={fadeMask}>
-        <div className="flex w-max animate-marquee items-center gap-16 group-hover:[animation-play-state:paused]">
+        {/* Trailing margin (not gap) on every item, including the last of
+            each set — gap only inserts N-1 gaps for N items, which throws
+            off the translateX(-50%) loop point and causes a visible snap.
+            A margin per item keeps both duplicated sets exactly equal width,
+            so the loop point lands perfectly on the seam. */}
+        <div className="flex w-max animate-marquee items-center group-hover:[animation-play-state:paused]">
           {track.map((brand, i) => (
             <span
               key={`${brand}-${i}`}
-              className="shrink-0 text-xl font-bold tracking-tight text-navy/30 sm:text-2xl"
+              className="mr-16 shrink-0 text-xl font-bold tracking-tight text-navy/30 sm:text-2xl"
             >
               {brand}
             </span>

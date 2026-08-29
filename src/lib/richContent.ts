@@ -1,5 +1,5 @@
 // Shared block-content type for any page whose body is a sequence of
-// headings/paragraphs/lists/callouts — blog posts, and now legal/info
+// headings/paragraphs/lists/callouts — help articles, and now legal/info
 // pages (privacy, terms, about) too. Rendered by RichContent.tsx.
 export type ContentBlock =
   | { type: "p"; text: string }

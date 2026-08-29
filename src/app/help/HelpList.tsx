@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRightIcon, SearchIcon } from "@/components/icons";
-import type { BlogPost } from "@/lib/blog";
+import type { HelpArticle } from "@/lib/help";
 
-export function BlogList({ posts }: { posts: BlogPost[] }) {
+export function HelpList({ posts }: { posts: HelpArticle[] }) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -46,7 +46,7 @@ export function BlogList({ posts }: { posts: BlogPost[] }) {
             {filtered.map((post) => (
               <Link
                 key={post.slug}
-                href={`/blog/${post.slug}`}
+                href={`/help/${post.slug}`}
                 className="group flex flex-col rounded-[24px] bg-grey p-7 transition-colors hover:bg-grey/70"
               >
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">

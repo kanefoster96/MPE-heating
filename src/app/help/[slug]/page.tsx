@@ -9,13 +9,13 @@ import { Footer } from "@/components/Footer";
 import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
 import { JsonLd } from "@/components/JsonLd";
 import { ArrowRightIcon, ChevronLeftIcon } from "@/components/icons";
-import { blogPosts, getBlogPost } from "@/lib/blog";
+import { helpArticles, getHelpArticle } from "@/lib/help";
 import { SITE_URL, articleJsonLd } from "@/lib/seo";
 
 type Params = { slug: string };
 
 export function generateStaticParams(): Params[] {
-  return blogPosts.map((post) => ({ slug: post.slug }));
+  return helpArticles.map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -24,20 +24,20 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const post = getHelpArticle(slug);
   if (!post) return {};
 
   return {
     title: post.title,
     description: post.description,
-    alternates: { canonical: `${SITE_URL}/blog/${post.slug}` },
-    openGraph: { url: `${SITE_URL}/blog/${post.slug}`, type: "article" },
+    alternates: { canonical: `${SITE_URL}/help/${post.slug}` },
+    openGraph: { url: `${SITE_URL}/help/${post.slug}`, type: "article" },
   };
 }
 
-export default async function BlogPostPage({ params }: { params: Promise<Params> }) {
+export default async function HelpArticlePage({ params }: { params: Promise<Params> }) {
   const { slug } = await params;
-  const post = getBlogPost(slug);
+  const post = getHelpArticle(slug);
   if (!post) notFound();
 
   const publishedDate = new Date(post.publishedAt).toLocaleDateString("en-GB", {
@@ -53,7 +53,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
       <main className="bg-cream py-10 sm:py-14">
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
           <Link
-            href="/blog"
+            href="/help"
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy/60 transition-colors hover:text-navy"
           >
             <ChevronLeftIcon className="h-4 w-4" />

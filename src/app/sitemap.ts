@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
-import { blogPosts } from "@/lib/blog";
+import { helpArticles } from "@/lib/help";
 import { areaPages } from "@/lib/areas";
 
 // /login and /create-account are deliberately excluded — they're
@@ -14,7 +14,7 @@ const routes = [
   { path: "/commercial", priority: 0.8, changeFrequency: "monthly" as const },
   { path: "/areas", priority: 0.7, changeFrequency: "monthly" as const },
   { path: "/faqs", priority: 0.7, changeFrequency: "monthly" as const },
-  { path: "/blog", priority: 0.7, changeFrequency: "weekly" as const },
+  { path: "/help", priority: 0.7, changeFrequency: "weekly" as const },
   { path: "/contact", priority: 0.6, changeFrequency: "yearly" as const },
   { path: "/about", priority: 0.5, changeFrequency: "yearly" as const },
   { path: "/privacy", priority: 0.2, changeFrequency: "yearly" as const },
@@ -24,8 +24,8 @@ const routes = [
     priority: 0.8,
     changeFrequency: "monthly" as const,
   })),
-  ...blogPosts.map((post) => ({
-    path: `/blog/${post.slug}`,
+  ...helpArticles.map((post) => ({
+    path: `/help/${post.slug}`,
     priority: 0.6,
     changeFrequency: "yearly" as const,
   })),

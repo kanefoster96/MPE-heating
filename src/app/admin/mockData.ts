@@ -27,6 +27,8 @@ export type MockNote = {
   text: string;
 };
 
+export type PaymentMethod = "card_on_file" | "invoice_link" | "tap_to_pay";
+
 export type MockBooking = {
   id: string;
   customerId: string;
@@ -38,6 +40,17 @@ export type MockBooking = {
   calloutDate?: string;
   timeWindow?: string;
   amountChargedPence?: number;
+  paidVia?: PaymentMethod;
+  // Mirrors payments.needs_notes: a payment arrived via the Stripe
+  // webhook (tap-to-pay in the Stripe app) and Fergal hasn't written up
+  // the job yet — the admin shows an "add job notes" prompt until he has.
+  needsNotes?: boolean;
+};
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  card_on_file: "card on file",
+  invoice_link: "invoice link",
+  tap_to_pay: "Stripe tap to pay",
 };
 
 export const MOCK_CUSTOMERS: MockCustomer[] = [
@@ -76,6 +89,17 @@ export const MOCK_CUSTOMERS: MockCustomer[] = [
     boilerAge: "10+ years",
     hasCardOnFile: true,
     stripeCustomerId: "cus_mock_dave01",
+  },
+  {
+    id: "c5",
+    name: "Tom Wheatley",
+    phone: "07399 118276",
+    email: "tom.w@example.com",
+    address: "22 Front Street, Cramlington, NE23 1HP",
+    boilerMake: "Baxi",
+    boilerAge: "3–5 years",
+    hasCardOnFile: true,
+    stripeCustomerId: "cus_mock_tom01",
   },
 ];
 
@@ -135,6 +159,24 @@ export const MOCK_BOOKINGS: MockBooking[] = [
     calloutDate: "2026-08-29",
     timeWindow: "8am – 11am",
     amountChargedPence: 7900,
+    paidVia: "card_on_file",
+  },
+  // What a booking looks like right after the Stripe webhook fires: Tom
+  // tapped his card on Fergal's phone in the Stripe app, the payment
+  // landed here against his name, and the job now wants its write-up.
+  {
+    id: "b5",
+    customerId: "c5",
+    message: "Boiler locked out with an E133 code, no heating since last night.",
+    sameDayRequested: true,
+    submittedAgo: "This morning",
+    status: "completed",
+    source: "form",
+    calloutDate: "2026-08-31",
+    timeWindow: "8am – 11am",
+    amountChargedPence: 8600,
+    paidVia: "tap_to_pay",
+    needsNotes: true,
   },
 ];
 

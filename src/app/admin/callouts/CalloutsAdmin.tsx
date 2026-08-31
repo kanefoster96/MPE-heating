@@ -9,17 +9,21 @@ import {
   replyEmail,
 } from "@/lib/emails";
 import { SITE_URL } from "@/lib/seo";
+import { mailtoHref, telHref, waHref } from "@/lib/contactLinks";
 import {
   CalendarIcon,
   CheckIcon,
   ClockIcon,
   CreditCardIcon,
   MailIcon,
+  NoteIcon,
   PhoneIcon,
+  WhatsAppIcon,
 } from "@/components/icons";
 import {
   MOCK_BOOKINGS,
   MOCK_CUSTOMERS,
+  PAYMENT_METHOD_LABELS,
   TIME_WINDOWS,
   type BookingSource,
   type MockBooking,
@@ -94,6 +98,19 @@ async function markCompleteStub(_args: {
   return { error: null };
 }
 
+// The write-up prompted by a Stripe-app payment landing via the webhook
+// (src/app/api/stripe-webhook/route.ts sets payments.needs_notes).
+// TODO(supabase): insert into job_notes (customer-readable on their
+// account, per the RLS in the migration) and clear needs_notes on the
+// payment that prompted this.
+async function saveJobNotesStub(_args: {
+  bookingId: string;
+  notes: string;
+}): Promise<{ error: string | null }> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return { error: null };
+}
+
 export function CalloutsAdmin() {
   const [customers, setCustomers] = useState<MockCustomer[]>(MOCK_CUSTOMERS);
   const [bookings, setBookings] = useState<MockBooking[]>(MOCK_BOOKINGS);
@@ -136,6 +153,25 @@ export function CalloutsAdmin() {
       <div className="mt-4 rounded-2xl bg-terracotta-light px-4 py-3 text-sm text-terracotta-dark">
         Preview only — not connected to Supabase, Stripe or Resend yet. The data below is mock,
         and nothing here actually sends an email or takes a payment.
+      </div>
+
+      <div className="mt-6 grid grid-cols-3 gap-3">
+        <StatCard
+          label="New requests"
+          value={bookings.filter((b) => b.status === "new").length}
+          onClick={() => setTab("requests")}
+        />
+        <StatCard
+          label="Booked in"
+          value={bookings.filter((b) => b.status === "confirmed").length}
+          onClick={() => setTab("jobs")}
+        />
+        <StatCard
+          label="Awaiting job notes"
+          value={bookings.filter((b) => b.needsNotes).length}
+          highlight
+          onClick={() => setTab("jobs")}
+        />
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
@@ -241,6 +277,14 @@ export function CalloutsAdmin() {
                     })
                   );
                 }
+                setOpenPanel(null);
+              }}
+              onSaveNotes={async (notes) => {
+                await saveJobNotesStub({ bookingId: booking.id, notes });
+                updateBooking(booking.id, { needsNotes: false });
+              }}
+              onCancelJob={() => {
+                updateBooking(booking.id, { status: "cancelled" });
                 setOpenPanel(null);
               }}
             />
@@ -404,6 +448,8 @@ function BookingCard({
   onConfirm,
   onReschedule,
   onComplete,
+  onSaveNotes,
+  onCancelJob,
 }: {
   booking: MockBooking;
   customer: MockCustomer;
@@ -415,6 +461,8 @@ function BookingCard({
   onConfirm: (date: string, timeWindow: string) => void;
   onReschedule: (date: string, timeWindow: string) => void;
   onComplete: (notes: string, method: "card" | "invoice" | "tap", amountPence: number) => void;
+  onSaveNotes: (notes: string) => void | Promise<void>;
+  onCancelJob: () => void;
 }) {
   return (
     <div className="rounded-[24px] bg-white p-5 shadow-[0_15px_35px_-25px_rgba(31,42,58,0.3)] sm:p-6">
@@ -446,19 +494,39 @@ function BookingCard({
           </p>
           <p className="mt-2 text-sm text-navy/80">{booking.message}</p>
         </div>
-        <p className="shrink-0 text-xs text-navy/40">{booking.submittedAgo}</p>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <p className="text-xs text-navy/40">{booking.submittedAgo}</p>
+          <div className="flex gap-1.5">
+            <ContactIconLink href={telHref(customer.phone)} label={`Call ${customer.name}`}>
+              <PhoneIcon className="h-4 w-4" />
+            </ContactIconLink>
+            <ContactIconLink href={waHref(customer.phone)} label={`WhatsApp ${customer.name}`} external>
+              <WhatsAppIcon className="h-4 w-4" />
+            </ContactIconLink>
+            {customer.email && (
+              <ContactIconLink href={mailtoHref(customer.email)} label={`Email ${customer.name}`}>
+                <MailIcon className="h-4 w-4" />
+              </ContactIconLink>
+            )}
+          </div>
+        </div>
       </div>
 
       {(booking.status === "confirmed" || booking.status === "completed") && booking.calloutDate && (
-        <p className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-navy">
+        <p className="mt-4 flex flex-wrap items-center gap-1.5 text-sm font-semibold text-navy">
           <CalendarIcon className="h-4 w-4 text-terracotta" />
           {booking.calloutDate} · {booking.timeWindow}
           {booking.status === "completed" && booking.amountChargedPence != null && (
             <span className="ml-2 rounded-full bg-grey px-2.5 py-0.5 text-xs font-semibold text-navy/60">
-              Charged £{(booking.amountChargedPence / 100).toFixed(2)}
+              Paid £{(booking.amountChargedPence / 100).toFixed(2)}
+              {booking.paidVia ? ` · ${PAYMENT_METHOD_LABELS[booking.paidVia]}` : ""}
             </span>
           )}
         </p>
+      )}
+
+      {booking.status === "completed" && booking.needsNotes && (
+        <JobNotesPrompt booking={booking} customer={customer} onSave={onSaveNotes} />
       )}
 
       {/* Action buttons per status */}
@@ -500,6 +568,13 @@ function BookingCard({
           >
             <CheckIcon className="h-4 w-4" />
             Mark complete
+          </button>
+          <button
+            type="button"
+            onClick={onCancelJob}
+            className="rounded-full px-3 py-2.5 text-sm font-semibold text-navy/40 hover:text-terracotta-dark"
+          >
+            Cancel job
           </button>
         </div>
       )}
@@ -547,6 +622,119 @@ function StatusBadge({ status }: { status: MockBooking["status"] }) {
     <span className="rounded-full bg-grey px-2.5 py-0.5 text-xs font-semibold text-navy/60">
       {labels[status]}
     </span>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  highlight,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  highlight?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl p-4 text-left shadow-[0_15px_35px_-25px_rgba(31,42,58,0.3)] transition-colors ${
+        highlight && value > 0 ? "bg-terracotta-light hover:bg-terracotta-light/70" : "bg-white hover:bg-cream"
+      }`}
+    >
+      <p
+        className={`text-2xl font-extrabold ${
+          highlight && value > 0 ? "text-terracotta-dark" : "text-navy"
+        }`}
+      >
+        {value}
+      </p>
+      <p
+        className={`mt-0.5 text-xs font-semibold ${
+          highlight && value > 0 ? "text-terracotta-dark/80" : "text-navy/50"
+        }`}
+      >
+        {label}
+      </p>
+    </button>
+  );
+}
+
+function ContactIconLink({
+  href,
+  label,
+  external,
+  children,
+}: {
+  href: string;
+  label: string;
+  external?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      aria-label={label}
+      title={label}
+      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-navy/60 transition-colors hover:bg-grey hover:text-navy"
+    >
+      {children}
+    </a>
+  );
+}
+
+// Shown on a completed job when a payment came in from the Stripe app
+// (webhook sets needs_notes) but the visit hasn't been written up yet.
+function JobNotesPrompt({
+  booking,
+  customer,
+  onSave,
+}: {
+  booking: MockBooking;
+  customer: MockCustomer;
+  onSave: (notes: string) => void | Promise<void>;
+}) {
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const amount =
+    booking.amountChargedPence != null ? `£${(booking.amountChargedPence / 100).toFixed(2)}` : "A payment";
+  const via = booking.paidVia ? ` via ${PAYMENT_METHOD_LABELS[booking.paidVia]}` : "";
+
+  return (
+    <div className="mt-4 rounded-2xl bg-terracotta-light p-4">
+      <p className="flex items-center gap-1.5 text-sm font-bold text-terracotta-dark">
+        <NoteIcon className="h-4 w-4" />
+        {amount} came in{via} — write up the job
+      </p>
+      <p className="mt-1 text-xs text-terracotta-dark/80">
+        For future engineers — and {customer.name.split(" ")[0]} sees these notes on their account
+        too.
+      </p>
+      <textarea
+        rows={2}
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="What was done, parts used, anything worth flagging next time…"
+        className="mt-3 w-full resize-none rounded-xl border border-terracotta/30 bg-white px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+      />
+      <button
+        type="button"
+        disabled={!notes.trim() || saving}
+        onClick={async () => {
+          setSaving(true);
+          await onSave(notes);
+          setSaving(false);
+        }}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-navy px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        <CheckIcon className="h-4 w-4" />
+        {saving ? "Saving…" : "Save job notes"}
+      </button>
+    </div>
   );
 }
 

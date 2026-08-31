@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { mailtoHref, telHref, waHref } from "@/lib/contactLinks";
 import {
   BoilerIcon,
   CreditCardIcon,
+  MailIcon,
   MapPinIcon,
   NoteIcon,
   PhoneIcon,
+  WhatsAppIcon,
 } from "@/components/icons";
 import { getBookingsForCustomer, getCustomer, getNotesForCustomer, type MockNote } from "../../mockData";
 
@@ -55,6 +58,34 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
         {customer.phone}
         {customer.email && <span> · {customer.email}</span>}
       </p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <a
+          href={telHref(customer.phone)}
+          className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-navy-light"
+        >
+          <PhoneIcon className="h-4 w-4" />
+          Call
+        </a>
+        <a
+          href={waHref(customer.phone)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-navy hover:bg-grey"
+        >
+          <WhatsAppIcon className="h-4 w-4" />
+          WhatsApp
+        </a>
+        {customer.email && (
+          <a
+            href={mailtoHref(customer.email)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-navy hover:bg-grey"
+          >
+            <MailIcon className="h-4 w-4" />
+            Email
+          </a>
+        )}
+      </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl bg-white p-5 shadow-[0_15px_35px_-25px_rgba(31,42,58,0.3)]">
@@ -110,7 +141,10 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
         <NoteIcon className="h-4.5 w-4.5" />
         Notes
       </h2>
-      <p className="mt-1 text-sm text-navy/60">Visible to Fergal only — for the next visit.</p>
+      <p className="mt-1 text-sm text-navy/60">
+        Write-ups from each visit, for whoever&apos;s out next time — {customer.name.split(" ")[0]}{" "}
+        can read these on their own account too.
+      </p>
 
       <div className="mt-3 rounded-2xl border border-line bg-white p-4">
         <textarea

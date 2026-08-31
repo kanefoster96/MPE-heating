@@ -158,6 +158,11 @@ create table public.payments (
   -- touches this codebase. other: cash/bank transfer etc.
   method text check (method in ('card_on_file', 'invoice_link', 'tap_to_pay', 'other')),
   receipt_emailed boolean not null default false,
+  -- Set true by the Stripe webhook (src/app/api/stripe-webhook/route.ts)
+  -- when a payment arrives from outside this codebase (tap-to-pay in the
+  -- Stripe app). Drives the "add job notes for future engineers" prompt
+  -- in /admin/callouts; cleared when Fergal saves the notes.
+  needs_notes boolean not null default false,
   created_at timestamptz not null default now()
 );
 

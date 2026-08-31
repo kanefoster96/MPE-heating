@@ -1,10 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { CreditCardIcon, PhoneIcon } from "@/components/icons";
+import { CreditCardIcon, PhoneIcon, SearchIcon } from "@/components/icons";
 import { MOCK_CUSTOMERS } from "../mockData";
 
 export function CustomersList() {
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const customers = q
+    ? MOCK_CUSTOMERS.filter((c) =>
+        [c.name, c.phone, c.email, c.address ?? ""].some((field) =>
+          field.toLowerCase().includes(q)
+        )
+      )
+    : MOCK_CUSTOMERS;
+
   return (
     <div>
       <h1 className="text-2xl font-extrabold tracking-tight text-navy sm:text-3xl">Customers</h1>
@@ -13,8 +25,24 @@ export function CustomersList() {
         notes from past visits.
       </p>
 
-      <div className="mt-6 flex flex-col gap-3">
-        {MOCK_CUSTOMERS.map((customer) => (
+      <div className="relative mt-6">
+        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-navy/40" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name, phone, email or address…"
+          className="w-full rounded-full border border-line bg-white py-2.5 pl-11 pr-4 text-sm text-navy outline-none placeholder:text-navy/35 focus:border-terracotta"
+        />
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3">
+        {customers.length === 0 && (
+          <p className="rounded-2xl bg-white p-6 text-center text-sm text-navy/50">
+            No customers match &ldquo;{query}&rdquo;.
+          </p>
+        )}
+        {customers.map((customer) => (
           <Link
             key={customer.id}
             href={`/admin/customers/${customer.id}`}

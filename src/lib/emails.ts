@@ -57,11 +57,36 @@ function emailShell({
   title: string;
   intro: string;
   detailRows?: DetailRow[];
-  ctaLabel: string;
-  ctaHref: string;
-  calloutText: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  calloutText?: string;
   footerNote: string;
 }): string {
+  const cta =
+    ctaLabel && ctaHref
+      ? `
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 28px 0 0;">
+                  <tr>
+                    <td>
+                      <a href="${ctaHref}" style="display: block; width: 100%; box-sizing: border-box; padding: 16px 24px; background: ${COLORS.navy}; color: #ffffff; text-align: center; text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 999px;">
+                        ${ctaLabel}
+                      </a>
+                    </td>
+                  </tr>
+                </table>`
+      : "";
+
+  const callout = calloutText
+    ? `
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0 0; background: ${COLORS.terracottaLight}; border-radius: 14px;">
+                  <tr>
+                    <td style="padding: 16px 18px; font-size: 13px; line-height: 1.55; color: #8a3d1f;">
+                      ${calloutText}
+                    </td>
+                  </tr>
+                </table>`
+    : "";
+
   return `<!doctype html>
 <html>
   <body style="margin: 0; padding: 0; background: ${COLORS.cream}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
@@ -84,24 +109,8 @@ function emailShell({
                 </p>
 
                 ${detailRows ? detailsTable(detailRows) : ""}
-
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 28px 0 0;">
-                  <tr>
-                    <td>
-                      <a href="${ctaHref}" style="display: block; width: 100%; box-sizing: border-box; padding: 16px 24px; background: ${COLORS.navy}; color: #ffffff; text-align: center; text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 999px;">
-                        ${ctaLabel}
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 24px 0 0; background: ${COLORS.terracottaLight}; border-radius: 14px;">
-                  <tr>
-                    <td style="padding: 16px 18px; font-size: 13px; line-height: 1.55; color: #8a3d1f;">
-                      ${calloutText}
-                    </td>
-                  </tr>
-                </table>
+                ${cta}
+                ${callout}
               </td>
             </tr>
           </table>
@@ -157,6 +166,92 @@ export function calloutConfirmationEmail({
       calloutText:
         "This £50 is fully deducted from your final invoice once the job's done — you're never charged the call-out and the full price. You only end up paying the £50 on its own if you decide not to proceed after the diagnosis.",
       footerNote: `You're receiving this because you booked a callout with ${business.fullName}.`,
+    }),
+  };
+}
+
+// Sent when Fergal changes an already-confirmed callout's date/time —
+// same shape as the confirmation email, minus the payment step (the £50
+// is already paid and the card already on file, so there's nothing left
+// to confirm — this is purely informational).
+export function calloutRescheduledEmail({
+  name,
+  calloutDate,
+  timeWindow,
+}: {
+  name: string;
+  calloutDate: string;
+  timeWindow: string;
+}): { subject: string; html: string } {
+  const firstName = name.trim().split(" ")[0] || name;
+
+  return {
+    subject: `Your callout has been rescheduled`,
+    html: emailShell({
+      eyebrow: "Callout rescheduled",
+      title: `New time, ${firstName}`,
+      intro: "Your engineer's visit has moved — here's the new date and time window.",
+      detailRows: [
+        { label: "Date", value: calloutDate },
+        { label: "Time window", value: timeWindow },
+      ],
+      footerNote: `You're receiving this because you have a callout booked with ${business.fullName}.`,
+    }),
+  };
+}
+
+// Sent when Fergal replies to a "just a question" message from
+// /admin/callouts (the "Reply & close" action) — the plainest of these
+// templates, since it's a direct reply rather than a system notification.
+export function replyEmail({
+  name,
+  message,
+}: {
+  name: string;
+  message: string;
+}): { subject: string; html: string } {
+  const firstName = name.trim().split(" ")[0] || name;
+
+  return {
+    subject: `Re: your message to ${business.fullName}`,
+    html: emailShell({
+      eyebrow: "Reply from " + business.fullName,
+      title: `Hi ${firstName},`,
+      intro: message,
+      footerNote: `You're receiving this because you messaged ${business.fullName}.`,
+    }),
+  };
+}
+
+// Sent when Fergal marks a job complete and chooses to email the final
+// invoice rather than charge the card on file directly. paymentLink will
+// be a real Stripe-hosted invoice URL once Stripe is wired up.
+export function invoiceEmail({
+  name,
+  amountPence,
+  jobSummary,
+  paymentLink,
+}: {
+  name: string;
+  amountPence: number;
+  jobSummary: string;
+  paymentLink: string;
+}): { subject: string; html: string } {
+  const firstName = name.trim().split(" ")[0] || name;
+  const amount = (amountPence / 100).toFixed(2);
+
+  return {
+    subject: `Your invoice from ${business.fullName} — £${amount}`,
+    html: emailShell({
+      eyebrow: "Invoice",
+      title: `Your invoice, ${firstName}`,
+      intro: jobSummary,
+      detailRows: [{ label: "Amount due", value: `£${amount}` }],
+      ctaLabel: `Pay £${amount}`,
+      ctaHref: paymentLink,
+      calloutText:
+        "This covers the work carried out on your visit. If anything doesn't look right, just reply to this email or give us a call.",
+      footerNote: `You're receiving this because you're a customer of ${business.fullName}.`,
     }),
   };
 }

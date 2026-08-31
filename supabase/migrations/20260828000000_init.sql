@@ -102,10 +102,19 @@ create table public.bookings (
   -- ("this feels like it'll get a fast response"), not a guarantee. Lets
   -- Fergal see at a glance which bookings are asking for urgency.
   same_day_requested boolean not null default false,
-  status text not null default 'new' check (status in ('new', 'confirmed', 'completed', 'cancelled')),
+  -- 'answered' covers a plain question Fergal replied to by email and
+  -- closed out without it ever becoming a job — distinct from
+  -- 'cancelled', which is a job that fell through.
+  status text not null default 'new'
+    check (status in ('new', 'answered', 'confirmed', 'completed', 'cancelled')),
+  -- How the enquiry came in. 'form' for the online contact form; the
+  -- others are set when Fergal adds a job himself from a call/WhatsApp/
+  -- email he took directly — see "Add job manually" in the admin.
+  source text not null default 'form' check (source in ('form', 'phone', 'whatsapp', 'email')),
   -- Set together when Fergal hits "Confirm callout" in the admin: the
   -- agreed date/time window, sent to the customer along with the £50
-  -- confirm-and-save-card payment link. Null until then.
+  -- confirm-and-save-card payment link. Null until then. Same fields get
+  -- updated (and a rescheduled email sent) if the date changes later.
   callout_date date,
   callout_time_window text,
   created_at timestamptz not null default now()
@@ -142,7 +151,12 @@ create table public.payments (
   amount_pence int not null,
   currency text not null default 'gbp',
   status text not null default 'pending' check (status in ('pending', 'paid', 'refunded', 'failed')),
-  method text check (method in ('card_on_file', 'tap_to_pay', 'other')),
+  -- card_on_file: charged from admin using the saved card (deposit or
+  -- final invoice). invoice_link: customer paid a Stripe-hosted invoice
+  -- emailed to them. tap_to_pay: taken in person via the Stripe app
+  -- directly — logged here for the record, but the charge itself never
+  -- touches this codebase. other: cash/bank transfer etc.
+  method text check (method in ('card_on_file', 'invoice_link', 'tap_to_pay', 'other')),
   receipt_emailed boolean not null default false,
   created_at timestamptz not null default now()
 );

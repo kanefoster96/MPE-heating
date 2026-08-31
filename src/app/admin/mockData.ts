@@ -53,6 +53,31 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   tap_to_pay: "Stripe tap to pay",
 };
 
+// A webhook payment that couldn't be matched to a customer — mirrors a
+// payments row with profile_id null (see the migration and the webhook
+// route). Sits in the admin's "Unmatched payments" section until Fergal
+// assigns it.
+export type MockUnmatchedPayment = {
+  id: string;
+  amountPence: number;
+  method: PaymentMethod;
+  receivedAgo: string;
+  stripePaymentIntentId: string;
+  // Present when Stripe knew the customer but this database didn't —
+  // assigning then also teaches the mapping for next time.
+  stripeCustomerId?: string;
+};
+
+export const MOCK_UNMATCHED_PAYMENTS: MockUnmatchedPayment[] = [
+  {
+    id: "up1",
+    amountPence: 12000,
+    method: "tap_to_pay",
+    receivedAgo: "1 hour ago",
+    stripePaymentIntentId: "pi_mock_3XkT9q",
+  },
+];
+
 export const MOCK_CUSTOMERS: MockCustomer[] = [
   {
     id: "c1",

@@ -92,20 +92,26 @@ export async function POST(request: Request) {
     // TODO(supabase): this is the write that puts the payment on Fergal's
     // job list. With a service-role client (webhooks bypass RLS):
     //   1. Look up the profile: select profile_id from stripe_customers
-    //      where stripe_customer_id = intent.customer. No match → return
-    //      200 anyway (a payment for someone not in the system isn't an
-    //      error worth retrying).
-    //   2. Insert into payments: { profile_id, amount_pence: intent.amount,
-    //      currency: intent.currency, status: 'paid', method,
-    //      stripe_payment_intent_id: intent.id, needs_notes: true } —
-    //      needs_notes drives the "add job notes for future engineers"
-    //      prompt in /admin/callouts, cleared when Fergal saves notes
-    //      (which insert into job_notes, readable by the customer on
-    //      their account per the RLS in the migration).
-    //   3. Best effort, link the job: the customer's most recent
-    //      'confirmed' booking gets booking_id set, status 'completed'.
-    //   4. Idempotency: upsert on stripe_payment_intent_id — Stripe
-    //      retries deliveries, the same intent must not insert twice.
+    //      where stripe_customer_id = intent.customer.
+    //   2. Upsert into payments (on stripe_payment_intent_id — Stripe
+    //      retries deliveries, the same intent must never insert twice):
+    //      { profile_id: <match or null>, amount_pence: intent.amount,
+    //        currency: intent.currency, status: 'paid', method,
+    //        stripe_payment_intent_id: intent.id,
+    //        stripe_customer_id: intent.customer, needs_notes: true }.
+    //      A payment with no match (customer null, or a Stripe customer
+    //      this database doesn't know) keeps profile_id null — it shows
+    //      in the admin's "Unmatched payments" section for Fergal to
+    //      assign by hand, never silently dropped. Assigning sets
+    //      profile_id and, when the row carries a stripe_customer_id,
+    //      backfills the stripe_customers mapping so that customer's
+    //      next payment matches automatically.
+    //   3. For a matched payment, best effort, link the job: the
+    //      customer's most recent 'confirmed' booking gets booking_id
+    //      set and status 'completed'. needs_notes drives the "add job
+    //      notes for future engineers" prompt in /admin/callouts,
+    //      cleared when Fergal saves notes (which insert into job_notes,
+    //      readable by the customer on their account per the RLS).
     void method;
     void intent;
   }

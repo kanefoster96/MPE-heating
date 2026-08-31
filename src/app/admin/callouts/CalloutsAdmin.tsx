@@ -23,11 +23,13 @@ import {
 import {
   MOCK_BOOKINGS,
   MOCK_CUSTOMERS,
+  MOCK_UNMATCHED_PAYMENTS,
   PAYMENT_METHOD_LABELS,
   TIME_WINDOWS,
   type BookingSource,
   type MockBooking,
   type MockCustomer,
+  type MockUnmatchedPayment,
 } from "../mockData";
 
 type PanelType = "reply" | "confirm" | "reschedule" | "complete";
@@ -111,9 +113,25 @@ async function saveJobNotesStub(_args: {
   return { error: null };
 }
 
+// Attaches a webhook payment that arrived with no recognisable customer
+// (profile_id null — see the webhook route and migration).
+// TODO(supabase): update the payments row's profile_id; link and complete
+// the customer's most recent confirmed booking if they have one; and when
+// the row carries a stripe_customer_id this database didn't know,
+// backfill stripe_customers with the mapping so that customer's next
+// payment matches automatically.
+async function assignPaymentStub(_args: {
+  paymentId: string;
+  customerId: string;
+}): Promise<{ error: string | null }> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return { error: null };
+}
+
 export function CalloutsAdmin() {
   const [customers, setCustomers] = useState<MockCustomer[]>(MOCK_CUSTOMERS);
   const [bookings, setBookings] = useState<MockBooking[]>(MOCK_BOOKINGS);
+  const [unmatched, setUnmatched] = useState<MockUnmatchedPayment[]>(MOCK_UNMATCHED_PAYMENTS);
   const [tab, setTab] = useState<"requests" | "jobs">("requests");
   const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
   const [addingJob, setAddingJob] = useState(false);
@@ -140,6 +158,25 @@ export function CalloutsAdmin() {
     setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   };
 
+  const assignPayment = async (payment: MockUnmatchedPayment, customerId: string) => {
+    await assignPaymentStub({ paymentId: payment.id, customerId });
+    setUnmatched((prev) => prev.filter((p) => p.id !== payment.id));
+
+    // Mirror what the real assignment does: the customer's most recent
+    // confirmed booking becomes the paid, completed job — which raises
+    // the usual "write up the job" prompt.
+    const openJob = bookings.find((b) => b.customerId === customerId && b.status === "confirmed");
+    if (openJob) {
+      updateBooking(openJob.id, {
+        status: "completed",
+        amountChargedPence: payment.amountPence,
+        paidVia: payment.method,
+        needsNotes: true,
+      });
+      setTab("jobs");
+    }
+  };
+
   return (
     <div>
       <h1 className="text-2xl font-extrabold tracking-tight text-navy sm:text-3xl">
@@ -155,7 +192,7 @@ export function CalloutsAdmin() {
         and nothing here actually sends an email or takes a payment.
       </div>
 
-      <div className="mt-6 grid grid-cols-3 gap-3">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
           label="New requests"
           value={bookings.filter((b) => b.status === "new").length}
@@ -172,7 +209,17 @@ export function CalloutsAdmin() {
           highlight
           onClick={() => setTab("jobs")}
         />
+        <StatCard label="Unmatched payments" value={unmatched.length} highlight />
       </div>
+
+      {unmatched.map((payment) => (
+        <UnmatchedPaymentCard
+          key={payment.id}
+          payment={payment}
+          customers={customers}
+          onAssign={(customerId) => assignPayment(payment, customerId)}
+        />
+      ))}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-1">
@@ -634,12 +681,13 @@ function StatCard({
   label: string;
   value: number;
   highlight?: boolean;
-  onClick: () => void;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={!onClick}
       className={`rounded-2xl p-4 text-left shadow-[0_15px_35px_-25px_rgba(31,42,58,0.3)] transition-colors ${
         highlight && value > 0 ? "bg-terracotta-light hover:bg-terracotta-light/70" : "bg-white hover:bg-cream"
       }`}
@@ -659,6 +707,70 @@ function StatCard({
         {label}
       </p>
     </button>
+  );
+}
+
+// A webhook payment with no matched customer — money in, no home. Fergal
+// picks who it belongs to; their open job (if any) becomes the paid,
+// completed one.
+function UnmatchedPaymentCard({
+  payment,
+  customers,
+  onAssign,
+}: {
+  payment: MockUnmatchedPayment;
+  customers: MockCustomer[];
+  onAssign: (customerId: string) => void | Promise<void>;
+}) {
+  const [customerId, setCustomerId] = useState("");
+  const [assigning, setAssigning] = useState(false);
+
+  return (
+    <div className="mt-4 rounded-[24px] border-2 border-terracotta/40 bg-white p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-1.5 text-base font-bold text-navy">
+            <CreditCardIcon className="h-4 w-4 text-terracotta" />
+            £{(payment.amountPence / 100).toFixed(2)} paid via {PAYMENT_METHOD_LABELS[payment.method]} —
+            who was this?
+          </p>
+          <p className="mt-1 text-sm text-navy/60">
+            Stripe couldn&apos;t say whose payment this is — pick the customer in the Stripe app
+            before charging to avoid this. Assign it and it lands on their job and account.
+          </p>
+          <p className="mt-1.5 font-mono text-xs text-navy/40">{payment.stripePaymentIntentId}</p>
+        </div>
+        <p className="shrink-0 text-xs text-navy/40">{payment.receivedAgo}</p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <select
+          value={customerId}
+          onChange={(e) => setCustomerId(e.target.value)}
+          className="rounded-full border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy outline-none focus:border-terracotta"
+        >
+          <option value="">Choose a customer…</option>
+          {customers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} · {c.phone}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={!customerId || assigning}
+          onClick={async () => {
+            setAssigning(true);
+            await onAssign(customerId);
+            setAssigning(false);
+          }}
+          className="bg-btn-gradient inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          <CheckIcon className="h-4 w-4" />
+          {assigning ? "Assigning…" : "Assign payment"}
+        </button>
+      </div>
+    </div>
   );
 }
 

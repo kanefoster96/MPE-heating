@@ -1,270 +1,820 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { business } from "@/lib/content";
-import { calloutConfirmationEmail } from "@/lib/emails";
+import {
+  calloutConfirmationEmail,
+  calloutRescheduledEmail,
+  invoiceEmail,
+  replyEmail,
+} from "@/lib/emails";
 import { SITE_URL } from "@/lib/seo";
 import {
   CalendarIcon,
   CheckIcon,
   ClockIcon,
   CreditCardIcon,
+  MailIcon,
   PhoneIcon,
 } from "@/components/icons";
+import {
+  MOCK_BOOKINGS,
+  MOCK_CUSTOMERS,
+  TIME_WINDOWS,
+  type BookingSource,
+  type MockBooking,
+  type MockCustomer,
+} from "../mockData";
 
-type Booking = {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  message: string;
-  sameDayRequested: boolean;
-  submittedAgo: string;
-  status: "new" | "confirmed";
-  calloutDate?: string;
-  timeWindow?: string;
+type PanelType = "reply" | "confirm" | "reschedule" | "complete";
+type OpenPanel = { bookingId: string; type: PanelType } | null;
+
+const SOURCE_LABELS: Record<BookingSource, string> = {
+  form: "form",
+  phone: "phone",
+  whatsapp: "WhatsApp",
+  email: "email",
 };
 
-const TIME_WINDOWS = ["8am – 11am", "11am – 2pm", "2pm – 5pm", "5pm – 7pm"];
-
-// Placeholder bookings so this screen is demoable before Supabase exists —
-// swap for a real `bookings` query (see supabase/migrations/…) once it
-// does. Not real customers.
-const MOCK_BOOKINGS: Booking[] = [
-  {
-    id: "1",
-    name: "Sarah Thompson",
-    phone: "07911 123456",
-    email: "sarah.t@example.com",
-    message: "No hot water since this morning, radiators are cold too.",
-    sameDayRequested: true,
-    submittedAgo: "12 minutes ago",
-    status: "new",
-  },
-  {
-    id: "2",
-    name: "Mark Reid",
-    phone: "07700 900123",
-    email: "",
-    message: "Boiler's making a loud banging noise whenever the heating kicks in.",
-    sameDayRequested: false,
-    submittedAgo: "1 hour ago",
-    status: "new",
-  },
-  {
-    id: "3",
-    name: "Priya Kaur",
-    phone: "07822 456789",
-    email: "priya.k@example.com",
-    message: "Pressure keeps dropping every few days, topped it up twice this month.",
-    sameDayRequested: false,
-    submittedAgo: "Yesterday",
-    status: "confirmed",
-    calloutDate: "2026-09-02",
-    timeWindow: "11am – 2pm",
-  },
-];
+// Phrasing for the auto-generated "Added by Fergal…" fallback message —
+// "over the phone" takes an article, "over WhatsApp"/"over email" don't.
+const SOURCE_OVER_PHRASE: Record<BookingSource, string> = {
+  form: "via the form",
+  phone: "over the phone",
+  whatsapp: "over WhatsApp",
+  email: "over email",
+};
 
 // TODO(stripe): the real payment link should be a Stripe Checkout Session
 // (setup_future_usage: "off_session" so the card is saved AND the £50 is
 // charged in one step) created server-side when the callout is confirmed
 // — this placeholder goes nowhere yet.
 // TODO(resend): actually send the email via the Resend API instead of
-// just rendering a preview of it here.
+// just rendering a preview of it here. Applies to every stub below too.
 async function confirmCalloutStub(_args: {
   bookingId: string;
   calloutDate: string;
   timeWindow: string;
+}): Promise<{ error: string | null }> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return { error: null };
+}
+
+async function replyAndCloseStub(_args: {
+  bookingId: string;
+  message: string;
+}): Promise<{ error: string | null }> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return { error: null };
+}
+
+async function addJobManuallyStub(_args: {
+  name: string;
+  phone: string;
+  email: string;
+  message: string;
+  source: BookingSource;
+  calloutDate: string;
+  timeWindow: string;
+}): Promise<{ error: string | null }> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return { error: null };
+}
+
+// TODO(stripe): "card" charges an off-session PaymentIntent against
+// stripe_customers.stripe_customer_id. "invoice" creates a Stripe-hosted
+// invoice and emails the link. Neither touches Stripe yet.
+async function markCompleteStub(_args: {
+  bookingId: string;
+  notes: string;
+  method: "card" | "invoice" | "tap";
+  amountPence: number;
 }): Promise<{ error: string | null }> {
   await new Promise((resolve) => setTimeout(resolve, 600));
   return { error: null };
 }
 
 export function CalloutsAdmin() {
-  const [bookings, setBookings] = useState(MOCK_BOOKINGS);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [calloutDate, setCalloutDate] = useState("");
-  const [timeWindow, setTimeWindow] = useState(TIME_WINDOWS[0]);
-  const [sending, setSending] = useState(false);
-  const [previewFor, setPreviewFor] = useState<Booking | null>(null);
+  const [customers, setCustomers] = useState<MockCustomer[]>(MOCK_CUSTOMERS);
+  const [bookings, setBookings] = useState<MockBooking[]>(MOCK_BOOKINGS);
+  const [tab, setTab] = useState<"requests" | "jobs">("requests");
+  const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
+  const [addingJob, setAddingJob] = useState(false);
+  const [previewEmail, setPreviewEmail] = useState<{ subject: string; html: string } | null>(null);
 
-  const openConfirm = (booking: Booking) => {
-    setOpenId(booking.id);
-    setCalloutDate("");
-    setTimeWindow(TIME_WINDOWS[0]);
-    setPreviewFor(null);
-  };
+  const customerFor = (booking: MockBooking) => customers.find((c) => c.id === booking.customerId);
 
-  const handleConfirm = async (booking: Booking) => {
-    if (!calloutDate) return;
-    setSending(true);
-    await confirmCalloutStub({ bookingId: booking.id, calloutDate, timeWindow });
-    setSending(false);
+  const requests = bookings.filter((b) => b.status === "new" || b.status === "answered");
+  const jobs = bookings.filter(
+    (b) => b.status === "confirmed" || b.status === "completed" || b.status === "cancelled"
+  );
 
-    const confirmed: Booking = { ...booking, status: "confirmed", calloutDate, timeWindow };
-    setBookings((prev) => prev.map((b) => (b.id === booking.id ? confirmed : b)));
-    setPreviewFor(confirmed);
+  const confirmedBookingsOnDate = (date: string, excludeId: string) =>
+    bookings
+      .filter(
+        (b) =>
+          b.id !== excludeId &&
+          b.calloutDate === date &&
+          (b.status === "confirmed" || b.status === "completed")
+      )
+      .map((b) => ({ name: customerFor(b)?.name ?? "Unknown", timeWindow: b.timeWindow }));
+
+  const updateBooking = (id: string, patch: Partial<MockBooking>) => {
+    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   };
 
   return (
-    <div className="min-h-screen bg-cream px-4 py-10 sm:px-6 sm:py-14">
-      <div className="mx-auto max-w-3xl">
-        <div className="flex items-center justify-between">
-          <Image src="/mpe-logo.png" alt={business.fullName} width={1189} height={513} className="h-8 w-auto" />
-          <Link href="/" className="text-sm font-medium text-navy/50 hover:text-navy">
-            ← Back to site
-          </Link>
+    <div>
+      <h1 className="text-2xl font-extrabold tracking-tight text-navy sm:text-3xl">
+        Requests & jobs
+      </h1>
+      <p className="mt-2 text-sm text-navy/70">
+        Everything that&apos;s come in — the form, a call, WhatsApp, or email — lands here. Reply and
+        close a question, or confirm a callout to schedule it.
+      </p>
+
+      <div className="mt-4 rounded-2xl bg-terracotta-light px-4 py-3 text-sm text-terracotta-dark">
+        Preview only — not connected to Supabase, Stripe or Resend yet. The data below is mock,
+        and nothing here actually sends an email or takes a payment.
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => setTab("requests")}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+              tab === "requests" ? "bg-navy text-white" : "text-navy/60 hover:bg-grey"
+            }`}
+          >
+            Requests ({requests.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("jobs")}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+              tab === "jobs" ? "bg-navy text-white" : "text-navy/60 hover:bg-grey"
+            }`}
+          >
+            Jobs ({jobs.length})
+          </button>
         </div>
 
-        <h1 className="mt-6 text-2xl font-extrabold tracking-tight text-navy sm:text-3xl">
-          Confirm callouts
-        </h1>
-        <p className="mt-2 text-sm text-navy/70">
-          Pick a customer, agree a time by phone first, then confirm here — it sends them the
-          date, time window, and a £50 confirm-and-save-card link.
-        </p>
+        <button
+          type="button"
+          onClick={() => setAddingJob((v) => !v)}
+          className="bg-btn-gradient rounded-full px-4 py-1.5 text-sm font-semibold text-white"
+        >
+          {addingJob ? "Cancel" : "+ Add job manually"}
+        </button>
+      </div>
 
-        <div className="mt-4 rounded-2xl bg-terracotta-light px-4 py-3 text-sm text-terracotta-dark">
-          Preview only — not connected to Supabase, Stripe or Resend yet. The bookings below are
-          mock data, and nothing here actually sends an email or takes a payment.
+      {addingJob && (
+        <AddJobPanel
+          onClose={() => setAddingJob(false)}
+          onAdded={(customer, booking) => {
+            setCustomers((prev) => [...prev, customer]);
+            setBookings((prev) => [booking, ...prev]);
+            setAddingJob(false);
+          }}
+        />
+      )}
+
+      <div className="mt-6 flex flex-col gap-4">
+        {(tab === "requests" ? requests : jobs).length === 0 && (
+          <p className="rounded-2xl bg-white p-6 text-center text-sm text-navy/50">
+            Nothing here right now.
+          </p>
+        )}
+
+        {(tab === "requests" ? requests : jobs).map((booking) => {
+          const customer = customerFor(booking);
+          if (!customer) return null;
+
+          return (
+            <BookingCard
+              key={booking.id}
+              booking={booking}
+              customer={customer}
+              isOpen={openPanel?.bookingId === booking.id ? openPanel.type : null}
+              onOpen={(type) => {
+                setOpenPanel({ bookingId: booking.id, type });
+                setPreviewEmail(null);
+              }}
+              onClose={() => setOpenPanel(null)}
+              conflictsFor={(date) => confirmedBookingsOnDate(date, booking.id)}
+              onReply={async (message) => {
+                await replyAndCloseStub({ bookingId: booking.id, message });
+                updateBooking(booking.id, { status: "answered" });
+                setPreviewEmail(replyEmail({ name: customer.name, message }));
+                setOpenPanel(null);
+              }}
+              onConfirm={async (date, timeWindow) => {
+                await confirmCalloutStub({ bookingId: booking.id, calloutDate: date, timeWindow });
+                updateBooking(booking.id, { status: "confirmed", calloutDate: date, timeWindow });
+                setPreviewEmail(
+                  calloutConfirmationEmail({
+                    name: customer.name,
+                    calloutDate: date,
+                    timeWindow,
+                    paymentLink: `${SITE_URL}/pay/${booking.id}`,
+                  })
+                );
+                setOpenPanel(null);
+              }}
+              onReschedule={async (date, timeWindow) => {
+                await confirmCalloutStub({ bookingId: booking.id, calloutDate: date, timeWindow });
+                updateBooking(booking.id, { calloutDate: date, timeWindow });
+                setPreviewEmail(calloutRescheduledEmail({ name: customer.name, calloutDate: date, timeWindow }));
+                setOpenPanel(null);
+              }}
+              onComplete={async (notes, method, amountPence) => {
+                await markCompleteStub({ bookingId: booking.id, notes, method, amountPence });
+                updateBooking(booking.id, { status: "completed", amountChargedPence: amountPence });
+                if (method === "invoice") {
+                  setPreviewEmail(
+                    invoiceEmail({
+                      name: customer.name,
+                      amountPence,
+                      jobSummary: notes || "Thanks for having us out — here's your invoice.",
+                      paymentLink: `${SITE_URL}/pay/${booking.id}`,
+                    })
+                  );
+                }
+                setOpenPanel(null);
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {previewEmail && (
+        <div className="mt-6 rounded-2xl border border-line bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-navy/50">
+            Email preview — &ldquo;{previewEmail.subject}&rdquo;
+          </p>
+          <iframe
+            srcDoc={previewEmail.html}
+            title="Email preview"
+            className="mt-3 h-[440px] w-full rounded-xl border border-line"
+          />
         </div>
+      )}
+    </div>
+  );
+}
 
-        <div className="mt-8 flex flex-col gap-4">
-          {bookings.map((booking) => (
-            <div key={booking.id} className="rounded-[24px] bg-white p-5 shadow-[0_15px_35px_-25px_rgba(31,42,58,0.3)] sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-bold text-navy">{booking.name}</p>
-                    {booking.sameDayRequested && (
-                      <span className="rounded-full bg-terracotta-light px-2.5 py-0.5 text-xs font-semibold text-terracotta-dark">
-                        Same-day requested
-                      </span>
-                    )}
-                    {booking.status === "confirmed" && (
-                      <span className="rounded-full bg-grey px-2.5 py-0.5 text-xs font-semibold text-navy/60">
-                        Confirmed
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 flex items-center gap-1.5 text-sm text-navy/60">
-                    <PhoneIcon className="h-3.5 w-3.5" />
-                    {booking.phone}
-                    {booking.email && <span> · {booking.email}</span>}
-                  </p>
-                  <p className="mt-2 text-sm text-navy/80">{booking.message}</p>
-                </div>
-                <p className="shrink-0 text-xs text-navy/40">{booking.submittedAgo}</p>
-              </div>
+function AddJobPanel({
+  onClose,
+  onAdded,
+}: {
+  onClose: () => void;
+  onAdded: (customer: MockCustomer, booking: MockBooking) => void;
+}) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [source, setSource] = useState<BookingSource>("phone");
+  const [date, setDate] = useState("");
+  const [timeWindow, setTimeWindow] = useState(TIME_WINDOWS[0]);
+  const [submitting, setSubmitting] = useState(false);
 
-              {booking.status === "confirmed" && booking.calloutDate ? (
-                <p className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-navy">
-                  <CalendarIcon className="h-4 w-4 text-terracotta" />
-                  {booking.calloutDate} · {booking.timeWindow}
-                </p>
-              ) : openId === booking.id ? (
-                <div className="mt-4 rounded-2xl border border-line p-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor={`date-${booking.id}`} className="mb-1.5 block text-xs font-semibold text-navy">
-                        Callout date
-                      </label>
-                      <input
-                        id={`date-${booking.id}`}
-                        type="date"
-                        value={calloutDate}
-                        onChange={(e) => setCalloutDate(e.target.value)}
-                        className="w-full rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor={`window-${booking.id}`} className="mb-1.5 block text-xs font-semibold text-navy">
-                        Time window
-                      </label>
-                      <select
-                        id={`window-${booking.id}`}
-                        value={timeWindow}
-                        onChange={(e) => setTimeWindow(e.target.value)}
-                        className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
-                      >
-                        {TIME_WINDOWS.map((w) => (
-                          <option key={w} value={w}>
-                            {w}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+  const canSubmit = name.trim() && phone.trim() && email.trim() && date;
 
-                  <p className="mt-3 flex items-center gap-1.5 text-xs text-navy/60">
-                    <CreditCardIcon className="h-3.5 w-3.5" />
-                    They&apos;ll need to pay £50 and save a card on file to confirm.
-                  </p>
+  const handleAdd = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    await addJobManuallyStub({ name, phone, email, message, source, calloutDate: date, timeWindow });
+    setSubmitting(false);
 
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleConfirm(booking)}
-                      disabled={!calloutDate || sending}
-                      className="bg-btn-gradient inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                    >
-                      <CheckIcon className="h-4 w-4" />
-                      {sending ? "Sending…" : "Confirm callout"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(null)}
-                      className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-navy/70 hover:bg-grey"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => openConfirm(booking)}
-                  className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy-light"
-                >
-                  <ClockIcon className="h-4 w-4" />
-                  Confirm callout
-                </button>
-              )}
+    const customerId = `manual-${Date.now()}`;
+    onAdded(
+      { id: customerId, name, phone, email, hasCardOnFile: false },
+      {
+        id: `booking-${Date.now()}`,
+        customerId,
+        message: message || `Added by Fergal — booked ${SOURCE_OVER_PHRASE[source]}.`,
+        sameDayRequested: false,
+        submittedAgo: "Just now",
+        status: "confirmed",
+        source,
+        calloutDate: date,
+        timeWindow,
+      }
+    );
+  };
 
-              {previewFor?.id === booking.id && (
-                <EmailPreview booking={previewFor} />
-              )}
-            </div>
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-white p-5">
+      <p className="text-sm font-bold text-navy">Add a job Fergal took directly</p>
+      <p className="mt-1 text-sm text-navy/70">
+        For a call, WhatsApp message, or email — enter their details and the time you&apos;ve already
+        agreed, and it goes straight to confirmed.
+      </p>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <input
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+        />
+        <input
+          placeholder="Phone number"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+        />
+        <input
+          placeholder="Email address"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="col-span-2 rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+        />
+        <select
+          value={source}
+          onChange={(e) => setSource(e.target.value as BookingSource)}
+          className="rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+        >
+          <option value="phone">Phone call</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="email">Email</option>
+        </select>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+        />
+        <select
+          value={timeWindow}
+          onChange={(e) => setTimeWindow(e.target.value)}
+          className="col-span-2 rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+        >
+          {TIME_WINDOWS.map((w) => (
+            <option key={w} value={w}>
+              {w}
+            </option>
           ))}
-        </div>
+        </select>
+        <textarea
+          placeholder="What's the problem? (optional)"
+          rows={2}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="col-span-2 resize-none rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+        />
+      </div>
+
+      <p className="mt-3 text-xs text-navy/60">
+        They&apos;ll get an email to confirm the date/time and pay the £50 — if they don&apos;t
+        have an account yet, that email also prompts them to set one up.
+      </p>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={!canSubmit || submitting}
+          className="bg-btn-gradient rounded-full px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {submitting ? "Adding…" : "Add & send confirmation"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-navy/70 hover:bg-grey"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );
 }
 
-function EmailPreview({ booking }: { booking: Booking }) {
-  if (!booking.calloutDate || !booking.timeWindow) return null;
+function BookingCard({
+  booking,
+  customer,
+  isOpen,
+  onOpen,
+  onClose,
+  conflictsFor,
+  onReply,
+  onConfirm,
+  onReschedule,
+  onComplete,
+}: {
+  booking: MockBooking;
+  customer: MockCustomer;
+  isOpen: PanelType | null;
+  onOpen: (type: PanelType) => void;
+  onClose: () => void;
+  conflictsFor: (date: string) => { name: string; timeWindow?: string }[];
+  onReply: (message: string) => void;
+  onConfirm: (date: string, timeWindow: string) => void;
+  onReschedule: (date: string, timeWindow: string) => void;
+  onComplete: (notes: string, method: "card" | "invoice" | "tap", amountPence: number) => void;
+}) {
+  return (
+    <div className="rounded-[24px] bg-white p-5 shadow-[0_15px_35px_-25px_rgba(31,42,58,0.3)] sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/admin/customers/${customer.id}`}
+              className="text-base font-bold text-navy hover:text-terracotta"
+            >
+              {customer.name}
+            </Link>
+            {booking.sameDayRequested && (
+              <span className="rounded-full bg-terracotta-light px-2.5 py-0.5 text-xs font-semibold text-terracotta-dark">
+                Same-day requested
+              </span>
+            )}
+            <StatusBadge status={booking.status} />
+            {booking.source !== "form" && (
+              <span className="rounded-full bg-grey px-2.5 py-0.5 text-xs font-semibold text-navy/60">
+                via {SOURCE_LABELS[booking.source]}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-navy/60">
+            <PhoneIcon className="h-3.5 w-3.5" />
+            {customer.phone}
+            {customer.email && <span> · {customer.email}</span>}
+          </p>
+          <p className="mt-2 text-sm text-navy/80">{booking.message}</p>
+        </div>
+        <p className="shrink-0 text-xs text-navy/40">{booking.submittedAgo}</p>
+      </div>
 
-  const { subject, html } = calloutConfirmationEmail({
-    name: booking.name,
-    calloutDate: booking.calloutDate,
-    timeWindow: booking.timeWindow,
-    // Placeholder — see TODO(stripe) above the confirmCalloutStub function.
-    paymentLink: `${SITE_URL}/pay/${booking.id}`,
-  });
+      {(booking.status === "confirmed" || booking.status === "completed") && booking.calloutDate && (
+        <p className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-navy">
+          <CalendarIcon className="h-4 w-4 text-terracotta" />
+          {booking.calloutDate} · {booking.timeWindow}
+          {booking.status === "completed" && booking.amountChargedPence != null && (
+            <span className="ml-2 rounded-full bg-grey px-2.5 py-0.5 text-xs font-semibold text-navy/60">
+              Charged £{(booking.amountChargedPence / 100).toFixed(2)}
+            </span>
+          )}
+        </p>
+      )}
+
+      {/* Action buttons per status */}
+      {booking.status === "new" && !isOpen && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onOpen("reply")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-navy hover:bg-grey"
+          >
+            <MailIcon className="h-4 w-4" />
+            Reply & close
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpen("confirm")}
+            className="inline-flex items-center gap-1.5 rounded-full bg-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy-light"
+          >
+            <ClockIcon className="h-4 w-4" />
+            Confirm callout
+          </button>
+        </div>
+      )}
+
+      {booking.status === "confirmed" && !isOpen && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onOpen("reschedule")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-navy hover:bg-grey"
+          >
+            <CalendarIcon className="h-4 w-4" />
+            Reschedule
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpen("complete")}
+            className="inline-flex items-center gap-1.5 rounded-full bg-navy px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy-light"
+          >
+            <CheckIcon className="h-4 w-4" />
+            Mark complete
+          </button>
+        </div>
+      )}
+
+      {isOpen === "reply" && <ReplyPanel onSend={onReply} onCancel={onClose} />}
+
+      {isOpen === "confirm" && (
+        <DateWindowPanel
+          submitLabel="Confirm callout"
+          conflictsFor={conflictsFor}
+          onSubmit={onConfirm}
+          onCancel={onClose}
+          note="They'll need to pay £50 and save a card on file to confirm."
+        />
+      )}
+
+      {isOpen === "reschedule" && (
+        <DateWindowPanel
+          submitLabel="Save new time"
+          initialDate={booking.calloutDate}
+          initialWindow={booking.timeWindow}
+          conflictsFor={conflictsFor}
+          onSubmit={onReschedule}
+          onCancel={onClose}
+          note="They'll get an email with the new date/time — no payment needed again."
+        />
+      )}
+
+      {isOpen === "complete" && (
+        <CompletePanel customer={customer} onSubmit={onComplete} onCancel={onClose} />
+      )}
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: MockBooking["status"] }) {
+  const labels: Record<MockBooking["status"], string> = {
+    new: "New",
+    answered: "Answered",
+    confirmed: "Confirmed",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  };
+  return (
+    <span className="rounded-full bg-grey px-2.5 py-0.5 text-xs font-semibold text-navy/60">
+      {labels[status]}
+    </span>
+  );
+}
+
+function ReplyPanel({
+  onSend,
+  onCancel,
+}: {
+  onSend: (message: string) => void;
+  onCancel: () => void;
+}) {
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
 
   return (
     <div className="mt-4 rounded-2xl border border-line p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-navy/50">
-        Email preview — &ldquo;{subject}&rdquo;
-      </p>
-      <iframe
-        srcDoc={html}
-        title={`Callout confirmation email preview for ${booking.name}`}
-        className="mt-3 h-[440px] w-full rounded-xl border border-line"
+      <label className="mb-1.5 block text-xs font-semibold text-navy">Reply by email</label>
+      <textarea
+        rows={3}
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Type your reply…"
+        className="w-full resize-none rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
       />
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          disabled={!message.trim() || sending}
+          onClick={async () => {
+            setSending(true);
+            await onSend(message);
+            setSending(false);
+          }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-navy px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          <MailIcon className="h-4 w-4" />
+          {sending ? "Sending…" : "Send reply & close"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-navy/70 hover:bg-grey"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
+  );
+}
+
+function DateWindowPanel({
+  submitLabel,
+  initialDate,
+  initialWindow,
+  conflictsFor,
+  onSubmit,
+  onCancel,
+  note,
+}: {
+  submitLabel: string;
+  initialDate?: string;
+  initialWindow?: string;
+  conflictsFor: (date: string) => { name: string; timeWindow?: string }[];
+  onSubmit: (date: string, timeWindow: string) => void;
+  onCancel: () => void;
+  note: string;
+}) {
+  const [date, setDate] = useState(initialDate ?? "");
+  const [timeWindow, setTimeWindow] = useState(initialWindow ?? TIME_WINDOWS[0]);
+  const [sending, setSending] = useState(false);
+
+  const conflicts = date ? conflictsFor(date) : [];
+
+  return (
+    <div className="mt-4 rounded-2xl border border-line p-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-navy">Callout date</label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-navy">Time window</label>
+          <select
+            value={timeWindow}
+            onChange={(e) => setTimeWindow(e.target.value)}
+            className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+          >
+            {TIME_WINDOWS.map((w) => (
+              <option key={w} value={w}>
+                {w}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {conflicts.length > 0 && (
+        <p className="mt-3 rounded-xl bg-terracotta-light px-3 py-2.5 text-xs text-terracotta-dark">
+          Already booked that day: {conflicts.map((c) => `${c.name} (${c.timeWindow})`).join(", ")}
+          — check the calendar before confirming another.
+        </p>
+      )}
+
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-navy/60">
+        <CreditCardIcon className="h-3.5 w-3.5" />
+        {note}
+      </p>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          disabled={!date || sending}
+          onClick={async () => {
+            setSending(true);
+            await onSubmit(date, timeWindow);
+            setSending(false);
+          }}
+          className="bg-btn-gradient inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          <CheckIcon className="h-4 w-4" />
+          {sending ? "Sending…" : submitLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-navy/70 hover:bg-grey"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CompletePanel({
+  customer,
+  onSubmit,
+  onCancel,
+}: {
+  customer: MockCustomer;
+  onSubmit: (notes: string, method: "card" | "invoice" | "tap", amountPence: number) => void;
+  onCancel: () => void;
+}) {
+  const [notes, setNotes] = useState("");
+  const [method, setMethod] = useState<"card" | "invoice" | "tap">(
+    customer.hasCardOnFile ? "card" : "invoice"
+  );
+  const [amount, setAmount] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const amountPence = Math.round(parseFloat(amount || "0") * 100);
+  const canCharge = method === "tap" || (amountPence > 0 && (method !== "card" || customer.hasCardOnFile));
+
+  return (
+    <div className="mt-4 rounded-2xl border border-line p-4">
+      <label className="mb-1.5 block text-xs font-semibold text-navy">
+        Job notes (saved to {customer.name}&apos;s profile for future visits)
+      </label>
+      <textarea
+        rows={2}
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="What was done, parts used, anything worth flagging next time…"
+        className="w-full resize-none rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+      />
+
+      <p className="mt-4 text-xs font-semibold text-navy">How&apos;s this being paid?</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <PaymentMethodButton
+          active={method === "card"}
+          onClick={() => setMethod("card")}
+          disabled={!customer.hasCardOnFile}
+          label="Card on file"
+        />
+        <PaymentMethodButton
+          active={method === "invoice"}
+          onClick={() => setMethod("invoice")}
+          label="Email invoice"
+        />
+        <PaymentMethodButton active={method === "tap"} onClick={() => setMethod("tap")} label="Tap to pay" />
+      </div>
+
+      {method === "card" && !customer.hasCardOnFile && (
+        <p className="mt-2 text-xs text-terracotta-dark">
+          No card on file for {customer.name} — use email invoice instead, or take it via tap to
+          pay.
+        </p>
+      )}
+
+      {(method === "card" || method === "invoice") && (
+        <div className="mt-3">
+          <label className="mb-1.5 block text-xs font-semibold text-navy">Amount (£)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            className="w-32 rounded-xl border border-line px-3 py-2.5 text-sm text-navy outline-none focus:border-terracotta"
+          />
+        </div>
+      )}
+
+      {method === "tap" && (
+        <p className="mt-3 rounded-xl bg-grey px-3 py-2.5 text-xs text-navy/70">
+          Open the Stripe app, find {customer.name}{" "}
+          {customer.stripeCustomerId ? "in your customers" : "(they'll appear there once they've saved a card)"}, and charge them directly there — nothing else to do on this page.
+        </p>
+      )}
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          disabled={!canCharge || sending}
+          onClick={async () => {
+            setSending(true);
+            await onSubmit(notes, method, method === "tap" ? 0 : amountPence);
+            setSending(false);
+          }}
+          className="bg-btn-gradient inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          <CheckIcon className="h-4 w-4" />
+          {sending
+            ? "Saving…"
+            : method === "card"
+              ? "Charge card & mark complete"
+              : method === "invoice"
+                ? "Send invoice & mark complete"
+                : "Mark complete"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-navy/70 hover:bg-grey"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PaymentMethodButton({
+  active,
+  disabled,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        active ? "bg-navy text-white" : "border border-line text-navy/70 hover:bg-grey"
+      }`}
+    >
+      {label}
+    </button>
   );
 }

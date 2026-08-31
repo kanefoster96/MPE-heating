@@ -145,9 +145,19 @@ create table public.stripe_customers (
 -- ---------------------------------------------------------------------
 create table public.payments (
   id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references public.profiles (id) on delete cascade,
+  -- Nullable on purpose: a webhook payment that can't be matched to a
+  -- known customer (a bare tap-to-pay with no customer picked in the
+  -- Stripe app, or a Stripe customer this database has no mapping for)
+  -- still gets a row — it shows in the admin's "Unmatched payments"
+  -- section until Fergal assigns it, rather than silently vanishing.
+  profile_id uuid references public.profiles (id) on delete cascade,
   booking_id uuid references public.bookings (id) on delete set null,
   stripe_payment_intent_id text,
+  -- The raw customer from the payment intent, kept even when it didn't
+  -- match a profile: assigning the payment in the admin can then also
+  -- backfill stripe_customers with the mapping, so that customer's next
+  -- payment matches automatically.
+  stripe_customer_id text,
   amount_pence int not null,
   currency text not null default 'gbp',
   status text not null default 'pending' check (status in ('pending', 'paid', 'refunded', 'failed')),
@@ -167,6 +177,14 @@ create table public.payments (
 );
 
 create index payments_profile_id_idx on public.payments (profile_id);
+
+-- Partial unique index so the webhook's insert can be an idempotent
+-- upsert on the intent id — Stripe retries deliveries, and the same
+-- payment must never create two rows. Partial because rows logged by
+-- hand (cash, tap-to-pay recorded manually) have no intent id.
+create unique index payments_stripe_payment_intent_id_key
+  on public.payments (stripe_payment_intent_id)
+  where stripe_payment_intent_id is not null;
 
 -- ---------------------------------------------------------------------
 -- is_admin() helper

@@ -238,6 +238,24 @@ export function ClockIcon(props: IconProps) {
   );
 }
 
+export function CalendarIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+      <path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" />
+    </svg>
+  );
+}
+
+export function CreditCardIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="2.5" y="5.5" width="19" height="13" rx="2.2" />
+      <path d="M2.5 10h19M6 15h4" />
+    </svg>
+  );
+}
+
 export function FormIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

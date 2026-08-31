@@ -98,7 +98,16 @@ create table public.bookings (
   phone text not null,
   email text,
   message text not null,
+  -- Ticked on the contact form — purely a customer-reassurance signal
+  -- ("this feels like it'll get a fast response"), not a guarantee. Lets
+  -- Fergal see at a glance which bookings are asking for urgency.
+  same_day_requested boolean not null default false,
   status text not null default 'new' check (status in ('new', 'confirmed', 'completed', 'cancelled')),
+  -- Set together when Fergal hits "Confirm callout" in the admin: the
+  -- agreed date/time window, sent to the customer along with the £50
+  -- confirm-and-save-card payment link. Null until then.
+  callout_date date,
+  callout_time_window text,
   created_at timestamptz not null default now()
 );
 

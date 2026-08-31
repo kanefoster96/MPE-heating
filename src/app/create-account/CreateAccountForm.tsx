@@ -1,18 +1,25 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { AuthLayout } from "@/components/AuthLayout";
 import { AccountTypeToggle, type AccountType } from "@/components/AccountTypeToggle";
 import { AddressFinder } from "@/components/AddressFinder";
 import { FormField } from "@/components/FormField";
+import { SelectField } from "@/components/SelectField";
 import { PasswordField } from "@/components/PasswordField";
+import { CheckIcon } from "@/components/icons";
+import { boilerBrands } from "@/lib/content";
+import { readContactHandoff, clearContactHandoff } from "@/lib/contactHandoff";
 import {
   isValidEmail,
   isValidPhone,
   passwordMeetsMinimum,
   PASSWORD_MIN_LENGTH,
 } from "@/lib/validation";
+
+const BOILER_BRAND_OPTIONS = ["Not sure", ...boilerBrands, "Other"];
+const BOILER_AGE_OPTIONS = ["Not sure", "0–2 years", "3–5 years", "6–10 years", "10+ years"];
 
 type Errors = Partial<{
   fullName: string;
@@ -48,6 +55,12 @@ type Errors = Partial<{
 // queryable `profiles` row on signup — no extra wiring needed once
 // Supabase is connected. address isn't in that metadata shape today
 // though; it'll need adding to both this call and the trigger together.
+//
+// boilerMake/boilerAge/problemDescription aren't part of the signup call
+// itself — once there's a real profile id, insert a row into `boilers`
+// (make, notes) and update the matching `bookings` row (same_day_requested
+// already carries across from the contact form) rather than stuffing them
+// into auth metadata.
 async function signUpStub(_fields: {
   accountType: AccountType;
   fullName: string;
@@ -58,6 +71,10 @@ async function signUpStub(_fields: {
   phone: string;
   address: string;
   password: string;
+  boilerMake: string;
+  boilerAge: string;
+  problemDescription: string;
+  sameDayRequested: boolean;
 }): Promise<{ error: string | null }> {
   await new Promise((resolve) => setTimeout(resolve, 500));
   return { error: null };
@@ -75,9 +92,33 @@ export function CreateAccountForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [boilerMake, setBoilerMake] = useState("Not sure");
+  const [boilerAge, setBoilerAge] = useState("Not sure");
+  const [problemDescription, setProblemDescription] = useState("");
+  const [sameDayRequested, setSameDayRequested] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Prefill from the contact form if they've just come from there — see
+  // src/lib/contactHandoff.ts. sessionStorage doesn't exist during SSR, so
+  // this has to run in an effect rather than a useState lazy initializer
+  // (which would read it during the client's first render and mismatch
+  // against the empty-fields server render). Read once on mount; the form
+  // fields become the source of truth from here, so clear the handoff
+  // straight away.
+  useEffect(() => {
+    const handoff = readContactHandoff();
+    if (!handoff) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration-safe prefill from sessionStorage, not derivable from props/render
+    setFullName(handoff.name);
+    setPhone(handoff.phone);
+    setEmail(handoff.email);
+    setProblemDescription(handoff.message);
+    setSameDayRequested(handoff.sameDayRequested);
+    clearContactHandoff();
+  }, []);
 
   const isCommercial = accountType === "commercial";
 
@@ -112,6 +153,10 @@ export function CreateAccountForm() {
       phone,
       address,
       password,
+      boilerMake,
+      boilerAge,
+      problemDescription,
+      sameDayRequested,
     });
     setSubmitting(false);
 
@@ -136,6 +181,13 @@ export function CreateAccountForm() {
       }
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+        {sameDayRequested && (
+          <div className="flex items-center gap-2.5 rounded-2xl bg-terracotta-light px-4 py-3 text-sm font-semibold text-terracotta-dark">
+            <CheckIcon className="h-4 w-4 shrink-0" />
+            Same-day callout requested — noted
+          </div>
+        )}
+
         <FormField
           id="fullName"
           label="Full name"
@@ -201,6 +253,46 @@ export function CreateAccountForm() {
           address={address}
           onAddressChange={setAddress}
         />
+
+        <div className="border-t border-line pt-5">
+          <p className="text-sm font-bold text-navy">Boiler details</p>
+          <p className="mt-1 text-sm text-navy/70">
+            So your engineer knows what to expect before they arrive — all optional.
+          </p>
+
+          <div className="mt-4 flex flex-col gap-5">
+            <div className="grid grid-cols-2 gap-4">
+              <SelectField
+                id="boilerMake"
+                label="Boiler brand"
+                options={BOILER_BRAND_OPTIONS}
+                value={boilerMake}
+                onChange={(e) => setBoilerMake(e.target.value)}
+              />
+
+              <SelectField
+                id="boilerAge"
+                label="Boiler age"
+                options={BOILER_AGE_OPTIONS}
+                value={boilerAge}
+                onChange={(e) => setBoilerAge(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="problemDescription" className="mb-1.5 block text-sm font-semibold text-navy">
+                What&apos;s the problem?
+              </label>
+              <textarea
+                id="problemDescription"
+                rows={3}
+                value={problemDescription}
+                onChange={(e) => setProblemDescription(e.target.value)}
+                className="w-full resize-none rounded-2xl border border-line px-4 py-3 text-base text-navy outline-none transition-colors focus:border-terracotta"
+              />
+            </div>
+          </div>
+        </div>
 
         <PasswordField
           id="password"

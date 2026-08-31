@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AuthLayout } from "@/components/AuthLayout";
 import { FormField } from "@/components/FormField";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
+import { CONTACT_HANDOFF_KEY, type ContactHandoff } from "@/lib/contactHandoff";
 
 type Errors = Partial<{
   name: string;
@@ -15,9 +16,10 @@ type Errors = Partial<{
 
 // TODO(supabase): insert into the `bookings` table (see
 // supabase/migrations/20260828000000_init.sql) once a project is
-// connected — profile_id stays null for a guest submission like this one.
-// Also worth sending Fergal a transactional email (Resend/Postmark etc) so
-// he doesn't have to check the dashboard for every new booking. Email is
+// connected — profile_id stays null for a guest submission like this one,
+// same_day_requested maps straight onto the new column there. Also worth
+// sending Fergal a transactional email (Resend/Postmark etc) so he
+// doesn't have to check the dashboard for every new booking. Email is
 // optional here since this site is phone/WhatsApp-first, so don't assume
 // it's always present — phone is the fallback contact method either way.
 async function sendMessageStub(_fields: {
@@ -25,16 +27,19 @@ async function sendMessageStub(_fields: {
   phone: string;
   email: string;
   message: string;
+  sameDayRequested: boolean;
 }): Promise<{ error: string | null }> {
   await new Promise((resolve) => setTimeout(resolve, 500));
   return { error: null };
 }
 
 export function ContactForm() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [sameDayRequested, setSameDayRequested] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -48,13 +53,13 @@ export function ContactForm() {
     if (name.trim().length < 2) nextErrors.name = "Enter your name.";
     if (!isValidPhone(phone)) nextErrors.phone = "Enter a valid phone number.";
     if (email.trim() && !isValidEmail(email)) nextErrors.email = "Enter a valid email address.";
-    if (message.trim().length < 10) nextErrors.message = "Say a little more about your question.";
+    if (message.trim().length < 10) nextErrors.message = "Say a little more about the problem.";
 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
-    const { error } = await sendMessageStub({ name, phone, email, message });
+    const { error } = await sendMessageStub({ name, phone, email, message, sameDayRequested });
     setSubmitting(false);
 
     if (error) {
@@ -62,7 +67,18 @@ export function ContactForm() {
       return;
     }
 
+    // Hand the details across to /create-account so the customer doesn't
+    // have to repeat themselves — read back there via useContactHandoff().
+    const handoff: ContactHandoff = { name, phone, email, message, sameDayRequested };
+    try {
+      sessionStorage.setItem(CONTACT_HANDOFF_KEY, JSON.stringify(handoff));
+    } catch {
+      // Private browsing / storage disabled — not fatal, they'll just
+      // retype their details on the next page.
+    }
+
     setSubmitted(true);
+    setTimeout(() => router.push("/create-account"), 1400);
   };
 
   if (submitted) {
@@ -70,7 +86,7 @@ export function ContactForm() {
       <AuthLayout
         eyebrow="Message sent"
         title={`Thanks${name.trim() ? `, ${name.trim().split(" ")[0]}` : ""} — we've got it`}
-        subtitle="A member of the team will be in touch shortly to confirm."
+        subtitle="An engineer will be in touch soon to get your problem fixed. Taking you to set up your account next…"
         hideContactLink
       >
         <div className="flex flex-col gap-5">
@@ -79,17 +95,17 @@ export function ContactForm() {
           </p>
 
           <div className="rounded-2xl border border-line p-5">
-            <p className="text-sm font-bold text-navy">While you wait, create an account</p>
+            <p className="text-sm font-bold text-navy">Next: add your address and boiler details</p>
             <p className="mt-1.5 text-sm text-navy/70">
-              So the team has your address and boiler details ready before they call — no need
-              to repeat yourself.
+              So the team has everything ready before they call — no need to repeat yourself.
             </p>
-            <Link
-              href="/create-account"
+            <button
+              type="button"
+              onClick={() => router.push("/create-account")}
               className="bg-btn-gradient mt-4 inline-flex w-full items-center justify-center rounded-full py-3 text-sm font-semibold text-white sm:w-auto sm:px-6"
             >
-              Create an account
-            </Link>
+              Continue
+            </button>
           </div>
         </div>
       </AuthLayout>
@@ -98,9 +114,9 @@ export function ContactForm() {
 
   return (
     <AuthLayout
-      eyebrow="Get in touch"
-      title="Have a question?"
-      subtitle="No need to create an account — just send us a message and we'll get back to you."
+      eyebrow="Book a visit"
+      title="Book a visit"
+      subtitle="Let us know how we can help and an engineer will be in touch soon to get your problem fixed."
       hideContactLink
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
@@ -136,7 +152,7 @@ export function ContactForm() {
 
         <div>
           <label htmlFor="message" className="mb-1.5 block text-sm font-semibold text-navy">
-            Message
+            What&apos;s the problem?
           </label>
           <textarea
             id="message"
@@ -152,6 +168,18 @@ export function ContactForm() {
             <p className="mt-1.5 text-xs font-medium text-terracotta">{errors.message}</p>
           )}
         </div>
+
+        <label className="flex items-start gap-2.5 rounded-2xl border border-line px-4 py-3.5 text-sm text-navy/80">
+          <input
+            type="checkbox"
+            checked={sameDayRequested}
+            onChange={(e) => setSameDayRequested(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-line text-terracotta focus:ring-terracotta"
+          />
+          <span>
+            <span className="font-semibold text-navy">Boiler broke down, same-day callout request</span>
+          </span>
+        </label>
 
         {notice && (
           <p className="rounded-2xl bg-grey px-4 py-3 text-sm text-navy/70">{notice}</p>

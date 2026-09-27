@@ -5,7 +5,6 @@ import { PromoStrip } from "@/components/PromoStrip";
 import { ServicePageHero } from "@/components/ServicePageHero";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
-import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
 import { MapPinIcon, ArrowRightIcon } from "@/components/icons";
 import { areaPages } from "@/lib/areas";
 import { business } from "@/lib/content";
@@ -61,7 +60,6 @@ export default function AreasIndexPage() {
         <FinalCta />
       </main>
       <Footer />
-      <FloatingWhatsapp />
     </>
   );
 }

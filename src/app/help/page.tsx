@@ -4,7 +4,6 @@ import { PromoStrip } from "@/components/PromoStrip";
 import { ServicePageHero } from "@/components/ServicePageHero";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
-import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
 import { FormIcon } from "@/components/icons";
 import { helpArticles } from "@/lib/help";
 import { SITE_URL } from "@/lib/seo";
@@ -38,7 +37,6 @@ export default function HelpIndexPage() {
         <FinalCta />
       </main>
       <Footer />
-      <FloatingWhatsapp />
     </>
   );
 }

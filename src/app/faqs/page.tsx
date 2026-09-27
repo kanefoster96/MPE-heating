@@ -5,7 +5,6 @@ import { ServicePageHero } from "@/components/ServicePageHero";
 import { Faq } from "@/components/Faq";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
-import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
 import { faqsPage, faqs } from "@/lib/content";
 import { QuestionIcon } from "@/components/icons";
 import { SITE_URL, faqPageJsonLd } from "@/lib/seo";
@@ -37,7 +36,6 @@ export default function FaqsPage() {
         <FinalCta />
       </main>
       <Footer />
-      <FloatingWhatsapp />
       <JsonLd data={faqPageJsonLd([...faqs.homes, ...faqs.commercial])} />
     </>
   );

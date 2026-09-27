@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Nav } from "./Nav";
 import { PromoStrip } from "./PromoStrip";
 import { Footer } from "./Footer";
-import { FloatingWhatsapp } from "./FloatingWhatsapp";
 
 // Shared shell for simple content pages (privacy, terms, about) — same
 // header + white card treatment as a help article, minus the article-
@@ -42,7 +41,6 @@ export function ContentPageLayout({
       </main>
       {afterContent}
       <Footer />
-      <FloatingWhatsapp />
     </>
   );
 }

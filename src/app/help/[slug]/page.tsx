@@ -6,7 +6,6 @@ import { PromoStrip } from "@/components/PromoStrip";
 import { RichContent } from "@/components/RichContent";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
-import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
 import { JsonLd } from "@/components/JsonLd";
 import { ArrowRightIcon, ChevronLeftIcon } from "@/components/icons";
 import { helpArticles, getHelpArticle } from "@/lib/help";
@@ -85,7 +84,6 @@ export default async function HelpArticlePage({ params }: { params: Promise<Para
       </main>
       <FinalCta />
       <Footer />
-      <FloatingWhatsapp />
       <JsonLd data={articleJsonLd(post)} />
     </>
   );

@@ -66,9 +66,9 @@ export function Nav() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Chat with us on WhatsApp"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#25D366] text-white transition-colors hover:bg-[#1DA851]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#25D366] transition-colors hover:bg-grey"
           >
-            <WhatsAppIcon className="h-5 w-5" />
+            <WhatsAppIcon className="h-6 w-6" />
           </a>
           <button
             type="button"

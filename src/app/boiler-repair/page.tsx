@@ -39,7 +39,7 @@ export default function BoilerRepairPage() {
 
         <FeatureGrid
           eyebrow="Why book with MPE"
-          title="Boiler repairs, done properly"
+          title="The repair, without the usual headaches"
           items={boilerRepairPage.features.map((f) => {
             const FeatureIconComponent = featureIconMap[f.icon];
             return {

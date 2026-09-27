@@ -39,7 +39,7 @@ export default function NewBoilersPage() {
 
         <FeatureGrid
           eyebrow="Why book with MPE"
-          title="A new boiler, done right"
+          title="Everything handled, nothing left for you to chase"
           items={newBoilersPage.features.map((f) => {
             const FeatureIconComponent = featureIconMap[f.icon];
             return {

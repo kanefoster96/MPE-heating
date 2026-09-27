@@ -13,7 +13,7 @@ const outfit = Outfit({
 
 const defaultTitle = `${business.fullName} | Boiler Repairs, Servicing, Plumbing & Electrics`;
 const defaultDescription =
-  "Gas Safe registered boiler repairs, servicing, new boiler installs, plumbing and electrics across the North East. Same-day response, £50 call-out refunded when fixed, 90-day guarantee on every job.";
+  "Same-day boiler repairs, servicing, new boilers, plumbing and electrics across the North East. Gas Safe registered, price agreed before we start, £50 call-out refunded when fixed, 90-day guarantee.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

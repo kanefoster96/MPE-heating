@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
-import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
 import { ProductArt } from "@/components/ProductArt";
 import { QuestionIcon } from "@/components/icons";
 
@@ -47,7 +46,6 @@ export default function NotFound() {
         </p>
       </main>
       <Footer />
-      <FloatingWhatsapp />
     </>
   );
 }

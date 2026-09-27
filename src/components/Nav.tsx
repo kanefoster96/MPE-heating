@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { business } from "@/lib/content";
-import { MenuIcon, CloseIcon, PhoneIcon, UserIcon } from "./icons";
+import { MenuIcon, CloseIcon, PhoneIcon, UserIcon, WhatsAppIcon } from "./icons";
 
 // href is added as each menu page ships — an unset href renders as plain
 // text rather than a link to a page that doesn't exist yet.
@@ -60,6 +60,15 @@ export function Nav() {
           >
             <PhoneIcon className="h-4 w-4" />
             <span className="hidden sm:inline">{business.phoneDisplay}</span>
+          </a>
+          <a
+            href={business.whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Chat with us on WhatsApp"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#25D366] text-white transition-colors hover:bg-[#1DA851]"
+          >
+            <WhatsAppIcon className="h-5 w-5" />
           </a>
           <button
             type="button"

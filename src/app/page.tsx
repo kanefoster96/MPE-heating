@@ -13,7 +13,6 @@ import { CommercialTeaser } from "@/components/CommercialTeaser";
 import { AreasCovered } from "@/components/AreasCovered";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
-import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
 
 export default function Home() {
   return (
@@ -35,7 +34,6 @@ export default function Home() {
         <FinalCta />
       </main>
       <Footer />
-      <FloatingWhatsapp />
     </>
   );
 }

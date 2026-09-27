@@ -8,7 +8,6 @@ import { GuaranteeBlock } from "@/components/GuaranteeBlock";
 import { Reviews } from "@/components/Reviews";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
-import { FloatingWhatsapp } from "@/components/FloatingWhatsapp";
 import {
   BoilerIcon,
   ServiceIcon,
@@ -176,7 +175,6 @@ export default async function AreaPageRoute({ params }: { params: Promise<Params
         <FinalCta />
       </main>
       <Footer />
-      <FloatingWhatsapp />
     </>
   );
 }

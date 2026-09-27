@@ -4,7 +4,7 @@ import { GasSafeMarkIcon, ShieldIcon, AwardIcon, PhoneIcon } from "./icons";
 
 export function Footer() {
   return (
-    <footer className="bg-navy pb-24 pt-14 text-white sm:pb-14">
+    <footer className="bg-navy py-14 text-white">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
           <div>

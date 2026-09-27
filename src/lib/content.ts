@@ -66,14 +66,13 @@ export const hero = {
   subline:
     "A Gas Safe engineer comes to you anywhere in the North East, agrees the price before starting, and fixes most boilers in one visit.",
   cta: "Book a same-day visit",
-  // White overlay copy shown beside the boiler photo, above the main card.
-  // question is the italic lead-in (paired with a pulsing red dot), answer
-  // is the bold follow-up line, emergencyCta is the secondary pill button
-  // shown underneath.
+  // White overlay copy shown beside the boiler photo, above the main card
+  // (mobile and tablet only). question is the italic lead-in (paired with
+  // a pulsing red dot), answer is the bold follow-up line. No button here
+  // on purpose: the card's orange CTA is the only call to action.
   imageCallout: {
     question: "Boiler flashing red?",
     answer: "Emergency engineers out today.",
-    emergencyCta: "Request emergency callout",
   },
   // Placeholder figure — swap for the real same-day fix rate once we have
   // the numbers to back it. value/label render as one line; explainer is

@@ -292,7 +292,7 @@ export const areaPages: AreaPage[] = [
     distance: "About 12 miles south of Whitley Bay, on the South Tyneside/Sunderland border.",
     intro: [
       "West Boldon's a smaller village, with a mix of older village housing and newer estate development built up around it — quieter than the bigger towns we cover, but no less likely to need a boiler sorted on a Sunday morning.",
-      "We treat village call-outs the same as anywhere else: same £50 call-out, same price-agreed-first approach, same 30-day guarantee.",
+      "We treat village call-outs the same as anywhere else: same £50 call-out, same price-agreed-first approach, same 90-day guarantee.",
     ],
     nearby: ["south-shields", "sunderland", "washington"],
     faqs: [

@@ -54,21 +54,25 @@ export const promoMessages: PromoMessage[] = [
   { text: "Gas Safe engineers, price agreed before we start." },
 ];
 
+// Hero copy is built on the value equation: dream outcome + likelihood it
+// works, minus time delay and effort. Headline = outcome + speed. Subline
+// = how little the customer has to do, and why it'll work. Ticks = the
+// risk-reversal stack. Every claim here must be one MPE can actually keep.
 export const hero = {
-  label: "Boiler Repairs",
-  // The outcome the customer gets.
-  headline: "Hot water and heating, working again",
-  // What MPE does for them to get there.
+  // Dream outcome + time delay, in the customer's words.
+  headline: "Heating and hot water back the same day",
+  // Effort (we come to you), sacrifice (price agreed first), likelihood
+  // (Gas Safe, one visit).
   subline:
-    "Our engineers diagnose the fault, agree a fair price, and get it fixed — across the North East.",
-  cta: "Book a visit",
+    "A Gas Safe engineer comes to you anywhere in the North East, agrees the price before starting, and fixes most boilers in one visit.",
+  cta: "Book a same-day visit",
   // White overlay copy shown beside the boiler photo, above the main card.
   // question is the italic lead-in (paired with a pulsing red dot), answer
   // is the bold follow-up line, emergencyCta is the secondary pill button
   // shown underneath.
   imageCallout: {
     question: "Boiler flashing red?",
-    answer: "Book same-day response.",
+    answer: "Emergency engineers out today.",
     emergencyCta: "Request emergency callout",
   },
   // Placeholder figure — swap for the real same-day fix rate once we have
@@ -80,10 +84,11 @@ export const hero = {
     explainer:
       "Different boilers use different parts, so we can't promise a fix on the spot every time. But we carry the most common parts and faults for the most popular brands, so most jobs are done in one visit. On the rare occasion we can't finish it same-day, we'll reschedule your repair — usually within 24 hours.",
   },
+  // Risk-reversal stack: money, surprises, and "what if it breaks again".
   ticks: [
-    "Gas Safe registered",
-    "£50 call-out refunded when fixed",
-    "30-day guarantee",
+    "£50 call-out, 100% off your bill when fixed",
+    "Price agreed before we start",
+    "30-day guarantee on every repair",
   ],
 };
 

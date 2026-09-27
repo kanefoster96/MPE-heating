@@ -40,10 +40,7 @@ export function Hero() {
 
       <div className="relative mx-auto -mt-2 max-w-6xl px-4 pb-10 sm:px-6 sm:pb-14 lg:mt-0 lg:pt-20">
         <div className="rounded-t-[28px] bg-white px-5 py-8 text-center shadow-[0_-15px_35px_-20px_rgba(31,42,58,0.3)] sm:rounded-[28px] sm:px-10 sm:py-10 lg:mx-auto lg:max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">
-            {hero.label}
-          </p>
-          <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight text-navy sm:text-4xl lg:text-5xl">
+          <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-navy sm:text-4xl lg:text-5xl">
             {hero.headline}
           </h1>
           <p className="mt-4 text-base text-navy/70 sm:text-lg">{hero.subline}</p>

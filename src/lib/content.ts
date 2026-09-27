@@ -49,7 +49,7 @@ export type PromoMessage = { text: string; tone?: "cold" };
 export const promoMessages: PromoMessage[] = [
   { text: "£50 call-out — 100% comes off your bill when we fix it." },
   { text: "No heating? Engineers out the same day.", tone: "cold" },
-  { text: "Every repair guaranteed for 90 days." },
+  { text: "Every repair guaranteed for 3 months." },
   { text: "New boiler? Free fixed-price quote, usually fitted in a day." },
   { text: "Gas Safe engineers, price agreed before we start." },
 ];
@@ -87,7 +87,7 @@ export const hero = {
   ticks: [
     "£50 call-out, 100% off your bill when fixed",
     "Price agreed before we start",
-    "90-day guarantee on every repair",
+    "3-month guarantee on every repair",
   ],
 };
 
@@ -112,7 +112,7 @@ export const services: ServiceCard[] = [
     id: "repair",
     eyebrow: "Boiler Repair",
     headline: "Heating back on the same day",
-    line: "£50 call-out, 100% off your bill when we fix it. Guaranteed 90 days.",
+    line: "£50 call-out, 100% off your bill when we fix it. Guaranteed 3 months.",
     cta: "Book a repair",
     tone: "orange",
     icon: "boiler",
@@ -167,7 +167,7 @@ export const services: ServiceCard[] = [
 // Full version for a future About page/section. whyMpeIntro below is the
 // condensed version used as a subline on the homepage today.
 export const about = {
-  text: "MPE is a family-run gas, heating, plumbing and electrical firm covering the North East. The way we work is simple: you get the price before anything starts, an engineer the same day when it's urgent, and a 90-day guarantee on every repair. No pressure and no upselling. Our reputation is built on the customers who call us back and recommend us to their neighbours.",
+  text: "MPE is a family-run gas, heating, plumbing and electrical firm covering the North East. The way we work is simple: you get the price before anything starts, an engineer the same day when it's urgent, and a 3-month guarantee on every repair. No pressure and no upselling. Our reputation is built on the customers who call us back and recommend us to their neighbours.",
 };
 
 // About page body — reuses about.text as the lead paragraph. Deliberately
@@ -184,7 +184,7 @@ export const aboutPageContent: ContentBlock[] = [
   {
     type: "list",
     items: [
-      "Boiler repairs — same-day where we can, £50 call-out refunded when we fix it, 90-day guarantee",
+      "Boiler repairs — same-day where we can, £50 call-out refunded when we fix it, 3-month guarantee",
       "Boiler servicing — from £79, around 45 minutes, keeps your warranty valid",
       "New boiler installations — free fixed-price quote, usually fitted in a day",
       "Plumbing and electrics — leaks, taps, bathrooms, fuse boards, rewires, EV chargers",
@@ -194,12 +194,12 @@ export const aboutPageContent: ContentBlock[] = [
   { type: "h2", text: "How we work" },
   {
     type: "p",
-    text: "You hear the price before any work starts, and nothing happens until you've agreed it. We diagnose honestly and quote fairly. Every repair is guaranteed for 90 days: if the same fault comes back, we return and put it right at no extra cost.",
+    text: "You hear the price before any work starts, and nothing happens until you've agreed it. We diagnose honestly and quote fairly. Every repair is guaranteed for 3 months: if the same fault comes back, we return and put it right at no extra cost.",
   },
 ];
 
 export const whyMpeIntro =
-  "A family-run North East firm. You get the price before we start, an engineer the same day when it's urgent, and a 90-day guarantee on the work.";
+  "A family-run North East firm. You get the price before we start, an engineer the same day when it's urgent, and a 3-month guarantee on the work.";
 
 export const whyMpe = [
   {
@@ -215,7 +215,7 @@ export const whyMpe = [
   {
     icon: "check" as const,
     title: "Fixed for good",
-    text: "Same fault back within 90 days? We return and fix it free.",
+    text: "Same fault back within 3 months? We return and fix it free.",
   },
 ];
 
@@ -235,14 +235,14 @@ export const howItWorks = [
   {
     number: 3,
     title: "You approve the price, we fix it",
-    text: "Nothing starts until you've agreed the cost. Then it's fixed, tested and guaranteed for 90 days.",
+    text: "Nothing starts until you've agreed the cost. Then it's fixed, tested and guaranteed for 3 months.",
     icon: "wrench" as const,
   },
 ];
 
 export const guarantee = {
-  title: "The 90-day fixed-for-good guarantee",
-  text: "If the same fault comes back within 90 days of our repair, we return and put it right at no extra cost. No arguing, no small print.",
+  title: "The 3-month fixed-for-good guarantee",
+  text: "If the same fault comes back within 3 months of our repair, we return and put it right at no extra cost. No arguing, no small print.",
   pill: "We'll always confirm costs before any further work.",
 };
 
@@ -299,8 +299,8 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
       a: `Yes, every engineer is Gas Safe registered (registration number ${business.gasSafeNumber}) and fully insured for domestic and commercial work.`,
     },
     {
-      q: "What's covered by the 90-day guarantee?",
-      a: "Any repair we carry out is guaranteed for 90 days. If the same fault reoccurs in that time, we'll come back and fix it at no extra cost.",
+      q: "What's covered by the 3-month guarantee?",
+      a: "Any repair we carry out is guaranteed for 3 months. If the same fault reoccurs in that time, we'll come back and fix it at no extra cost.",
     },
   ],
   commercial: [
@@ -372,9 +372,9 @@ export const boilerRepairPage: ServicePage = {
   eyebrow: "Boiler Repair",
   headline: "Boiler fixed the same day, at a price you agreed first",
   subline:
-    "Tell us what's wrong and a Gas Safe engineer comes to you anywhere in the North East, usually the same day. Most faults are fixed in one visit, and every repair is guaranteed for 90 days.",
+    "Tell us what's wrong and a Gas Safe engineer comes to you anywhere in the North East, usually the same day. Most faults are fixed in one visit, and every repair is guaranteed for 3 months.",
   cta: "Book a same-day repair",
-  ticks: ["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "90-day guarantee"],
+  ticks: ["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "3-month guarantee"],
   features: [
     {
       icon: "clock",
@@ -398,8 +398,8 @@ export const boilerRepairPage: ServicePage = {
     },
     {
       icon: "shield",
-      title: "90-day guarantee",
-      text: "If the same fault comes back within 90 days, we'll return and put it right at no extra cost.",
+      title: "3-month guarantee",
+      text: "If the same fault comes back within 3 months, we'll return and put it right at no extra cost.",
     },
     {
       icon: "boiler",
@@ -587,9 +587,9 @@ export const faqsPage = {
   eyebrow: "Questions",
   headline: "Straight answers, no small print",
   subline:
-    "What the call-out costs, how fast we can get to you, and exactly what the 90-day guarantee covers. For homes and businesses.",
+    "What the call-out costs, how fast we can get to you, and exactly what the 3-month guarantee covers. For homes and businesses.",
   cta: "Ask us anything",
-  ticks: ["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "90-day guarantee"],
+  ticks: ["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "3-month guarantee"],
 };
 
 export const finalCta = {

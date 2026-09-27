@@ -59,7 +59,7 @@ export const termsContent: ContentBlock[] = [
   { type: "h2", text: "Our guarantee" },
   {
     type: "p",
-    text: "Every repair we carry out is covered by a 90-day guarantee. If the same fault reoccurs within 90 days, we'll come back and put it right at no extra cost. This covers our workmanship — it doesn't cover unrelated faults, parts we didn't supply or fit, or damage caused after our visit.",
+    text: "Every repair we carry out is covered by a 3-month guarantee. If the same fault reoccurs within 3 months, we'll come back and put it right at no extra cost. This covers our workmanship — it doesn't cover unrelated faults, parts we didn't supply or fit, or damage caused after our visit.",
   },
   {
     type: "p",

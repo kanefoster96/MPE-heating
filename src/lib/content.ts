@@ -48,9 +48,9 @@ export type PromoMessage = { text: string; tone?: "cold" };
 // banner to a blue "boiler's out" treatment instead of the default yellow.
 export const promoMessages: PromoMessage[] = [
   { text: "£50 call-out — 100% comes off your bill when we fix it." },
-  { text: "Boiler broken down? Same-day response.", tone: "cold" },
-  { text: "£50 call-out, refunded when we fix it." },
-  { text: "Free, no-obligation quotes on new boilers." },
+  { text: "No heating? Engineers out the same day.", tone: "cold" },
+  { text: "Every repair guaranteed for 90 days." },
+  { text: "New boiler? Free fixed-price quote, usually fitted in a day." },
   { text: "Gas Safe engineers, price agreed before we start." },
 ];
 
@@ -112,8 +112,8 @@ export const services: ServiceCard[] = [
   {
     id: "repair",
     eyebrow: "Boiler Repair",
-    headline: "Same-day boiler repairs",
-    line: "£50 call-out, 100% comes off your bill once fixed.",
+    headline: "Heating back on the same day",
+    line: "£50 call-out, 100% off your bill when we fix it. Guaranteed 90 days.",
     cta: "Book a repair",
     tone: "orange",
     icon: "boiler",
@@ -122,7 +122,7 @@ export const services: ServiceCard[] = [
     id: "servicing",
     eyebrow: "Boiler Servicing",
     headline: "Annual service from £79",
-    line: "Keeps your warranty valid and your boiler safe.",
+    line: "45 minutes. Warranty kept valid, and we remind you next year.",
     cta: "Book a service",
     tone: "grey",
     icon: "service",
@@ -130,9 +130,9 @@ export const services: ServiceCard[] = [
   {
     id: "new-boilers",
     eyebrow: "New Boilers",
-    headline: "New boiler supplied and fitted",
-    line: "Fixed quote, no surprises.",
-    cta: "Get a quote",
+    headline: "New boiler, usually fitted in a day",
+    line: "Free fixed-price quote. Old boiler taken away.",
+    cta: "Get a free quote",
     tone: "grey-green",
     icon: "newboiler",
   },
@@ -140,7 +140,7 @@ export const services: ServiceCard[] = [
     id: "plumbing",
     eyebrow: "Plumbing",
     headline: "Leaks, taps, bathrooms and pipework",
-    line: "Small jobs to full installs.",
+    line: "Small jobs to full installs, price agreed first.",
     cta: "Book a plumber",
     tone: "grey",
     icon: "plumbing",
@@ -158,7 +158,7 @@ export const services: ServiceCard[] = [
     id: "landlords",
     eyebrow: "Landlords",
     headline: "Gas safety and electrical certificates",
-    line: "CP12 and EICR, reminders every year.",
+    line: "CP12 and EICR, with a reminder before they expire.",
     cta: "Get certified",
     tone: "grey",
     icon: "landlord",
@@ -168,7 +168,7 @@ export const services: ServiceCard[] = [
 // Full version for a future About page/section. whyMpeIntro below is the
 // condensed version used as a subline on the homepage today.
 export const about = {
-  text: "As a family-run business, we take pride in delivering honest, reliable, and professional services across electrical, plumbing, and gas works. We are committed to providing high-quality workmanship with a straightforward, no-nonsense approach and competitive pricing. Customer satisfaction is at the heart of what we do, and our reputation is built on the trust and positive feedback of those we've proudly served.",
+  text: "MPE is a family-run gas, heating, plumbing and electrical firm covering the North East. The way we work is simple: you get the price before anything starts, an engineer the same day when it's urgent, and a 90-day guarantee on every repair. No pressure and no upselling. Our reputation is built on the customers who call us back and recommend us to their neighbours.",
 };
 
 // About page body — reuses about.text as the lead paragraph. Deliberately
@@ -185,65 +185,65 @@ export const aboutPageContent: ContentBlock[] = [
   {
     type: "list",
     items: [
-      "Boiler repairs — same-day response where we can, £50 call-out refunded when we fix it",
-      "Boiler servicing — annual service from £79, keeps your warranty valid",
-      "New boiler installations — free quotes, fixed price",
+      "Boiler repairs — same-day where we can, £50 call-out refunded when we fix it, 90-day guarantee",
+      "Boiler servicing — from £79, around 45 minutes, keeps your warranty valid",
+      "New boiler installations — free fixed-price quote, usually fitted in a day",
       "Plumbing and electrics — leaks, taps, bathrooms, fuse boards, rewires, EV chargers",
-      "Commercial gas, catering equipment and compliance certificates",
+      "Commercial gas, catering equipment and compliance certificates, with priority call-outs",
     ],
   },
   { type: "h2", text: "How we work" },
   {
     type: "p",
-    text: "Price agreed before any work starts. No pressure, no upselling — just an honest diagnosis and a fair price. Every repair comes with a 90-day guarantee, and if something's not right, we'll come back and put it right.",
+    text: "You hear the price before any work starts, and nothing happens until you've agreed it. We diagnose honestly and quote fairly. Every repair is guaranteed for 90 days: if the same fault comes back, we return and put it right at no extra cost.",
   },
 ];
 
 export const whyMpeIntro =
-  "A family-run business built on honest, reliable work — straightforward pricing, no-nonsense service, and a reputation built on the customers we've proudly served.";
+  "A family-run North East firm. You get the price before we start, an engineer the same day when it's urgent, and a 90-day guarantee on the work.";
 
 export const whyMpe = [
   {
     icon: "price" as const,
-    title: "Clear pricing",
-    text: "You'll know the cost before we start.",
+    title: "Price before we start",
+    text: "You approve the cost before any work begins. No surprises on the bill.",
   },
   {
     icon: "clock" as const,
-    title: "Same-day response",
-    text: "Heating and hot water can't wait.",
+    title: "Out the same day",
+    text: "No heat or hot water? You go to the front of the queue.",
   },
   {
     icon: "check" as const,
-    title: "Done right",
-    text: "90-day guarantee on every repair.",
+    title: "Fixed for good",
+    text: "Same fault back within 90 days? We return and fix it free.",
   },
 ];
 
 export const howItWorks = [
   {
     number: 1,
-    title: "Book online or on WhatsApp",
-    text: "Tell us what's wrong in a couple of minutes and pick a time that suits.",
+    title: "Tell us what's wrong",
+    text: "Two minutes online or on WhatsApp. You pick the time that suits.",
     icon: "form" as const,
   },
   {
     number: 2,
     title: "Your engineer arrives",
-    text: "Fully kitted out and on time, with ID and a smile.",
+    text: "On time, with ID, and common parts on the van so most jobs finish in one visit.",
     icon: "doorstep" as const,
   },
   {
     number: 3,
-    title: "Fixed, price agreed first",
-    text: "No surprises on the invoice — you approve the cost before any work starts.",
+    title: "You approve the price, we fix it",
+    text: "Nothing starts until you've agreed the cost. Then it's fixed, tested and guaranteed for 90 days.",
     icon: "wrench" as const,
   },
 ];
 
 export const guarantee = {
-  title: "90-day work guarantee",
-  text: "If anything we've repaired plays up again within 90 days, we'll come back and put it right at no extra cost.",
+  title: "The 90-day fixed-for-good guarantee",
+  text: "If the same fault comes back within 90 days of our repair, we return and put it right at no extra cost. No arguing, no small print.",
   pill: "We'll always confirm costs before any further work.",
 };
 
@@ -330,8 +330,8 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
 
 export const commercial = {
   label: "Run a business?",
-  headline: "Commercial gas, catering equipment and maintenance contracts",
-  cta: "Commercial services",
+  headline: "Commercial gas and catering cover, with priority call-outs when downtime costs you",
+  cta: "See commercial cover",
 };
 
 // Icon keys shared by every service sub-page's feature grid — mapped to
@@ -371,21 +371,21 @@ export const boilerRepairPage: ServicePage = {
   navLabel: "Boiler repair",
   icon: "boiler",
   eyebrow: "Boiler Repair",
-  headline: "Boiler fixed, fast — with a price you agreed first",
+  headline: "Boiler fixed the same day, at a price you agreed first",
   subline:
-    "Same-day response across the North East where we can, Gas Safe engineers, and a 90-day guarantee on every repair we carry out.",
-  cta: "Book a repair",
-  ticks: ["Gas Safe registered", "£50 call-out refunded when fixed", "90-day guarantee"],
+    "Tell us what's wrong and a Gas Safe engineer comes to you anywhere in the North East, usually the same day. Most faults are fixed in one visit, and every repair is guaranteed for 90 days.",
+  cta: "Book a same-day repair",
+  ticks: ["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "90-day guarantee"],
   features: [
     {
       icon: "clock",
-      title: "Same-day response",
-      text: "Heating and hot water can't wait — most repairs are seen the same day.",
+      title: "Out the same day",
+      text: "No heat or hot water goes to the front of the queue. Most repairs are seen the same day you call.",
     },
     {
       icon: "price",
       title: "Price agreed first",
-      text: "We diagnose the fault and agree the cost with you before any work starts.",
+      text: "We diagnose the fault and agree the cost with you before any work starts. Nothing is added later.",
     },
     {
       icon: "gassafe",
@@ -404,8 +404,8 @@ export const boilerRepairPage: ServicePage = {
     },
     {
       icon: "boiler",
-      title: "All major brands",
-      text: "Worcester Bosch, Vaillant, Baxi, Ideal, Glow-worm and more.",
+      title: "All major brands, parts on the van",
+      text: "Worcester Bosch, Vaillant, Baxi, Ideal, Glow-worm and more. We carry the common parts, so most jobs finish in one visit.",
     },
   ],
   checklistTitle: "Common boiler problems we fix",
@@ -426,11 +426,11 @@ export const servicingPage: ServicePage = {
   navLabel: "Servicing",
   icon: "service",
   eyebrow: "Boiler Servicing",
-  headline: "Annual service from £79 — keep it safe, keep the warranty valid",
+  headline: "From £79: 45 minutes that keeps your warranty valid and your home safe",
   subline:
-    "A full safety check and service from a Gas Safe engineer across the North East — most manufacturers require it to keep your boiler's warranty valid.",
+    "A Gas Safe engineer checks, cleans and tests your boiler, gives you a written report, and reminds you when the next one is due. Skip it and most manufacturers void your warranty.",
   cta: "Book a service",
-  ticks: ["From £79", "Gas Safe registered", "Takes around 45 minutes"],
+  ticks: ["From £79, price fixed before we arrive", "Around 45 minutes", "Reminder every year"],
   features: [
     {
       icon: "shield",
@@ -445,7 +445,7 @@ export const servicingPage: ServicePage = {
     {
       icon: "check",
       title: "Catches issues early",
-      text: "Spotting a worn part now is cheaper than an emergency repair later.",
+      text: "A worn part spotted now is a small job. The same part failing in January is an emergency call-out.",
     },
     {
       icon: "price",
@@ -481,11 +481,11 @@ export const newBoilersPage: ServicePage = {
   navLabel: "New boilers",
   icon: "newboiler",
   eyebrow: "New Boilers",
-  headline: "A new boiler, fitted properly — fixed price, no surprises",
+  headline: "A new boiler, usually fitted in a day, at a fixed price",
   subline:
-    "Free, no-obligation quotes on new boiler installations across the North East, from all major manufacturers, fitted by a Gas Safe engineer.",
-  cta: "Get a quote",
-  ticks: ["Free quotes", "Fixed price", "Gas Safe registered"],
+    "Free, no-obligation quote on all major brands, fitted by a Gas Safe engineer anywhere in the North East. We take the old boiler away, register the warranty and handle building control, so there's nothing for you to chase.",
+  cta: "Get a free fixed-price quote",
+  ticks: ["Free, no-obligation quote", "Fixed price, nothing added", "Usually fitted in a day"],
   features: [
     {
       icon: "price",
@@ -534,11 +534,11 @@ export const commercialPage: ServicePage = {
   navLabel: "Commercial",
   icon: "building",
   eyebrow: "Commercial",
-  headline: "Commercial gas, heating and electrics — sorted without disrupting your business",
+  headline: "Commercial gas, heating and electrics, sorted before downtime costs you",
   subline:
-    "Gas appliances, catering equipment, commercial boilers and EICR/gas safety certification for businesses across the North East, with priority call-outs so downtime doesn't cost you.",
-  cta: "Enquire about commercial services",
-  ticks: ["Priority call-outs", "Gas Safe registered", "Account invoicing available"],
+    "Catering equipment, commercial boilers, gas appliances and EICR and gas safety certificates for North East businesses. Breakdowns that stop you trading are prioritised, most sites are seen within 24 hours, and we can invoice on account.",
+  cta: "Get a commercial quote",
+  ticks: ["Priority call-outs, most sites within 24 hours", "Maintenance contracts available", "Account invoicing"],
   features: [
     {
       icon: "building",
@@ -588,14 +588,14 @@ export const faqsPage = {
   eyebrow: "Questions",
   headline: "Straight answers, no small print",
   subline:
-    "Everything customers usually ask about pricing, response times and what's covered — for homes and commercial alike.",
+    "What the call-out costs, how fast we can get to you, and exactly what the 90-day guarantee covers. For homes and businesses.",
   cta: "Ask us anything",
-  ticks: ["Gas Safe registered", "Honest, upfront pricing", "No pressure, ever"],
+  ticks: ["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "90-day guarantee"],
 };
 
 export const finalCta = {
-  headline: "Boiler playing up? Let's get it sorted.",
-  cta: "Book a visit",
+  headline: "Boiler playing up? We can be out today.",
+  cta: "Book a same-day visit",
 };
 
 export const footerLinks: { label: string; href?: string }[] = [

@@ -35,7 +35,7 @@ export const areaPages: AreaPage[] = [
     name: "Whitley Bay",
     headline: "Boiler Repairs & Heating Engineers in Whitley Bay",
     subline:
-      "Gas Safe registered engineers covering Whitley Bay and the North Tyneside coast — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Whitley Bay and the North Tyneside coast — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "Whitley Bay is MPE's home patch on the North Tyneside coast.",
     intro: [
       "Whitley Bay's a mix of Victorian and Edwardian terraces, seafront apartments and newer builds — which in practice means every kind of heating system, from older back boilers still going strong to combi systems only a few years old. We work on all of it.",
@@ -58,7 +58,7 @@ export const areaPages: AreaPage[] = [
     name: "Newcastle",
     headline: "Boiler Repairs & Heating Engineers in Newcastle",
     subline:
-      "Gas Safe registered engineers covering Newcastle and the surrounding suburbs — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Newcastle and the surrounding suburbs — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 9 miles south-west of Whitley Bay, down the coast road or over the Tyne bridges.",
     intro: [
       "Newcastle's housing stock is about as varied as it gets — Victorian terraces in Heaton, Jesmond and Sandyford (a lot of them the classic Tyneside flat, an upstairs-downstairs design unique to this part of the country), high-rise and new-build apartments around the city centre and Quayside, and semis further out towards Gosforth and the West End.",
@@ -81,7 +81,7 @@ export const areaPages: AreaPage[] = [
     name: "Gateshead",
     headline: "Boiler Repairs & Heating Engineers in Gateshead",
     subline:
-      "Gas Safe registered engineers covering Gateshead and across the Tyne — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Gateshead and across the Tyne — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 11 miles south-west of Whitley Bay, just across the river from Newcastle.",
     intro: [
       "Gateshead's a mix of older terraces, postwar estates, and the newer riverside developments around the Quays — a wide enough spread of ages that we see most boiler types and eras out here, including plenty of the Tyneside flats common on this side of the river too.",
@@ -104,7 +104,7 @@ export const areaPages: AreaPage[] = [
     name: "Gosforth",
     headline: "Boiler Repairs & Heating Engineers in Gosforth",
     subline:
-      "Gas Safe registered engineers covering Gosforth and North Newcastle — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Gosforth and North Newcastle — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 7 miles south-west of Whitley Bay — one of the closer suburbs we cover.",
     intro: [
       "Gosforth's one of the more established Newcastle suburbs — a good number of larger Victorian and Edwardian villas plus 1930s semis, many with older heating systems that have been added to and adapted over the years rather than fully replaced.",
@@ -127,7 +127,7 @@ export const areaPages: AreaPage[] = [
     name: "Wallsend",
     headline: "Boiler Repairs & Heating Engineers in Wallsend",
     subline:
-      "Gas Safe registered engineers covering Wallsend and the surrounding area — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Wallsend and the surrounding area — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 4 miles south of Whitley Bay, right along the coast road — one of our closest jobs.",
     intro: [
       "Wallsend's history runs deep — from Roman Segedunum at the eastern end of Hadrian's Wall through to its shipbuilding heyday at Swan Hunter. A lot of that history is still visible in the terraced housing that makes up much of the town.",
@@ -150,7 +150,7 @@ export const areaPages: AreaPage[] = [
     name: "South Shields",
     headline: "Boiler Repairs & Heating Engineers in South Shields",
     subline:
-      "Gas Safe registered engineers covering South Shields and South Tyneside — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering South Shields and South Tyneside — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 10 miles south-east of Whitley Bay, across the mouth of the Tyne.",
     intro: [
       "South Shields sits right on the coast the same way Whitley Bay does, so the same issue applies — salt air is harder on external flues, condensate pipes and outdoor boiler fittings than it is further inland. It's one of the more common call-outs we get along this part of the coast.",
@@ -173,7 +173,7 @@ export const areaPages: AreaPage[] = [
     name: "Cramlington",
     headline: "Boiler Repairs & Heating Engineers in Cramlington",
     subline:
-      "Gas Safe registered engineers covering Cramlington and the surrounding area — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Cramlington and the surrounding area — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 9 miles north of Whitley Bay.",
     intro: [
       "Cramlington's a Northumberland new town, mostly built from the 1960s onwards, so the housing stock here skews a lot newer than in the older Tyneside towns — largely combi boilers rather than the older back-boiler and tank systems we see more of elsewhere.",
@@ -196,7 +196,7 @@ export const areaPages: AreaPage[] = [
     name: "Ashington",
     headline: "Boiler Repairs & Heating Engineers in Ashington",
     subline:
-      "Gas Safe registered engineers covering Ashington and the surrounding area — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Ashington and the surrounding area — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 14 miles north of Whitley Bay.",
     intro: [
       "Ashington grew up around the coal industry — once known as the biggest mining village in the world — and a lot of that history is still visible in the rows of colliery-era terraced housing, alongside postwar estates built as the town expanded.",
@@ -219,7 +219,7 @@ export const areaPages: AreaPage[] = [
     name: "Sunderland",
     headline: "Boiler Repairs & Heating Engineers in Sunderland",
     subline:
-      "Gas Safe registered engineers covering Sunderland and the surrounding area — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Sunderland and the surrounding area — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 13 miles south of Whitley Bay.",
     intro: [
       "Sunderland's housing mix isn't far off Newcastle's — Victorian terraces, postwar estates, and coastal areas like Roker and Seaburn that get the same sea-air exposure Whitley Bay does, which is harder on external boiler fittings than further inland.",
@@ -242,7 +242,7 @@ export const areaPages: AreaPage[] = [
     name: "Blyth",
     headline: "Boiler Repairs & Heating Engineers in Blyth",
     subline:
-      "Gas Safe registered engineers covering Blyth and the Northumberland coast — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Blyth and the Northumberland coast — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 8 miles north of Whitley Bay, up the coast.",
     intro: [
       "Blyth's history as a shipbuilding and coal-exporting port has left a mix of older terraced housing near the harbour and town centre, with newer estates further out. Like Whitley Bay, it's a coastal town, so external flues and fittings tend to need a closer eye than they would inland.",
@@ -265,7 +265,7 @@ export const areaPages: AreaPage[] = [
     name: "Morpeth",
     headline: "Boiler Repairs & Heating Engineers in Morpeth",
     subline:
-      "Gas Safe registered engineers covering Morpeth and the surrounding Northumberland villages — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Morpeth and the surrounding Northumberland villages — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 16 miles north of Whitley Bay.",
     intro: [
       "Morpeth's a Northumberland market town, with more traditional stone-built and Georgian-era properties in and around the town centre than the terraced streets you'd see closer to the coast, plus newer estates on the outskirts.",
@@ -288,7 +288,7 @@ export const areaPages: AreaPage[] = [
     name: "West Boldon",
     headline: "Boiler Repairs & Heating Engineers in West Boldon",
     subline:
-      "Gas Safe registered engineers covering West Boldon and the surrounding area — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering West Boldon and the surrounding area — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 12 miles south of Whitley Bay, on the South Tyneside/Sunderland border.",
     intro: [
       "West Boldon's a smaller village, with a mix of older village housing and newer estate development built up around it — quieter than the bigger towns we cover, but no less likely to need a boiler sorted on a Sunday morning.",
@@ -311,7 +311,7 @@ export const areaPages: AreaPage[] = [
     name: "Washington",
     headline: "Boiler Repairs & Heating Engineers in Washington",
     subline:
-      "Gas Safe registered engineers covering Washington and the surrounding area — same-day response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Washington and the surrounding area — usually out the same day, price agreed before we start, £50 call-out refunded when we fix it.",
     distance: "About 15 miles south of Whitley Bay.",
     intro: [
       "Washington's a Tyne and Wear new town, designated in 1964 and built around a series of numbered 'villages' — which means, like Cramlington, the housing stock here skews newer and combi boilers are the norm rather than the exception.",
@@ -334,7 +334,7 @@ export const areaPages: AreaPage[] = [
     name: "Redcar",
     headline: "Boiler Repairs & Heating Engineers in Redcar",
     subline:
-      "Gas Safe registered engineers covering Redcar on the Teesside coast — response where we can, £50 call-out refunded when we fix it.",
+      "Gas Safe registered engineers covering Redcar on the Teesside coast — we'll be straight with you on timing, price agreed before we start, £50 call-out refunded when we fix it.",
     distance:
       "About 38 miles south of Whitley Bay, on the Teesside coast — the furthest edge of our coverage area.",
     intro: [

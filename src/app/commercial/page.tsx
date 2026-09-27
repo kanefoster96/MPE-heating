@@ -39,7 +39,7 @@ export default function CommercialPage() {
 
         <FeatureGrid
           eyebrow="Why book with MPE"
-          title="Commercial work, handled properly"
+          title="Keep trading while we handle the rest"
           items={commercialPage.features.map((f) => {
             const FeatureIconComponent = featureIconMap[f.icon];
             return {
@@ -59,8 +59,8 @@ export default function CommercialPage() {
         <GuaranteeBlock />
         <Reviews />
         <FinalCta
-          headline="Run a business? Let's talk."
-          cta="Enquire about commercial services"
+          headline="Downtime costs money. Let's get it sorted."
+          cta="Get a commercial quote"
           icon={<Icon className="h-full w-full" />}
         />
       </main>

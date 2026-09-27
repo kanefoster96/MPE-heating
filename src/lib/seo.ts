@@ -32,7 +32,7 @@ export function localBusinessJsonLd() {
     telephone: phoneE164,
     email: business.email,
     description:
-      "Gas Safe registered boiler repairs, servicing, new boiler installs, plumbing and electrics across the North East of England. Same-day response, £50 call-out refunded when fixed, 30-day guarantee.",
+      "Gas Safe registered boiler repairs, servicing, new boiler installs, plumbing and electrics across the North East of England. Same-day response, £50 call-out refunded when fixed, 90-day guarantee.",
     areaServed: business.areasList.map((name) => ({ "@type": "City", name })),
     hasOfferCatalog: {
       "@type": "OfferCatalog",

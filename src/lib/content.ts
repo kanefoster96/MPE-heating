@@ -54,21 +54,25 @@ export const promoMessages: PromoMessage[] = [
   { text: "Gas Safe engineers, price agreed before we start." },
 ];
 
+// Hero copy is built on the value equation: dream outcome + likelihood it
+// works, minus time delay and effort. Headline = outcome + speed. Subline
+// = how little the customer has to do, and why it'll work. Ticks = the
+// risk-reversal stack. Every claim here must be one MPE can actually keep.
 export const hero = {
-  label: "Boiler Repairs",
-  // The outcome the customer gets.
-  headline: "Hot water and heating, working again",
-  // What MPE does for them to get there.
+  // Dream outcome + time delay, in the customer's words.
+  headline: "Heating and hot water back the same day",
+  // Effort (we come to you), sacrifice (price agreed first), likelihood
+  // (Gas Safe, one visit).
   subline:
-    "Our engineers diagnose the fault, agree a fair price, and get it fixed — across the North East.",
-  cta: "Book a visit",
+    "A Gas Safe engineer comes to you anywhere in the North East, agrees the price before starting, and fixes most boilers in one visit.",
+  cta: "Book a same-day visit",
   // White overlay copy shown beside the boiler photo, above the main card.
   // question is the italic lead-in (paired with a pulsing red dot), answer
   // is the bold follow-up line, emergencyCta is the secondary pill button
   // shown underneath.
   imageCallout: {
     question: "Boiler flashing red?",
-    answer: "Book same-day response.",
+    answer: "Emergency engineers out today.",
     emergencyCta: "Request emergency callout",
   },
   // Placeholder figure — swap for the real same-day fix rate once we have
@@ -80,10 +84,11 @@ export const hero = {
     explainer:
       "Different boilers use different parts, so we can't promise a fix on the spot every time. But we carry the most common parts and faults for the most popular brands, so most jobs are done in one visit. On the rare occasion we can't finish it same-day, we'll reschedule your repair — usually within 24 hours.",
   },
+  // Risk-reversal stack: money, surprises, and "what if it breaks again".
   ticks: [
-    "Gas Safe registered",
-    "£50 call-out refunded when fixed",
-    "30-day guarantee",
+    "£50 call-out, 100% off your bill when fixed",
+    "Price agreed before we start",
+    "90-day guarantee on every repair",
   ],
 };
 
@@ -190,7 +195,7 @@ export const aboutPageContent: ContentBlock[] = [
   { type: "h2", text: "How we work" },
   {
     type: "p",
-    text: "Price agreed before any work starts. No pressure, no upselling — just an honest diagnosis and a fair price. Every repair comes with a 30-day guarantee, and if something's not right, we'll come back and put it right.",
+    text: "Price agreed before any work starts. No pressure, no upselling — just an honest diagnosis and a fair price. Every repair comes with a 90-day guarantee, and if something's not right, we'll come back and put it right.",
   },
 ];
 
@@ -211,7 +216,7 @@ export const whyMpe = [
   {
     icon: "check" as const,
     title: "Done right",
-    text: "30-day guarantee on every repair.",
+    text: "90-day guarantee on every repair.",
   },
 ];
 
@@ -237,8 +242,8 @@ export const howItWorks = [
 ];
 
 export const guarantee = {
-  title: "30-day work guarantee",
-  text: "If anything we've repaired plays up again within 30 days, we'll come back and put it right at no extra cost.",
+  title: "90-day work guarantee",
+  text: "If anything we've repaired plays up again within 90 days, we'll come back and put it right at no extra cost.",
   pill: "We'll always confirm costs before any further work.",
 };
 
@@ -295,8 +300,8 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
       a: `Yes, every engineer is Gas Safe registered (registration number ${business.gasSafeNumber}) and fully insured for domestic and commercial work.`,
     },
     {
-      q: "What's covered by the 30-day guarantee?",
-      a: "Any repair we carry out is guaranteed for 30 days. If the same fault reoccurs in that time, we'll come back and fix it at no extra cost.",
+      q: "What's covered by the 90-day guarantee?",
+      a: "Any repair we carry out is guaranteed for 90 days. If the same fault reoccurs in that time, we'll come back and fix it at no extra cost.",
     },
   ],
   commercial: [
@@ -368,9 +373,9 @@ export const boilerRepairPage: ServicePage = {
   eyebrow: "Boiler Repair",
   headline: "Boiler fixed, fast — with a price you agreed first",
   subline:
-    "Same-day response across the North East where we can, Gas Safe engineers, and a 30-day guarantee on every repair we carry out.",
+    "Same-day response across the North East where we can, Gas Safe engineers, and a 90-day guarantee on every repair we carry out.",
   cta: "Book a repair",
-  ticks: ["Gas Safe registered", "£50 call-out refunded when fixed", "30-day guarantee"],
+  ticks: ["Gas Safe registered", "£50 call-out refunded when fixed", "90-day guarantee"],
   features: [
     {
       icon: "clock",
@@ -394,8 +399,8 @@ export const boilerRepairPage: ServicePage = {
     },
     {
       icon: "shield",
-      title: "30-day guarantee",
-      text: "If the same fault comes back within 30 days, we'll return and put it right at no extra cost.",
+      title: "90-day guarantee",
+      text: "If the same fault comes back within 90 days, we'll return and put it right at no extra cost.",
     },
     {
       icon: "boiler",

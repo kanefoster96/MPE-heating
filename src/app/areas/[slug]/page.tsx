@@ -67,7 +67,7 @@ export default async function AreaPageRoute({ params }: { params: Promise<Params
           headline={area.headline}
           subline={area.subline}
           cta={`Book a repair in ${area.name}`}
-          ticks={["Gas Safe registered", "£50 call-out refunded when fixed", "30-day guarantee"]}
+          ticks={["Gas Safe registered", "£50 call-out refunded when fixed", "90-day guarantee"]}
         />
 
         <section className="bg-white py-14 sm:py-20">

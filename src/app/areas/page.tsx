@@ -29,7 +29,7 @@ export default function AreasIndexPage() {
           headline="Same-day boiler engineers across the North East"
           subline="Based in Whitley Bay and covering towns and villages across Tyne and Wear, Northumberland and beyond. Find your area for local response times."
           cta="Book a same-day visit"
-          ticks={["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "90-day guarantee"]}
+          ticks={["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "3-month guarantee"]}
         />
 
         <section className="bg-white py-14 sm:py-20">

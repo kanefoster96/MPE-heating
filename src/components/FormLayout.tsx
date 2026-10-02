@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { business } from "@/lib/content";
 
-export function AuthLayout({
+export function FormLayout({
   eyebrow,
   title,
   subtitle,

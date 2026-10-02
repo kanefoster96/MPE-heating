@@ -3,9 +3,6 @@ import { SITE_URL } from "@/lib/seo";
 import { helpArticles } from "@/lib/help";
 import { areaPages } from "@/lib/areas";
 
-// /login and /create-account are deliberately excluded — they're
-// noindex'd account utility pages (see their metadata), not content worth
-// listing for search engines.
 const routes = [
   { path: "", priority: 1, changeFrequency: "weekly" as const },
   { path: "/boiler-repair", priority: 0.9, changeFrequency: "monthly" as const },

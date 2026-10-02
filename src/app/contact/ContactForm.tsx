@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { AuthLayout } from "@/components/AuthLayout";
+import { useSearchParams } from "next/navigation";
+import { FormLayout } from "@/components/FormLayout";
 import { FormField } from "@/components/FormField";
+import { WhatsAppIcon, PhoneIcon } from "@/components/icons";
+import { business } from "@/lib/content";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
-import { CONTACT_HANDOFF_KEY, type ContactHandoff } from "@/lib/contactHandoff";
+import { ENQUIRY_TYPES, isEnquiryType, type EnquiryType } from "@/lib/enquiry";
 
 type Errors = Partial<{
   name: string;
@@ -14,35 +16,25 @@ type Errors = Partial<{
   message: string;
 }>;
 
-// TODO(supabase): insert into the `bookings` table (see
-// supabase/migrations/20260828000000_init.sql) once a project is
-// connected — profile_id stays null for a guest submission like this one,
-// same_day_requested maps straight onto the new column there. Also worth
-// sending Fergal a transactional email (Resend/Postmark etc) so he
-// doesn't have to check the dashboard for every new booking. Email is
-// optional here since this site is phone/WhatsApp-first, so don't assume
-// it's always present — phone is the fallback contact method either way.
-async function sendMessageStub(_fields: {
-  name: string;
-  phone: string;
-  email: string;
-  message: string;
-  sameDayRequested: boolean;
-}): Promise<{ error: string | null }> {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return { error: null };
-}
+const TYPE_ORDER: EnquiryType[] = ["repair", "service", "quote", "commercial", "other"];
 
 export function ContactForm() {
-  const router = useRouter();
+  // Preselected from /contact?type=… — the page wraps this component in
+  // Suspense, which useSearchParams needs for static rendering.
+  const searchParams = useSearchParams();
+  const [type, setType] = useState<EnquiryType>(() => {
+    const param = searchParams.get("type");
+    return isEnquiryType(param) ? param : "repair";
+  });
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sameDayRequested, setSameDayRequested] = useState(false);
+  const [company, setCompany] = useState(""); // honeypot, hidden from people
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<"unavailable" | "failed" | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -59,67 +51,74 @@ export function ContactForm() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
-    const { error } = await sendMessageStub({ name, phone, email, message, sameDayRequested });
-    setSubmitting(false);
-
-    if (error) {
-      setNotice(error);
-      return;
-    }
-
-    // Hand the details across to /create-account so the customer doesn't
-    // have to repeat themselves — read back there via useContactHandoff().
-    const handoff: ContactHandoff = { name, phone, email, message, sameDayRequested };
     try {
-      sessionStorage.setItem(CONTACT_HANDOFF_KEY, JSON.stringify(handoff));
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, email, message, type, sameDayRequested, company }),
+      });
+      if (response.ok) {
+        setSubmitted(true);
+      } else {
+        setNotice(response.status === 503 ? "unavailable" : "failed");
+      }
     } catch {
-      // Private browsing / storage disabled — not fatal, they'll just
-      // retype their details on the next page.
+      setNotice("failed");
+    } finally {
+      setSubmitting(false);
     }
-
-    setSubmitted(true);
-    setTimeout(() => router.push("/create-account"), 1400);
   };
+
+  const current = ENQUIRY_TYPES[type];
+  const firstName = name.trim().split(" ")[0];
 
   if (submitted) {
     return (
-      <AuthLayout
-        eyebrow="Message sent"
-        title={`Thanks${name.trim() ? `, ${name.trim().split(" ")[0]}` : ""} — we've got it`}
-        subtitle="An engineer will be in touch soon to get your problem fixed. Taking you to set up your account next…"
+      <FormLayout
+        eyebrow="Sent"
+        title={`Thanks${firstName ? `, ${firstName}` : ""}. We've got it.`}
+        subtitle={
+          sameDayRequested
+            ? "You've asked for a same-day callout, so we'll ring you back as soon as an engineer is free to confirm a time."
+            : "We'll ring you back to confirm a time. If it's urgent, call or WhatsApp us now and we'll move faster."
+        }
         hideContactLink
       >
-        <div className="flex flex-col gap-5">
-          <p className="rounded-2xl bg-grey px-4 py-3 text-sm text-navy/70">
-            This isn&apos;t connected yet — the form is ready, the backend is next.
-          </p>
-
-          <div className="rounded-2xl border border-line p-5">
-            <p className="text-sm font-bold text-navy">Next: add your address and boiler details</p>
-            <p className="mt-1.5 text-sm text-navy/70">
-              So the team has everything ready before they call — no need to repeat yourself.
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push("/create-account")}
-              className="bg-btn-gradient mt-4 inline-flex w-full items-center justify-center rounded-full py-3 text-sm font-semibold text-white sm:w-auto sm:px-6"
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      </AuthLayout>
+        <ContactFallbackLinks />
+      </FormLayout>
     );
   }
 
   return (
-    <AuthLayout
+    <FormLayout
       eyebrow="Book a visit"
-      title="Book a visit"
-      subtitle="Let us know how we can help and an engineer will be in touch soon to get your problem fixed."
+      title={type === "quote" ? "Get a free fixed-price quote" : "Book a visit"}
+      subtitle="Two minutes. Tell us what you need and we'll ring you back to agree a time, and the price, before anyone starts work."
       hideContactLink
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+        <fieldset>
+          <legend className="mb-2 block text-sm font-semibold text-navy">What do you need?</legend>
+          <div className="flex flex-wrap gap-2">
+            {TYPE_ORDER.map((key) => {
+              const selected = key === type;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setType(key)}
+                  aria-pressed={selected}
+                  className={`min-h-11 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                    selected ? "bg-navy text-white" : "bg-grey text-navy/70 hover:bg-line"
+                  }`}
+                >
+                  {ENQUIRY_TYPES[key].pill}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
         <FormField
           id="name"
           label="Name"
@@ -135,6 +134,7 @@ export function ContactForm() {
           label="Phone number"
           type="tel"
           autoComplete="tel"
+          inputMode="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           error={errors.phone}
@@ -145,6 +145,7 @@ export function ContactForm() {
           label="Email address (optional)"
           type="email"
           autoComplete="email"
+          inputMode="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           error={errors.email}
@@ -152,15 +153,16 @@ export function ContactForm() {
 
         <div>
           <label htmlFor="message" className="mb-1.5 block text-sm font-semibold text-navy">
-            What&apos;s the problem?
+            Tell us a bit more
           </label>
           <textarea
             id="message"
             rows={4}
             value={message}
+            placeholder={current.prompt}
             onChange={(e) => setMessage(e.target.value)}
             aria-invalid={!!errors.message}
-            className={`w-full resize-none rounded-2xl border px-4 py-3 text-base text-navy outline-none transition-colors focus:border-terracotta ${
+            className={`w-full resize-none rounded-2xl border px-4 py-3 text-base text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-terracotta ${
               errors.message ? "border-terracotta" : "border-line"
             }`}
           />
@@ -169,30 +171,79 @@ export function ContactForm() {
           )}
         </div>
 
-        <label className="flex items-start gap-2.5 rounded-2xl border border-line px-4 py-3.5 text-sm text-navy/80">
+        {type === "repair" && (
+          <label className="flex min-h-11 items-start gap-2.5 rounded-2xl border border-line px-4 py-3.5 text-sm text-navy/80">
+            <input
+              type="checkbox"
+              checked={sameDayRequested}
+              onChange={(e) => setSameDayRequested(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line accent-terracotta"
+            />
+            <span className="font-semibold text-navy">No heating or hot water. I need someone today.</span>
+          </label>
+        )}
+
+        {/* Honeypot: hidden from people, filled by bots. */}
+        <div className="hidden" aria-hidden="true">
+          <label htmlFor="company">Company</label>
           <input
-            type="checkbox"
-            checked={sameDayRequested}
-            onChange={(e) => setSameDayRequested(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 rounded border-line text-terracotta focus:ring-terracotta"
+            id="company"
+            name="company"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
           />
-          <span>
-            <span className="font-semibold text-navy">Boiler broke down, same-day callout request</span>
-          </span>
-        </label>
+        </div>
 
         {notice && (
-          <p className="rounded-2xl bg-grey px-4 py-3 text-sm text-navy/70">{notice}</p>
+          <div className="rounded-2xl bg-grey px-4 py-4 text-sm text-navy/80">
+            <p className="font-semibold text-navy">
+              {notice === "unavailable"
+                ? "Online booking is taking a short break."
+                : "That didn’t send."}
+            </p>
+            <p className="mt-1">Call or WhatsApp us and we&rsquo;ll get you booked in straight away.</p>
+            <ContactFallbackLinks compact />
+          </div>
         )}
 
         <button
           type="submit"
           disabled={submitting}
-          className="bg-btn-gradient mt-1 inline-flex items-center justify-center rounded-full py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+          className="bg-btn-gradient mt-1 inline-flex min-h-12 items-center justify-center rounded-full py-3.5 text-base font-semibold text-white disabled:opacity-60"
         >
-          {submitting ? "Sending…" : "Send message"}
+          {submitting ? "Sending…" : current.cta}
         </button>
+
+        <p className="text-center text-xs text-navy/50">
+          Price agreed before any work starts. Every repair guaranteed for 3 months.
+        </p>
       </form>
-    </AuthLayout>
+    </FormLayout>
+  );
+}
+
+function ContactFallbackLinks({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`flex flex-col gap-3 sm:flex-row ${compact ? "mt-3" : ""}`}>
+      <a
+        href={business.phoneHref}
+        className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border-2 border-terracotta px-5 text-sm font-semibold text-terracotta transition-colors hover:bg-terracotta hover:text-white"
+      >
+        <PhoneIcon className="h-4 w-4" />
+        {business.phoneDisplay}
+      </a>
+      <a
+        href={business.whatsappHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-grey px-5 text-sm font-semibold text-navy transition-colors hover:bg-line"
+      >
+        <WhatsAppIcon className="h-5 w-5 text-[#25D366]" />
+        WhatsApp us
+      </a>
+    </div>
   );
 }

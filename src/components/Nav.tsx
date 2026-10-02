@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { business } from "@/lib/content";
-import { MenuIcon, CloseIcon, UserIcon, WhatsAppIcon } from "./icons";
+import { MenuIcon, CloseIcon, WhatsAppIcon } from "./icons";
 
 // href is added as each menu page ships — an unset href renders as plain
 // text rather than a link to a page that doesn't exist yet.
@@ -47,13 +47,6 @@ export function Nav() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            href="/login"
-            aria-label="Log in or create an account"
-            className="hidden h-10 w-10 items-center justify-center rounded-full text-navy transition-colors hover:bg-grey sm:inline-flex"
-          >
-            <UserIcon className="h-5 w-5" />
-          </Link>
           <a
             href={business.phoneHref}
             aria-label={`Call us on ${business.phoneDisplay}`}
@@ -111,30 +104,6 @@ export function Nav() {
                   )}
                 </li>
               ))}
-            </ul>
-
-            <p className="pt-4 text-xs font-bold uppercase tracking-[0.18em] text-navy/40">
-              Account
-            </p>
-            <ul className="flex flex-col divide-y divide-line">
-              <li>
-                <Link
-                  href="/login"
-                  onClick={() => setOpen(false)}
-                  className="block py-3 text-base font-medium text-navy"
-                >
-                  Log in
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/create-account"
-                  onClick={() => setOpen(false)}
-                  className="block py-3 text-base font-medium text-terracotta"
-                >
-                  Create account
-                </Link>
-              </li>
             </ul>
           </nav>
         </div>

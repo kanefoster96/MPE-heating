@@ -36,29 +36,29 @@ service copy, review quotes etc. there rather than in the components.
 ```
 src/
   app/
-    layout.tsx        Root layout, fonts, metadata
-    page.tsx           Homepage — assembles all sections
-    globals.css         Design tokens (colour palette, font) + base styles
-  components/
-    Nav.tsx             Sticky nav with call button + mobile menu
-    PromoStrip.tsx       Offer banner
-    Hero.tsx             Hero block + booking card
-    AccreditationStrip.tsx
-    ServiceCards.tsx     6 service cards (repair, servicing, new boilers, plumbing, electrics, landlords)
-    WhyMpe.tsx
-    HowItWorks.tsx
-    GuaranteeBlock.tsx
-    Reviews.tsx           Swipeable review rail
-    Faq.tsx                Homes/Commercial tabs + accordion
-    CommercialTeaser.tsx
-    AreasCovered.tsx
-    FinalCta.tsx
-    Footer.tsx
-    FloatingWhatsapp.tsx  Fixed WhatsApp button
-    StickyMobileBar.tsx    Fixed mobile call/book bar
-    ProductArt.tsx         Shared "flat-colour panel + icon" illustration wrapper
-    icons.tsx               Inline SVG icon set
+    layout.tsx           Root layout, fonts, metadata, LocalBusiness JSON-LD
+    page.tsx              Homepage — assembles all sections
+    globals.css            Design tokens (colour palette, font) + base styles
+    boiler-repair/ servicing/ new-boilers/ commercial/   Service pages
+    areas/                 Areas index + one page per town (src/lib/areas.ts)
+    help/                  Advice articles (src/lib/help.ts)
+    faqs/ about/ privacy/ terms/
+    contact/               Booking & quote form (ContactForm.tsx)
+    api/contact/           Form delivery route — emails the enquiry via Resend
+  components/              Nav, Hero, section blocks, Footer, icon set
+  lib/
+    content.ts             All editable copy and business details
+    enquiry.ts             Enquiry types the contact form accepts
+    seo.ts                 SITE_URL + JSON-LD builders
 ```
+
+## Contact form delivery
+
+The booking/quote form posts to `/api/contact`, which emails the enquiry via
+[Resend](https://resend.com). Set `RESEND_API_KEY` (and optionally
+`CONTACT_TO_EMAIL` / `CONTACT_FROM_EMAIL`) in Vercel — see `.env.example`.
+Until the key is set, the form shows a call/WhatsApp fallback rather than a
+false "sent" message.
 
 ## Imagery
 

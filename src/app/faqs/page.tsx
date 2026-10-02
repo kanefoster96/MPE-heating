@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/Nav";
-import { PromoStrip } from "@/components/PromoStrip";
 import { ServicePageHero } from "@/components/ServicePageHero";
 import { Faq } from "@/components/Faq";
 import { FinalCta } from "@/components/FinalCta";
@@ -21,15 +20,16 @@ export default function FaqsPage() {
   return (
     <>
       <Nav />
-      <PromoStrip />
       <main>
         <ServicePageHero
-          icon={<QuestionIcon className="h-full w-full" />}
+          icon={<QuestionIcon />}
           eyebrow={faqsPage.eyebrow}
           headline={faqsPage.headline}
+          status={faqsPage.status}
           subline={faqsPage.subline}
           cta={faqsPage.cta}
-          ticks={faqsPage.ticks}
+          type={faqsPage.enquiry}
+          reassurance={faqsPage.reassurance}
         />
 
         <Faq />

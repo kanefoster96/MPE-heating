@@ -43,8 +43,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       data-scroll-behavior="smooth"
       className={`${outfit.variable} h-full antialiased`}
+      // The inline script below adds a class before hydration, on purpose.
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-cream text-navy">
+      <head>
+        {/* Marks the page as JS-capable before first paint, so the
+            scroll-in fades (.js .reveal) never hide content when scripts
+            fail to load. */}
+        <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
+      </head>
+      <body className="min-h-full flex flex-col bg-page text-navy">
         {children}
         <JsonLd data={localBusinessJsonLd()} />
       </body>

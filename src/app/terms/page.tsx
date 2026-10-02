@@ -13,7 +13,11 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <ContentPageLayout eyebrow="Legal" title="Terms & Conditions" meta={`Last updated: ${lastUpdated}`}>
+    <ContentPageLayout
+      eyebrow="Legal"
+      title={{ lead: "Terms and conditions.", em: "No small print." }}
+      meta={`Last updated: ${lastUpdated}`}
+    >
       <RichContent blocks={termsContent} />
     </ContentPageLayout>
   );

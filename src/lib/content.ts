@@ -2,6 +2,7 @@
 // Swap placeholder values (phone, Gas Safe number, reviews) for the real thing before launch.
 
 import type { ContentBlock } from "./richContent";
+import type { EnquiryType } from "./enquiry";
 
 // Single source of truth for the towns served — backs both the prose
 // sentence below (business.areas) and the structured areaServed list used
@@ -41,69 +42,107 @@ export const business = {
   areas: `We operate across all areas in the North East, including ${joinWithAnd(areasList)}.`,
 };
 
-export type PromoMessage = { text: string; tone?: "cold" };
+// Headings across the site are two clauses: `lead` is plain navy, `em`
+// carries the orange gradient. The gradient goes on the clause that sells
+// (the outcome, the speed, the price), never on body copy or buttons.
+export type TwoTone = { lead: string; em: string };
 
-// Rotates in the promo banner, one message every 5s. The first message stays
-// fixed as the lead-in; the rest cycle after it. tone: "cold" swaps the
-// banner to a blue "boiler's out" treatment instead of the default yellow.
-export const promoMessages: PromoMessage[] = [
-  { text: "£50 call-out — 100% comes off your bill when we fix it." },
-  { text: "No heating? Engineers out the same day.", tone: "cold" },
-  { text: "Every repair guaranteed for 3 months." },
-  { text: "New boiler? Free fixed-price quote, usually fitted in a day." },
-  { text: "Gas Safe engineers, price agreed before we start." },
-];
+// Icon keys for notification chips, mapped to components in chipIcons.tsx.
+export type ChipIcon = "form" | "van" | "check" | "shield" | "clock" | "note" | "mail" | "calendar" | "price";
+export type ChipContent = { icon: ChipIcon; title: string; sub?: string };
 
 // Hero copy is built on the value equation: dream outcome + likelihood it
-// works, minus time delay and effort. Headline = outcome + speed. Subline
-// = how little the customer has to do, and why it'll work. Ticks = the
-// risk-reversal stack. Every claim here must be one MPE can actually keep.
+// works, minus time delay and effort. Every claim must be one MPE can keep.
 export const hero = {
-  // Dream outcome + time delay, in the customer's words.
-  headline: "Heating and hot water back the same day",
+  status: "Same-day boiler repairs across the North East",
+  // Dream outcome, then the time promise carries the gradient.
+  headline: { lead: "Heating and hot water back.", em: "The same day." } satisfies TwoTone,
   // Effort (we come to you), sacrifice (price agreed first), likelihood
   // (Gas Safe, one visit).
   subline:
-    "A Gas Safe engineer comes to you anywhere in the North East, agrees the price before starting, and fixes most boilers in one visit.",
+    "A Gas Safe engineer comes to you, agrees the price before starting, and fixes most boilers in one visit.",
   cta: "Book a same-day visit",
-  // White overlay copy shown beside the boiler photo, above the main card
-  // (mobile and tablet only). question is the italic lead-in (paired with
-  // a pulsing red dot), answer is the bold follow-up line. No button here
-  // on purpose: the card's orange CTA is the only call to action.
-  imageCallout: {
-    question: "Boiler flashing red?",
-    answer: "Emergency engineers out today.",
-  },
-  // Placeholder figure — swap for the real same-day fix rate once we have
-  // the numbers to back it. value/label render as one line; explainer is
-  // the pop-up text behind the info icon next to it.
-  sameDayStat: {
-    value: "90%",
-    label: "of boilers fixed same-day",
-    explainer:
-      "Different boilers use different parts, so we can't promise a fix on the spot every time. But we carry the most common parts and faults for the most popular brands, so most jobs are done in one visit. On the rare occasion we can't finish it same-day, we'll reschedule your repair — usually within 24 hours.",
-  },
-  // Risk-reversal stack: money, surprises, and "what if it breaks again".
-  ticks: [
-    "£50 call-out, 100% off your bill when fixed",
-    "Price agreed before we start",
-    "3-month guarantee on every repair",
-  ],
+  fieldPlaceholder: "Your phone number",
+  // One sentence, not a list: the risk reversal in a line.
+  reassurance: "£50 call-out, 100% off your bill when fixed. Price agreed first. Every repair guaranteed for 3 months.",
+  // Two or three chips around the one visual. Real events the booking
+  // produces, no invented numbers.
+  chips: [
+    { icon: "form", title: "Repair booked", sub: "Online, two minutes" },
+    { icon: "van", title: "Engineer on the way", sub: "Same day" },
+    { icon: "check", title: "Fixed, price agreed first", sub: "£50 off the bill" },
+  ] satisfies ChipContent[],
 };
+
+// Story cards: a few tilted cards whose chips show what happens, instead
+// of a list saying it. Three chips each, real events only.
+export type StoryCardContent = {
+  icon: "boiler" | "service" | "newboiler" | "landlord";
+  title: string;
+  text: string;
+  chips: ChipContent[];
+};
+
+export const storyCards: StoryCardContent[] = [
+  {
+    icon: "boiler",
+    title: "A same-day repair",
+    text: "No heat this morning. Warm again by tonight, at a price you agreed first.",
+    chips: [
+      { icon: "form", title: "Booked online", sub: "Two minutes" },
+      { icon: "van", title: "Engineer on the way", sub: "Common parts on the van" },
+      { icon: "check", title: "Fixed in one visit", sub: "Guaranteed 3 months" },
+    ],
+  },
+  {
+    icon: "service",
+    title: "An annual service",
+    text: "Forty-five minutes a year that keeps your warranty valid and your home safe.",
+    chips: [
+      { icon: "calendar", title: "Service booked", sub: "From £79" },
+      { icon: "note", title: "Written report", sub: "Everything checked" },
+      { icon: "clock", title: "Reminder set", sub: "We chase it, not you" },
+    ],
+  },
+  {
+    icon: "newboiler",
+    title: "A new boiler",
+    text: "Free fixed-price quote, old boiler taken away, usually fitted in a day.",
+    chips: [
+      { icon: "price", title: "Fixed-price quote", sub: "Free, no obligation" },
+      { icon: "van", title: "Fitted in a day", sub: "Old boiler removed" },
+      { icon: "shield", title: "Warranty registered", sub: "Building control handled" },
+    ],
+  },
+  {
+    icon: "landlord",
+    title: "A landlord certificate",
+    text: "CP12 and EICR without the chasing. We remind you before they expire.",
+    chips: [
+      { icon: "calendar", title: "Inspection booked", sub: "At a time the tenant suits" },
+      { icon: "mail", title: "Certificate sent", sub: "Straight to your inbox" },
+      { icon: "clock", title: "Renewal reminder", sub: "Before it runs out" },
+    ],
+  },
+];
+
+export const storyRailHeading = { lead: "What happens when you book.", em: "No chasing, no surprises." } satisfies TwoTone;
 
 export const accreditations = ["Gas Safe Register", "TrustATrader", "City & Guilds"];
 
 // Boiler manufacturers whose units MPE installs and services — shown as a
-// wordmark marquee under the hero. Swap for real logo lockups if/when supplied.
+// quiet static row under the hero (nothing loops on the page).
 export const boilerBrands = ["Worcester Bosch", "Vaillant", "Baxi", "Ideal", "Glow-worm"];
 
+// Every service MPE offers. Rendered as pills on the homepage (each
+// linking to its page, or to the booking form for the ones without one)
+// and as the offer catalogue in the LocalBusiness JSON-LD.
 export type ServiceCard = {
   id: string;
   eyebrow: string;
   headline: string;
   line: string;
-  cta: string;
-  tone: "orange" | "grey" | "grey-green";
+  href: string;
   icon: "boiler" | "service" | "newboiler" | "plumbing" | "electrics" | "landlord";
 };
 
@@ -113,8 +152,7 @@ export const services: ServiceCard[] = [
     eyebrow: "Boiler Repair",
     headline: "Heating back on the same day",
     line: "£50 call-out, 100% off your bill when we fix it. Guaranteed 3 months.",
-    cta: "Book a repair",
-    tone: "orange",
+    href: "/boiler-repair",
     icon: "boiler",
   },
   {
@@ -122,8 +160,7 @@ export const services: ServiceCard[] = [
     eyebrow: "Boiler Servicing",
     headline: "Annual service from £79",
     line: "45 minutes. Warranty kept valid, and we remind you next year.",
-    cta: "Book a service",
-    tone: "grey",
+    href: "/servicing",
     icon: "service",
   },
   {
@@ -131,8 +168,7 @@ export const services: ServiceCard[] = [
     eyebrow: "New Boilers",
     headline: "New boiler, usually fitted in a day",
     line: "Free fixed-price quote. Old boiler taken away.",
-    cta: "Get a free quote",
-    tone: "grey-green",
+    href: "/new-boilers",
     icon: "newboiler",
   },
   {
@@ -140,8 +176,7 @@ export const services: ServiceCard[] = [
     eyebrow: "Plumbing",
     headline: "Leaks, taps, bathrooms and pipework",
     line: "Small jobs to full installs, price agreed first.",
-    cta: "Book a plumber",
-    tone: "grey",
+    href: "/contact",
     icon: "plumbing",
   },
   {
@@ -149,20 +184,24 @@ export const services: ServiceCard[] = [
     eyebrow: "Electrics",
     headline: "Fuse boards, rewires, EV chargers",
     line: "Part P certified, fully tested.",
-    cta: "Book an electrician",
-    tone: "grey",
+    href: "/contact",
     icon: "electrics",
   },
   {
     id: "landlords",
-    eyebrow: "Landlords",
+    eyebrow: "Landlord Certificates",
     headline: "Gas safety and electrical certificates",
     line: "CP12 and EICR, with a reminder before they expire.",
-    cta: "Get certified",
-    tone: "grey",
+    href: "/contact",
     icon: "landlord",
   },
 ];
+
+export const servicePicker = {
+  heading: { lead: "What do you need?", em: "One call covers it." } satisfies TwoTone,
+  text: "Boilers, plumbing, electrics and landlord certificates, for homes and businesses across the North East.",
+  commercialPill: { label: "Commercial", href: "/commercial" },
+};
 
 // Full version for a future About page/section. whyMpeIntro below is the
 // condensed version used as a subline on the homepage today.
@@ -198,47 +237,78 @@ export const aboutPageContent: ContentBlock[] = [
   },
 ];
 
-export const whyMpeIntro =
-  "A family-run North East firm. You get the price before we start, an engineer the same day when it's urgent, and a 3-month guarantee on the work.";
+// The promise: four small tiles in a row, each an icon, a bold line and a
+// short line. Principles, not a list.
+export const promise = {
+  heading: { lead: "Our promise.", em: "No surprises." } satisfies TwoTone,
+  text: "A family-run North East firm. The price before we start, an engineer the same day when it's urgent, and every repair guaranteed for 3 months.",
+  tiles: [
+    {
+      icon: "price" as const,
+      title: "Price before we start",
+      text: "You approve the cost before any work begins.",
+    },
+    {
+      icon: "clock" as const,
+      title: "Out the same day",
+      text: "No heat or hot water goes to the front of the queue.",
+    },
+    {
+      icon: "shield" as const,
+      title: "Fixed for good",
+      text: "Same fault back within 3 months? We return free.",
+    },
+    {
+      icon: "gassafe" as const,
+      title: "Gas Safe registered",
+      text: `Every engineer, every job. Registration ${business.gasSafeNumber}.`,
+    },
+  ],
+};
 
-export const whyMpe = [
-  {
-    icon: "price" as const,
-    title: "Price before we start",
-    text: "You approve the cost before any work begins. No surprises on the bill.",
-  },
-  {
-    icon: "clock" as const,
-    title: "Out the same day",
-    text: "No heat or hot water? You go to the front of the queue.",
-  },
-  {
-    icon: "check" as const,
-    title: "Fixed for good",
-    text: "Same fault back within 3 months? We return and fix it free.",
-  },
-];
+// How it works, 1, 2, 3: text on one side, a small tilted illustration
+// card on the other, alternating.
+export const howItWorks = {
+  heading: { lead: "How it works.", em: "As easy as 1,\u00a02,\u00a03." } satisfies TwoTone,
+  steps: [
+    {
+      number: 1,
+      title: "Tell us what's wrong",
+      text: "Two minutes online or on WhatsApp. You pick the time that suits.",
+      icon: "form" as const,
+      chip: { icon: "form" as const, title: "Repair booked", sub: "Two minutes" },
+    },
+    {
+      number: 2,
+      title: "Your engineer arrives",
+      text: "On time, with ID, and common parts on the van so most jobs finish in one visit.",
+      icon: "doorstep" as const,
+      chip: { icon: "van" as const, title: "Engineer on the way", sub: "Same day" },
+    },
+    {
+      number: 3,
+      title: "You approve the price, we fix it",
+      text: "Nothing starts until you've agreed the cost. Then it's fixed, tested and guaranteed for 3 months.",
+      icon: "wrench" as const,
+      chip: { icon: "check" as const, title: "Fixed, price agreed first", sub: "Guaranteed 3 months" },
+    },
+  ],
+};
 
-export const howItWorks = [
-  {
-    number: 1,
-    title: "Tell us what's wrong",
-    text: "Two minutes online or on WhatsApp. You pick the time that suits.",
-    icon: "form" as const,
-  },
-  {
-    number: 2,
-    title: "Your engineer arrives",
-    text: "On time, with ID, and common parts on the van so most jobs finish in one visit.",
-    icon: "doorstep" as const,
-  },
-  {
-    number: 3,
-    title: "You approve the price, we fix it",
-    text: "Nothing starts until you've agreed the cost. Then it's fixed, tested and guaranteed for 3 months.",
-    icon: "wrench" as const,
-  },
-];
+// The one ticked list on the homepage: the repair offer, the thing people
+// compare. Everything else on the page is a sentence, a tile or a chip.
+export const offer = {
+  heading: { lead: "Every repair includes.", em: "No extras, no small print." } satisfies TwoTone,
+  items: [
+    "£50 call-out, and 100% of it comes off your bill when we fix it",
+    "A Gas Safe engineer who diagnoses the fault and agrees the price with you first",
+    "Common parts carried on the van, so most faults are fixed in one visit",
+    "The repair tested and working before we leave",
+    "The 3-month fixed-for-good guarantee: same fault back, we return free",
+  ],
+  cta: "Book a same-day visit",
+  note: "You only pay the £50 on its own if you get the diagnosis and decide not to go ahead.",
+};
 
 export const guarantee = {
   title: "The 3-month fixed-for-good guarantee",
@@ -272,11 +342,6 @@ export const reviews = [
     date: "3 weeks ago",
   },
 ];
-
-export const reviewSummary = {
-  rating: "4.9",
-  count: "480",
-};
 
 export type FaqItem = { q: string; a: string };
 
@@ -327,12 +392,6 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
   ],
 };
 
-export const commercial = {
-  label: "Run a business?",
-  headline: "Commercial gas and catering cover, with priority call-outs when downtime costs you",
-  cta: "See commercial cover",
-};
-
 // Icon keys shared by every service sub-page's feature grid — mapped to
 // actual icon components in src/lib/featureIcons.tsx, not here, so this
 // file stays free of any component/JSX dependency.
@@ -356,10 +415,17 @@ export type ServicePage = {
   navLabel: string;
   icon: FeatureIcon;
   eyebrow: string;
-  headline: string;
+  // Two clauses: the second carries the gradient and is the one that sells.
+  headline: TwoTone;
+  // Plain-text version for <title>, meta description and JSON-LD.
+  headlineText: string;
+  status: string;
   subline: string;
   cta: string;
-  ticks: string[];
+  enquiry: EnquiryType;
+  // One sentence of reassurance under the ask. Not a list: the page's one
+  // ticked list is the checklist further down.
+  reassurance: string;
   features: { icon: FeatureIcon; title: string; text: string }[];
   checklistTitle: string;
   checklistItems: string[];
@@ -370,11 +436,14 @@ export const boilerRepairPage: ServicePage = {
   navLabel: "Boiler repair",
   icon: "boiler",
   eyebrow: "Boiler Repair",
-  headline: "Boiler fixed the same day, at a price you agreed first",
+  headline: { lead: "Boiler fixed the same day.", em: "Price agreed first." },
+  headlineText: "Boiler fixed the same day, price agreed first",
+  status: "Same-day repairs across the North East",
   subline:
     "Tell us what's wrong and a Gas Safe engineer comes to you anywhere in the North East, usually the same day. Most faults are fixed in one visit, and every repair is guaranteed for 3 months.",
   cta: "Book a same-day repair",
-  ticks: ["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "3-month guarantee"],
+  enquiry: "repair",
+  reassurance: "£50 call-out, 100% off your bill when fixed. Every repair guaranteed for 3 months.",
   features: [
     {
       icon: "clock",
@@ -425,11 +494,14 @@ export const servicingPage: ServicePage = {
   navLabel: "Servicing",
   icon: "service",
   eyebrow: "Boiler Servicing",
-  headline: "From £79: 45 minutes that keeps your warranty valid and your home safe",
+  headline: { lead: "Forty-five minutes a year.", em: "Warranty kept valid." },
+  headlineText: "Annual boiler service from £79, warranty kept valid",
+  status: "Annual services from £79",
   subline:
     "A Gas Safe engineer checks, cleans and tests your boiler, gives you a written report, and reminds you when the next one is due. Skip it and most manufacturers void your warranty.",
   cta: "Book a service",
-  ticks: ["From £79, price fixed before we arrive", "Around 45 minutes", "Reminder every year"],
+  enquiry: "service",
+  reassurance: "From £79, price fixed before we arrive. Written report, and a reminder when the next one is due.",
   features: [
     {
       icon: "shield",
@@ -480,11 +552,14 @@ export const newBoilersPage: ServicePage = {
   navLabel: "New boilers",
   icon: "newboiler",
   eyebrow: "New Boilers",
-  headline: "A new boiler, usually fitted in a day, at a fixed price",
+  headline: { lead: "A new boiler at a fixed price.", em: "Usually fitted in a day." },
+  headlineText: "New boiler at a fixed price, usually fitted in a day",
+  status: "Free fixed-price quotes across the North East",
   subline:
     "Free, no-obligation quote on all major brands, fitted by a Gas Safe engineer anywhere in the North East. We take the old boiler away, register the warranty and handle building control, so there's nothing for you to chase.",
   cta: "Get a free fixed-price quote",
-  ticks: ["Free, no-obligation quote", "Fixed price, nothing added", "Usually fitted in a day"],
+  enquiry: "quote",
+  reassurance: "Free, no-obligation quote. Old boiler taken away, warranty registered, building control handled.",
   features: [
     {
       icon: "price",
@@ -533,11 +608,14 @@ export const commercialPage: ServicePage = {
   navLabel: "Commercial",
   icon: "building",
   eyebrow: "Commercial",
-  headline: "Commercial gas, heating and electrics, sorted before downtime costs you",
+  headline: { lead: "Commercial gas, heating and electrics.", em: "Sorted before downtime costs you." },
+  headlineText: "Commercial gas, heating and electrics, sorted before downtime costs you",
+  status: "Priority call-outs, most sites within 24 hours",
   subline:
     "Catering equipment, commercial boilers, gas appliances and EICR and gas safety certificates for North East businesses. Breakdowns that stop you trading are prioritised, most sites are seen within 24 hours, and we can invoice on account.",
   cta: "Get a commercial quote",
-  ticks: ["Priority call-outs, most sites within 24 hours", "Maintenance contracts available", "Account invoicing"],
+  enquiry: "commercial",
+  reassurance: "Breakdowns that stop you trading come first. Maintenance contracts and account invoicing available.",
   features: [
     {
       icon: "building",
@@ -585,15 +663,18 @@ export const commercialPage: ServicePage = {
 // itself reuses the existing Faq component for the actual content.
 export const faqsPage = {
   eyebrow: "Questions",
-  headline: "Straight answers, no small print",
+  headline: { lead: "Straight answers.", em: "No small print." } satisfies TwoTone,
+  headlineText: "Straight answers, no small print",
+  status: "For homes and businesses",
   subline:
-    "What the call-out costs, how fast we can get to you, and exactly what the 3-month guarantee covers. For homes and businesses.",
+    "What the call-out costs, how fast we can get to you, and exactly what the 3-month guarantee covers.",
   cta: "Ask us anything",
-  ticks: ["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "3-month guarantee"],
+  enquiry: "other" as EnquiryType,
+  reassurance: "£50 call-out, 100% off your bill when fixed. Price agreed before we start.",
 };
 
 export const finalCta = {
-  headline: "Boiler playing up? We can be out today.",
+  heading: { lead: "Boiler playing up?", em: "We can be out today." } satisfies TwoTone,
   cta: "Book a same-day visit",
 };
 

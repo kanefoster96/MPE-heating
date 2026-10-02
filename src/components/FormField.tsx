@@ -15,13 +15,13 @@ export function FormField({ label, error, id, className, ...inputProps }: FormFi
         id={id}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`w-full rounded-2xl border px-4 py-3 text-base text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-terracotta ${
-          error ? "border-terracotta" : "border-line"
+        className={`w-full rounded-2xl border px-4 py-3 text-base text-navy outline-none transition-colors placeholder:text-text-3 focus:border-navy/40 ${
+          error ? "border-red" : "border-line"
         } ${className ?? ""}`}
         {...inputProps}
       />
       {error && (
-        <p id={`${id}-error`} className="mt-1.5 text-xs font-medium text-terracotta">
+        <p id={`${id}-error`} className="mt-1.5 text-xs font-medium text-red">
           {error}
         </p>
       )}

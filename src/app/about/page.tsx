@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <ContentPageLayout
-      eyebrow="About Us"
-      title={`About ${business.name}`}
+      eyebrow="About us"
+      title={{ lead: `About ${business.name}.`, em: "Family-run, North East." }}
       afterContent={<FinalCta />}
     >
       <RichContent blocks={aboutPageContent} />

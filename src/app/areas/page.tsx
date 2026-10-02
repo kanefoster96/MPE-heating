@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
-import { PromoStrip } from "@/components/PromoStrip";
 import { ServicePageHero } from "@/components/ServicePageHero";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
+import { Reveal } from "@/components/Reveal";
 import { MapPinIcon, ArrowRightIcon } from "@/components/icons";
 import { areaPages } from "@/lib/areas";
 import { business } from "@/lib/content";
@@ -21,40 +21,42 @@ export default function AreasIndexPage() {
   return (
     <>
       <Nav />
-      <PromoStrip />
       <main>
         <ServicePageHero
-          icon={<MapPinIcon className="h-full w-full" />}
-          eyebrow="Areas We Cover"
-          headline="Same-day boiler engineers across the North East"
-          subline="Based in Whitley Bay and covering towns and villages across Tyne and Wear, Northumberland and beyond. Find your area for local response times."
+          icon={<MapPinIcon />}
+          eyebrow="Areas we cover"
+          headline={{ lead: "Boiler engineers across the North East.", em: "Same day where we can." }}
+          status="Based in Whitley Bay"
+          subline="Towns and villages across Tyne and Wear, Northumberland and beyond. Find your area for local detail."
           cta="Book a same-day visit"
-          ticks={["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "3-month guarantee"]}
+          type="repair"
+          reassurance="£50 call-out, 100% off your bill when fixed. Price agreed before we start. Every repair guaranteed for 3 months."
         />
 
-        <section className="bg-white py-14 sm:py-20">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="bg-cream py-14 lg:py-28">
+          <Reveal className="mx-auto max-w-5xl px-4 sm:px-6">
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {areaPages.map((area) => (
-                <Link
-                  key={area.slug}
-                  href={`/areas/${area.slug}`}
-                  className="group flex items-center justify-between gap-3 rounded-2xl bg-grey px-6 py-5 transition-colors hover:bg-grey/70"
-                >
-                  <span className="text-base font-bold text-navy">{area.name}</span>
-                  <ArrowRightIcon className="h-4 w-4 shrink-0 text-terracotta transition-transform group-hover:translate-x-0.5" />
-                </Link>
+                <li key={area.slug}>
+                  <Link
+                    href={`/areas/${area.slug}`}
+                    className="group flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-line bg-white px-6 py-4 transition-colors hover:bg-grey"
+                  >
+                    <span className="text-base font-bold text-navy">{area.name}</span>
+                    <ArrowRightIcon className="h-4 w-4 shrink-0 text-navy transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
 
-            <p className="mt-8 text-center text-sm text-navy/60">
-              Don&rsquo;t see your area listed?{" "}
-              <Link href="/contact" className="font-semibold text-terracotta hover:underline">
+            <p className="mt-8 text-center text-sm text-text-2">
+              Don&rsquo;t see your area?{" "}
+              <Link href="/contact" className="font-semibold text-navy underline decoration-navy/30 underline-offset-4">
                 Get in touch
-              </Link>{" "}
-              — we cover the wider North East beyond this list too.
+              </Link>
+              . We cover the wider North East beyond this list.
             </p>
-          </div>
+          </Reveal>
         </section>
 
         <FinalCta />

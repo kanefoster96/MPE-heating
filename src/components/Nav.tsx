@@ -6,51 +6,41 @@ import Link from "next/link";
 import { business } from "@/lib/content";
 import { MenuIcon, CloseIcon, WhatsAppIcon } from "./icons";
 
-// href is added as each menu page ships — an unset href renders as plain
-// text rather than a link to a page that doesn't exist yet.
-const links: { label: string; href?: string }[] = [
+// The logo on the left, call, chat and menu on the right, nothing else.
+// A white glass bar with 44px tap targets.
+const links: { label: string; href: string }[] = [
   { label: "Boiler repair", href: "/boiler-repair" },
   { label: "Servicing", href: "/servicing" },
   { label: "New boilers", href: "/new-boilers" },
   { label: "Commercial", href: "/commercial" },
+  { label: "Areas we cover", href: "/areas" },
   { label: "FAQs", href: "/faqs" },
-  { label: "Help", href: "/help" },
+  { label: "Help & advice", href: "/help" },
+  { label: "About", href: "/about" },
 ];
 
 export function Nav() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-line">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" className="shrink-0">
+    <header className="sticky top-0 z-40 border-b border-line bg-white/85 backdrop-blur">
+      <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <Link href="/" className="shrink-0" aria-label={`${business.name} home`}>
           <Image
             src="/mpe-logo.png"
             alt={business.fullName}
             width={1189}
             height={513}
             priority
-            className="h-9 w-auto sm:h-11"
+            className="h-9 w-auto sm:h-10"
           />
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-8 text-sm font-medium text-navy/80">
-          {links.map((link) =>
-            link.href ? (
-              <Link key={link.label} href={link.href} className="transition-colors hover:text-terracotta">
-                {link.label}
-              </Link>
-            ) : (
-              <span key={link.label}>{link.label}</span>
-            )
-          )}
-        </nav>
-
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <a
             href={business.phoneHref}
             aria-label={`Call us on ${business.phoneDisplay}`}
-            className="inline-flex items-center rounded-full border-2 border-terracotta px-4 py-2 text-sm font-semibold text-terracotta transition-colors hover:bg-terracotta hover:text-white active:bg-terracotta active:text-white"
+            className="inline-flex h-11 items-center rounded-full border border-navy/20 px-4 text-sm font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
           >
             Call us
           </a>
@@ -59,7 +49,7 @@ export function Nav() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Chat with us on WhatsApp"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#25D366] transition-colors hover:bg-grey"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-whatsapp transition-colors hover:bg-grey"
           >
             <WhatsAppIcon className="h-6 w-6" />
           </a>
@@ -68,7 +58,7 @@ export function Nav() {
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-navy transition-colors hover:bg-grey lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-navy transition-colors hover:bg-grey"
           >
             {open ? <CloseIcon className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
           </button>
@@ -76,32 +66,27 @@ export function Nav() {
       </div>
 
       <div
-        className={`grid transition-[grid-template-rows] duration-300 ease-out lg:hidden ${
+        className={`grid transition-[grid-template-rows] duration-300 ease-out ${
           open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
         <div className="overflow-hidden">
           <nav
-            className={`border-t border-line bg-white px-4 py-3 transition-opacity duration-200 ${
+            aria-label="Site"
+            className={`border-t border-line bg-white transition-opacity duration-200 ${
               open ? "opacity-100 delay-100" : "opacity-0"
             }`}
           >
-            <ul className="flex flex-col divide-y divide-line">
+            <ul className="mx-auto grid max-w-6xl gap-x-8 px-4 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
               {links.map((link) => (
-                <li key={link.label}>
-                  {link.href ? (
-                    <Link
-                      href={link.href}
-                      onClick={() => setOpen(false)}
-                      className="block py-3 text-base font-medium text-navy"
-                    >
-                      {link.label}
-                    </Link>
-                  ) : (
-                    <span className="block py-3 text-base font-medium text-navy">
-                      {link.label}
-                    </span>
-                  )}
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    className="block min-h-11 py-3 text-base font-medium text-navy"
+                  >
+                    {link.label}
+                  </Link>
                 </li>
               ))}
             </ul>

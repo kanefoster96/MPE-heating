@@ -1,38 +1,52 @@
 @import "tailwindcss";
 
+/* Design tokens. The site follows the kanvas.one approach on a light page:
+   minimal layouts, one emphasis per heading in an orange gradient, a few
+   playful cards whose chips float in once and then rest. Colour is rare:
+   navy and greys do almost everything; orange is for the one main button
+   and the emphasised clause of a heading. */
 :root {
-  --color-cream: #f7f5f2;
+  --color-page: #ffffff;
+  --color-cream: #f7f5f2; /* alternate section */
   --color-white: #ffffff;
-  --color-terracotta: #e8623a;
-  --color-terracotta-dark: #cf5029;
-  --color-terracotta-light: #fbe4db;
-  --color-navy: #1f2a3a;
+  --color-grey: #f1efeb; /* card fill on a white section */
+  --color-line: rgba(31, 42, 58, 0.09); /* 1px edge on cards and chips */
+  --color-navy: #1f2a3a; /* headings and main copy */
   --color-navy-light: #2c3a4f;
-  --color-grey: #f0f0f0;
-  --color-line: #e4e0d9;
-  --color-green: #1f9d55;
-  --color-green-dark: #17803f;
-  --color-blue: #2f5c8f;
-  --color-blue-dark: #24486e;
-  --color-yellow: #f5c244;
+  --color-text-2: #5b6573; /* paragraphs, chip second lines */
+  --color-text-3: #8a909a; /* small print, labels */
+  --color-terracotta: #e8623a; /* the main button */
+  --color-terracotta-dark: #cf5029;
+  --color-terracotta-deep: #b5411c;
+  --color-terracotta-light: #fbe4db;
+  --color-whatsapp: #25d366;
   --color-red: #dc2626;
+  /* Dark-to-light orange, the emphasised clause of a heading. The light
+     end stays at terracotta (about 3.3:1 on white), which is past the 3:1
+     large headings need. Don't take it lighter. */
+  --grad: linear-gradient(
+    100deg,
+    var(--color-terracotta-deep) 0%,
+    var(--color-terracotta-dark) 45%,
+    var(--color-terracotta) 100%
+  );
 }
 
 @theme inline {
+  --color-page: var(--color-page);
   --color-cream: var(--color-cream);
   --color-white: var(--color-white);
-  --color-terracotta: var(--color-terracotta);
-  --color-terracotta-dark: var(--color-terracotta-dark);
-  --color-terracotta-light: var(--color-terracotta-light);
-  --color-navy: var(--color-navy);
-  --color-navy-light: var(--color-navy-light);
   --color-grey: var(--color-grey);
   --color-line: var(--color-line);
-  --color-green: var(--color-green);
-  --color-green-dark: var(--color-green-dark);
-  --color-blue: var(--color-blue);
-  --color-blue-dark: var(--color-blue-dark);
-  --color-yellow: var(--color-yellow);
+  --color-navy: var(--color-navy);
+  --color-navy-light: var(--color-navy-light);
+  --color-text-2: var(--color-text-2);
+  --color-text-3: var(--color-text-3);
+  --color-terracotta: var(--color-terracotta);
+  --color-terracotta-dark: var(--color-terracotta-dark);
+  --color-terracotta-deep: var(--color-terracotta-deep);
+  --color-terracotta-light: var(--color-terracotta-light);
+  --color-whatsapp: var(--color-whatsapp);
   --color-red: var(--color-red);
   --font-sans: var(--font-outfit);
 }
@@ -42,60 +56,161 @@ html {
 }
 
 body {
-  background: var(--color-cream);
+  background: var(--color-page);
   color: var(--color-navy);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-@keyframes marquee-scroll {
-  from {
-    transform: translateX(0);
+/* iPhones zoom the page when a field under 16px is focused. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+@layer components {
+  /* The emphasised clause of a heading. Padding on the right (with a
+     matching negative margin) stops the last letter clipping under tight
+     letter-spacing. */
+  .em {
+    background: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    padding-right: 0.08em;
+    margin-right: -0.08em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
-  to {
-    transform: translateX(-50%);
+  @media (forced-colors: active) {
+    .em {
+      background: none;
+      color: CanvasText;
+      -webkit-text-fill-color: CanvasText;
+    }
+  }
+
+  /* The one main button. */
+  .bg-btn-gradient {
+    background-image: linear-gradient(to bottom, var(--color-terracotta), var(--color-terracotta-dark));
+    transition: filter 0.2s ease;
+  }
+  .bg-btn-gradient:hover {
+    filter: brightness(0.94);
+  }
+
+  /* Headings and cards fade up 22px once as they scroll into view, then
+     stay. The Reveal component adds .is-in. */
+  .js .reveal {
+    opacity: 0;
+    transform: translateY(22px);
+    transition:
+      opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .js .reveal.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Story cards in a sideways rail. Vertical overflow is hidden, with
+     padding for the tilt, or tilted cards make the row scroll up and down
+     and catch the page's own scroll. */
+  .rail {
+    display: flex;
+    gap: 22px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    padding: 28px max(16px, calc((100vw - 1152px) / 2 + 24px)) 36px;
+    scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar {
+    display: none;
+  }
+  .story-card {
+    flex: 0 0 min(370px, 84vw);
+    scroll-snap-align: center;
+    transition: transform 0.4s ease;
+  }
+  .story-card:nth-child(odd) {
+    transform: rotate(-1.5deg);
+  }
+  .story-card:nth-child(even) {
+    transform: rotate(1deg);
+  }
+  .story-card:hover {
+    transform: none;
+  }
+
+  /* Chips float in once, one card at a time (StoryRail adds .chips-in).
+     Hidden until their turn so nothing shows, disappears and reappears. */
+  @keyframes floatIn {
+    from {
+      opacity: 0;
+      transform: translateY(16px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  .anim .chip {
+    opacity: 0;
+  }
+  .anim .chips-in .chip {
+    animation: floatIn 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .anim .chips-in .chip:nth-child(2) {
+    animation-delay: 0.18s;
+  }
+  .anim .chips-in .chip:nth-child(3) {
+    animation-delay: 0.36s;
+  }
+
+  /* The status dot's soft pulse is the only looping motion on the page. */
+  @keyframes pulse-soft {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.55;
+    }
+    50% {
+      transform: scale(1.9);
+      opacity: 0;
+    }
+  }
+  .pulse-soft {
+    animation: pulse-soft 2.2s ease-out infinite;
+  }
+
+  /* Hide scrollbar for swipeable rails but keep them scrollable. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 
-.animate-marquee {
-  animation: marquee-scroll 28s linear infinite;
-}
-
+/* When a visitor asks for less motion, everything simply shows. */
 @media (prefers-reduced-motion: reduce) {
-  .animate-marquee {
+  .js .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .anim .chip {
+    opacity: 1;
     animation: none;
   }
-
-  .animate-ping {
+  .pulse-soft {
     animation: none;
   }
-}
-
-/* Subtle yellow-to-orange gradients echoing the flame in the logo — used
-   sparingly on hero-style section backgrounds and primary buttons for a
-   touch of depth, not a loud rainbow. */
-.bg-flame-gradient {
-  background-image: linear-gradient(
-    135deg,
-    var(--color-yellow) 0%,
-    var(--color-terracotta) 40%,
-    var(--color-terracotta-dark) 100%
-  );
-}
-
-.bg-btn-gradient {
-  background-image: linear-gradient(to bottom, var(--color-terracotta), var(--color-terracotta-dark));
-  transition: filter 0.2s ease;
-}
-
-.bg-btn-gradient:hover {
-  filter: brightness(0.94);
-}
-
-/* Hide scrollbar for swipeable review rails but keep it scrollable */
-.no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+  .story-card {
+    transition: none;
+  }
 }

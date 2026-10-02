@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/Nav";
-import { PromoStrip } from "@/components/PromoStrip";
 import { ServicePageHero } from "@/components/ServicePageHero";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
-import { FormIcon } from "@/components/icons";
+import { NoteIcon } from "@/components/icons";
 import { helpArticles } from "@/lib/help";
 import { SITE_URL } from "@/lib/seo";
 import { HelpList } from "./HelpList";
@@ -21,15 +20,15 @@ export default function HelpIndexPage() {
   return (
     <>
       <Nav />
-      <PromoStrip />
       <main>
         <ServicePageHero
-          icon={<FormIcon className="h-full w-full" />}
-          eyebrow="Advice & Guides"
-          headline="Boiler advice from people who fix them"
-          subline="Common problems explained, honest advice on servicing, and no-nonsense answers — from MPE's Gas Safe engineers across the North East."
+          icon={<NoteIcon />}
+          eyebrow="Help and advice"
+          headline={{ lead: "Boiler advice.", em: "From people who fix them." }}
+          subline="Common problems explained, honest advice on servicing, and plain answers from Gas Safe engineers."
           cta="Ask us a question"
-          ticks={["Gas Safe registered", "Written by engineers", "No jargon"]}
+          type="other"
+          reassurance="If it's quicker to ask than to read, WhatsApp us and an engineer will answer."
         />
 
         <HelpList posts={helpArticles} />

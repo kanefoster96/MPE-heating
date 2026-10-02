@@ -1,41 +1,38 @@
-import type { ReactNode } from "react";
-import Link from "next/link";
-import { business, finalCta } from "@/lib/content";
-import { BoilerIcon } from "./icons";
-import { ProductArt } from "./ProductArt";
+import { business, finalCta, type TwoTone } from "@/lib/content";
+import type { EnquiryType } from "@/lib/enquiry";
+import { Heading } from "./Heading";
+import { RoundField } from "./RoundField";
+import { Reveal } from "./Reveal";
 
-// headline/cta/icon default to the homepage's boiler-focused closer, but
-// can be overridden for pages where "Boiler playing up?" doesn't fit
-// (e.g. the commercial page).
+// The main ask again, at the foot of every page. Heading and CTA default
+// to the homepage's, but can be overridden where "Boiler playing up?"
+// doesn't fit (the commercial page).
 export function FinalCta({
-  headline = finalCta.headline,
+  heading = finalCta.heading,
   cta = finalCta.cta,
-  icon = <BoilerIcon className="h-full w-full" />,
+  type = "repair",
 }: {
-  headline?: string;
+  heading?: TwoTone;
   cta?: string;
-  icon?: ReactNode;
+  type?: EnquiryType;
 }) {
   return (
-    <section className="bg-flame-gradient py-14 sm:py-20">
-      <div className="mx-auto flex max-w-3xl flex-col items-center px-4 text-center sm:px-6">
-        <ProductArt icon={icon} size="md" className="-rotate-3" />
-        <h2 className="mt-8 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-          {headline}
-        </h2>
-        <Link
-          href="/contact"
-          className="mt-8 inline-flex w-full max-w-xs items-center justify-center rounded-full bg-white px-8 py-4 text-base font-semibold text-terracotta shadow-[0_12px_25px_-10px_rgba(0,0,0,0.3)] transition-colors hover:bg-white/90 sm:w-auto"
-        >
-          {cta}
-        </Link>
-        <a
-          href={business.phoneHref}
-          className="mt-4 text-sm font-semibold text-white/90 hover:text-white"
-        >
-          {business.phoneDisplay}
-        </a>
-      </div>
+    <section className="bg-page py-14 lg:py-28">
+      <Reveal className="mx-auto flex max-w-3xl flex-col items-center px-4 text-center sm:px-6">
+        <Heading
+          lead={heading.lead}
+          em={heading.em}
+          emLine
+          className="text-3xl sm:text-4xl lg:text-5xl"
+        />
+        <RoundField cta={cta} type={type} className="mt-8" />
+        <p className="mt-5 text-sm text-text-2">
+          Or call{" "}
+          <a href={business.phoneHref} className="font-semibold text-navy">
+            {business.phoneDisplay}
+          </a>
+        </p>
+      </Reveal>
     </section>
   );
 }

@@ -60,7 +60,7 @@ export function serviceJsonLd(page: ServicePage) {
     "@context": "https://schema.org",
     "@type": "Service",
     serviceType: page.eyebrow,
-    name: page.headline,
+    name: page.headlineText,
     description: page.subline,
     url: `${SITE_URL}/${page.slug}`,
     areaServed: business.areasList.map((name) => ({ "@type": "City", name })),

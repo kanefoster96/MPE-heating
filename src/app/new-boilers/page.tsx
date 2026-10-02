@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/Nav";
-import { PromoStrip } from "@/components/PromoStrip";
 import { ServicePageHero } from "@/components/ServicePageHero";
 import { FeatureGrid } from "@/components/FeatureGrid";
 import { ChecklistSection } from "@/components/ChecklistSection";
-import { GuaranteeBlock } from "@/components/GuaranteeBlock";
 import { Reviews } from "@/components/Reviews";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
@@ -26,39 +24,36 @@ export default function NewBoilersPage() {
   return (
     <>
       <Nav />
-      <PromoStrip />
       <main>
         <ServicePageHero
-          icon={<Icon className="h-full w-full" />}
+          icon={<Icon />}
           eyebrow={newBoilersPage.eyebrow}
           headline={newBoilersPage.headline}
+          status={newBoilersPage.status}
           subline={newBoilersPage.subline}
           cta={newBoilersPage.cta}
-          ticks={newBoilersPage.ticks}
+          type={newBoilersPage.enquiry}
+          reassurance={newBoilersPage.reassurance}
         />
 
         <FeatureGrid
           eyebrow="Why book with MPE"
-          title="Everything handled, nothing left for you to chase"
+          heading={{ lead: "Everything handled.", em: "Nothing left for you to chase." }}
           items={newBoilersPage.features.map((f) => {
             const FeatureIconComponent = featureIconMap[f.icon];
-            return {
-              icon: <FeatureIconComponent className="h-7 w-7" />,
-              title: f.title,
-              text: f.text,
-            };
+            return { icon: <FeatureIconComponent />, title: f.title, text: f.text };
           })}
         />
 
         <ChecklistSection
           eyebrow="Is it time?"
-          title={newBoilersPage.checklistTitle}
+          heading={{ lead: "Signs it might be time.", em: "Before it fails in January." }}
           items={newBoilersPage.checklistItems}
+          note="Not sure? Ask for a quote anyway. It's free, there's no obligation, and if a repair makes more sense we'll say so."
         />
 
-        <GuaranteeBlock />
         <Reviews />
-        <FinalCta />
+        <FinalCta heading={{ lead: "Thinking about a new boiler?", em: "Get a free fixed-price quote." }} cta="Get a free quote" type="quote" />
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(newBoilersPage)} />

@@ -1,62 +1,39 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { business } from "@/lib/content";
+import { business, type TwoTone } from "@/lib/content";
+import { Heading, Eyebrow } from "./Heading";
 
+// Shell for the booking form and its thank-you state: logo, a two-tone
+// title, one line, then the card.
 export function FormLayout({
   eyebrow,
   title,
   subtitle,
-  topSlot,
-  hideContactLink = false,
   children,
-  footer,
 }: {
   eyebrow: string;
-  title: string;
+  title: TwoTone;
   subtitle: string;
-  topSlot?: ReactNode;
-  hideContactLink?: boolean;
   children: ReactNode;
-  footer?: ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-cream px-4 py-12">
-      <Link href="/" className="mb-6">
-        <Image
-          src="/mpe-logo.png"
-          alt={business.fullName}
-          width={1189}
-          height={513}
-          priority
-          className="h-10 w-auto"
-        />
+    <div className="flex min-h-screen flex-col items-center bg-cream px-4 py-10 sm:py-14">
+      <Link href="/" className="mb-8 inline-flex min-h-11 items-center" aria-label={`${business.name} home`}>
+        <Image src="/mpe-logo.png" alt={business.fullName} width={1189} height={513} priority className="h-10 w-auto" />
       </Link>
 
-      {!hideContactLink && (
-        <Link
-          href="/contact"
-          className="mb-6 text-center text-xs font-medium text-navy/50 transition-colors hover:text-navy"
-        >
-          Just have a question?{" "}
-          <span className="font-semibold text-terracotta">Contact us →</span>
-        </Link>
-      )}
-
-      <div className="w-full max-w-md rounded-[24px] bg-white p-6 shadow-[0_20px_45px_-15px_rgba(31,42,58,0.25)] sm:p-10">
-        {topSlot && <div className="mb-6">{topSlot}</div>}
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">{eyebrow}</p>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-navy sm:text-3xl">
-          {title}
-        </h1>
-        <p className="mt-2 text-sm text-navy/70">{subtitle}</p>
-
-        <div className="mt-8">{children}</div>
-
-        {footer && <p className="mt-8 text-center text-sm text-navy/70">{footer}</p>}
+      <div className="w-full max-w-md text-center">
+        <Eyebrow>{eyebrow}</Eyebrow>
+        <Heading as="h1" lead={title.lead} em={title.em} emLine className="mt-3 text-3xl sm:text-4xl" />
+        <p className="mt-3 text-base leading-relaxed text-text-2">{subtitle}</p>
       </div>
 
-      <Link href="/" className="mt-8 text-sm font-medium text-navy/50 hover:text-navy">
+      <div className="mt-8 w-full max-w-md rounded-[28px] border border-line bg-white p-6 shadow-[0_24px_50px_-32px_rgba(31,42,58,0.35)] sm:p-8">
+        {children}
+      </div>
+
+      <Link href="/" className="mt-8 inline-flex min-h-11 items-center text-sm font-medium text-text-2 hover:text-navy">
         ← Back to site
       </Link>
     </div>

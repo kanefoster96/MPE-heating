@@ -27,7 +27,8 @@ export function ContactForm() {
     return isEnquiryType(param) ? param : "repair";
   });
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  // The round field on the hero carries the number across so it's typed once.
+  const [phone, setPhone] = useState(() => (searchParams.get("phone") ?? "").slice(0, 40));
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sameDayRequested, setSameDayRequested] = useState(false);
@@ -76,13 +77,12 @@ export function ContactForm() {
     return (
       <FormLayout
         eyebrow="Sent"
-        title={`Thanks${firstName ? `, ${firstName}` : ""}. We've got it.`}
+        title={{ lead: `Thanks${firstName ? `, ${firstName}` : ""}.`, em: "We've got it." }}
         subtitle={
           sameDayRequested
             ? "You've asked for a same-day callout, so we'll ring you back as soon as an engineer is free to confirm a time."
             : "We'll ring you back to confirm a time. If it's urgent, call or WhatsApp us now and we'll move faster."
         }
-        hideContactLink
       >
         <ContactFallbackLinks />
       </FormLayout>
@@ -92,9 +92,14 @@ export function ContactForm() {
   return (
     <FormLayout
       eyebrow="Book a visit"
-      title={type === "quote" ? "Get a free fixed-price quote" : "Book a visit"}
-      subtitle="Two minutes. Tell us what you need and we'll ring you back to agree a time, and the price, before anyone starts work."
-      hideContactLink
+      title={
+        type === "quote"
+          ? { lead: "A new boiler.", em: "Free fixed-price quote." }
+          : type === "commercial"
+            ? { lead: "Commercial cover.", em: "Priority call-outs." }
+            : { lead: "Book a visit.", em: "Two minutes." }
+      }
+      subtitle="Tell us what you need and we'll ring you back to agree a time, and the price, before anyone starts work."
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         <fieldset>
@@ -109,7 +114,7 @@ export function ContactForm() {
                   onClick={() => setType(key)}
                   aria-pressed={selected}
                   className={`min-h-11 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                    selected ? "bg-navy text-white" : "bg-grey text-navy/70 hover:bg-line"
+                    selected ? "bg-navy text-white" : "bg-grey text-navy hover:bg-navy/10"
                   }`}
                 >
                   {ENQUIRY_TYPES[key].pill}
@@ -162,12 +167,12 @@ export function ContactForm() {
             placeholder={current.prompt}
             onChange={(e) => setMessage(e.target.value)}
             aria-invalid={!!errors.message}
-            className={`w-full resize-none rounded-2xl border px-4 py-3 text-base text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-terracotta ${
-              errors.message ? "border-terracotta" : "border-line"
+            className={`w-full resize-none rounded-2xl border px-4 py-3 text-base text-navy outline-none transition-colors placeholder:text-text-3 focus:border-navy/40 ${
+              errors.message ? "border-red" : "border-line"
             }`}
           />
           {errors.message && (
-            <p className="mt-1.5 text-xs font-medium text-terracotta">{errors.message}</p>
+            <p className="mt-1.5 text-xs font-medium text-red">{errors.message}</p>
           )}
         </div>
 
@@ -177,7 +182,7 @@ export function ContactForm() {
               type="checkbox"
               checked={sameDayRequested}
               onChange={(e) => setSameDayRequested(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line accent-terracotta"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line accent-navy"
             />
             <span className="font-semibold text-navy">No heating or hot water. I need someone today.</span>
           </label>
@@ -198,7 +203,7 @@ export function ContactForm() {
         </div>
 
         {notice && (
-          <div className="rounded-2xl bg-grey px-4 py-4 text-sm text-navy/80">
+          <div className="rounded-2xl bg-grey px-4 py-4 text-sm text-text-2">
             <p className="font-semibold text-navy">
               {notice === "unavailable"
                 ? "Online booking is taking a short break."
@@ -217,7 +222,7 @@ export function ContactForm() {
           {submitting ? "Sending…" : current.cta}
         </button>
 
-        <p className="text-center text-xs text-navy/50">
+        <p className="text-center text-xs text-text-3">
           Price agreed before any work starts. Every repair guaranteed for 3 months.
         </p>
       </form>
@@ -230,7 +235,7 @@ function ContactFallbackLinks({ compact = false }: { compact?: boolean }) {
     <div className={`flex flex-col gap-3 sm:flex-row ${compact ? "mt-3" : ""}`}>
       <a
         href={business.phoneHref}
-        className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border-2 border-terracotta px-5 text-sm font-semibold text-terracotta transition-colors hover:bg-terracotta hover:text-white"
+        className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-navy/20 px-5 text-sm font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
       >
         <PhoneIcon className="h-4 w-4" />
         {business.phoneDisplay}
@@ -239,9 +244,9 @@ function ContactFallbackLinks({ compact = false }: { compact?: boolean }) {
         href={business.whatsappHref}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-grey px-5 text-sm font-semibold text-navy transition-colors hover:bg-line"
+        className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-grey px-5 text-sm font-semibold text-navy transition-colors hover:bg-navy/10"
       >
-        <WhatsAppIcon className="h-5 w-5 text-[#25D366]" />
+        <WhatsAppIcon className="h-5 w-5 text-whatsapp" />
         WhatsApp us
       </a>
     </div>

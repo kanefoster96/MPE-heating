@@ -13,7 +13,11 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <ContentPageLayout eyebrow="Legal" title="Privacy Policy" meta={`Last updated: ${lastUpdated}`}>
+    <ContentPageLayout
+      eyebrow="Legal"
+      title={{ lead: "Privacy policy.", em: "Your data, plainly." }}
+      meta={`Last updated: ${lastUpdated}`}
+    >
       <RichContent blocks={privacyContent} />
     </ContentPageLayout>
   );

@@ -10,13 +10,13 @@ export function RichContent({ blocks }: { blocks: ContentBlock[] }) {
         switch (block.type) {
           case "h2":
             return (
-              <h2 key={i} className="mt-2 text-xl font-extrabold text-navy sm:text-2xl">
+              <h2 key={i} className="mt-2 text-[23px] font-extrabold leading-tight tracking-tight text-navy">
                 {block.text}
               </h2>
             );
           case "p":
             return (
-              <p key={i} className="text-base leading-relaxed text-navy/80">
+              <p key={i} className="text-base leading-relaxed text-text-2">
                 {block.text}
               </p>
             );
@@ -24,8 +24,8 @@ export function RichContent({ blocks }: { blocks: ContentBlock[] }) {
             return (
               <ul key={i} className="flex flex-col gap-2.5">
                 {block.items.map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-base leading-relaxed text-navy/80">
-                    <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-terracotta" />
+                  <li key={item} className="flex items-start gap-3 text-base leading-relaxed text-text-2">
+                    <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-navy" />
                     {item}
                   </li>
                 ))}
@@ -35,9 +35,9 @@ export function RichContent({ blocks }: { blocks: ContentBlock[] }) {
             return (
               <div
                 key={i}
-                className="flex items-start gap-3 rounded-2xl bg-terracotta-light px-5 py-4 text-sm leading-relaxed text-navy/80"
+                className="flex items-start gap-3 rounded-2xl border border-line bg-cream px-5 py-4 text-sm leading-relaxed text-text-2"
               >
-                <AlertTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-terracotta" />
+                <AlertTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-navy" />
                 {block.text}
               </div>
             );

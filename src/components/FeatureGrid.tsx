@@ -1,39 +1,37 @@
 import type { ReactNode } from "react";
+import type { TwoTone } from "@/lib/content";
+import { Heading, Eyebrow } from "./Heading";
+import { IconTile } from "./Chip";
+import { Reveal } from "./Reveal";
 
-// Reuses the same icon-card visual language as the homepage's WhyMpe
-// section, generalised for the service sub-pages.
+// Small tiles: an icon, a bold line and a short line. Used on the service
+// pages for what the page is promising.
 export function FeatureGrid({
   eyebrow,
-  title,
+  heading,
   items,
 }: {
   eyebrow: string;
-  title: string;
+  heading: TwoTone;
   items: { icon: ReactNode; title: string; text: string }[];
 }) {
   return (
-    <section className="bg-white py-14 sm:py-20">
+    <section className="bg-cream py-14 lg:py-28">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="mx-auto mb-10 max-w-2xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">
-            {eyebrow}
-          </p>
-          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">
-            {title}
-          </h2>
-        </div>
+        <Reveal className="max-w-2xl">
+          <Eyebrow>{eyebrow}</Eyebrow>
+          <Heading lead={heading.lead} em={heading.em} className="mt-3 text-3xl sm:text-4xl lg:text-5xl" />
+        </Reveal>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <div key={item.title} className="rounded-[24px] bg-grey p-8 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-terracotta shadow-[0_10px_25px_-12px_rgba(31,42,58,0.3)]">
-                {item.icon}
-              </div>
-              <h3 className="mt-5 text-lg font-bold text-navy">{item.title}</h3>
-              <p className="mt-2 text-sm text-navy/70">{item.text}</p>
+        <Reveal className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((item, i) => (
+            <div key={item.title} className="rounded-[24px] border border-line bg-white p-6">
+              <IconTile icon={item.icon} primary={i === 0} />
+              <h3 className="mt-5 text-lg font-bold leading-tight text-navy">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-text-2">{item.text}</p>
             </div>
           ))}
-        </div>
+        </Reveal>
       </div>
     </section>
   );

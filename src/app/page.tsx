@@ -1,35 +1,34 @@
 import { Nav } from "@/components/Nav";
-import { PromoStrip } from "@/components/PromoStrip";
 import { Hero } from "@/components/Hero";
-import { BrandsMarquee } from "@/components/BrandsMarquee";
-import { AccreditationStrip } from "@/components/AccreditationStrip";
-import { ServiceCards } from "@/components/ServiceCards";
-import { WhyMpe } from "@/components/WhyMpe";
+import { BrandsRow } from "@/components/BrandsRow";
+import { StoryCards } from "@/components/StoryCards";
 import { HowItWorks } from "@/components/HowItWorks";
-import { GuaranteeBlock } from "@/components/GuaranteeBlock";
+import { ServicePicker } from "@/components/ServicePicker";
+import { PromiseTiles } from "@/components/PromiseTiles";
+import { OfferList } from "@/components/OfferList";
 import { Reviews } from "@/components/Reviews";
 import { Faq } from "@/components/Faq";
-import { CommercialTeaser } from "@/components/CommercialTeaser";
 import { AreasCovered } from "@/components/AreasCovered";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 
+// Page order: hero and the main ask; story cards (what happens when you
+// book); how it works 1, 2, 3; pick a service; the promise; the one list
+// (the repair offer); reviews; questions; the ask again.
 export default function Home() {
   return (
     <>
       <Nav />
-      <PromoStrip />
       <main>
         <Hero />
-        <BrandsMarquee />
-        <AccreditationStrip />
-        <ServiceCards />
-        <WhyMpe />
+        <BrandsRow />
+        <StoryCards />
         <HowItWorks />
-        <GuaranteeBlock />
+        <ServicePicker />
+        <PromiseTiles />
+        <OfferList />
         <Reviews />
         <Faq />
-        <CommercialTeaser />
         <AreasCovered />
         <FinalCta />
       </main>

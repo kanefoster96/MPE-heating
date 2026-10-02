@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Nav } from "@/components/Nav";
-import { PromoStrip } from "@/components/PromoStrip";
 import { ServicePageHero } from "@/components/ServicePageHero";
-import { GuaranteeBlock } from "@/components/GuaranteeBlock";
 import { Reviews } from "@/components/Reviews";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
@@ -16,6 +14,9 @@ import {
   ArrowRightIcon,
   VanIcon,
 } from "@/components/icons";
+import { Heading, Eyebrow } from "@/components/Heading";
+import { Reveal } from "@/components/Reveal";
+import { guarantee } from "@/lib/content";
 import { areaPages, getAreaPage } from "@/lib/areas";
 import { SITE_URL } from "@/lib/seo";
 
@@ -43,9 +44,9 @@ export async function generateMetadata({
 }
 
 const serviceLinks = [
-  { icon: BoilerIcon, href: "/boiler-repair", title: "Boiler Repairs", text: "Same-day response, £50 call-out refunded when fixed." },
+  { icon: BoilerIcon, href: "/boiler-repair", title: "Boiler Repairs", text: "Same day where we can, £50 call-out refunded when fixed." },
   { icon: ServiceIcon, href: "/servicing", title: "Boiler Servicing", text: "Annual service from £79, keeps your warranty valid." },
-  { icon: NewBoilerIcon, href: "/new-boilers", title: "New Boilers", text: "Free quotes, fixed price, fitted by a Gas Safe engineer." },
+  { icon: NewBoilerIcon, href: "/new-boilers", title: "New Boilers", text: "Free fixed-price quote, usually fitted in a day." },
   { icon: BuildingIcon, href: "/commercial", title: "Commercial", text: "Gas, catering equipment and EICR for local businesses." },
 ];
 
@@ -59,24 +60,22 @@ export default async function AreaPageRoute({ params }: { params: Promise<Params
   return (
     <>
       <Nav />
-      <PromoStrip />
       <main>
         <ServicePageHero
-          icon={<BoilerIcon className="h-full w-full" />}
+          icon={<BoilerIcon />}
           eyebrow={area.name}
-          headline={area.headline}
+          headline={{ lead: `Boiler repairs in ${area.name}.`, em: "Same day where we can." }}
+          status={`Covering ${area.name} from Whitley Bay`}
           subline={area.subline}
           cta={`Book a repair in ${area.name}`}
-          ticks={["£50 call-out, 100% off your bill when fixed", "Price agreed before we start", "3-month guarantee"]}
+          type="repair"
+          reassurance="£50 call-out, 100% off your bill when fixed. Price agreed before we start. Every repair guaranteed for 3 months."
         />
 
-        <section className="bg-white py-14 sm:py-20">
-          <div className="mx-auto max-w-2xl px-4 sm:px-6">
-            <p className="inline-flex rounded-full bg-grey px-4 py-2 text-xs font-semibold text-navy/70">
-              {area.distance}
-            </p>
-
-            <div className="mt-6 flex flex-col gap-5">
+        <section className="bg-cream py-14 lg:py-28">
+          <Reveal className="mx-auto max-w-2xl px-4 sm:px-6">
+            <p className="mb-5 text-sm font-medium text-text-3">{area.distance}</p>
+            <div className="flex flex-col gap-5">
               {area.intro.map((paragraph) => (
                 <p key={paragraph} className="text-base leading-relaxed text-navy/80">
                   {paragraph}
@@ -85,11 +84,11 @@ export default async function AreaPageRoute({ params }: { params: Promise<Params
             </div>
 
             {nearbyAreas.length > 0 ? (
-              <p className="mt-6 text-sm text-navy/50">
+              <p className="mt-6 text-sm text-text-2">
                 We also cover{" "}
                 {nearbyAreas.map((a, i) => (
                   <span key={a.slug}>
-                    <Link href={`/areas/${a.slug}`} className="font-semibold text-terracotta hover:underline">
+                    <Link href={`/areas/${a.slug}`} className="font-semibold text-navy underline decoration-navy/30 underline-offset-4">
                       {a.name}
                     </Link>
                     {i < nearbyAreas.length - 1 ? ", " : ""}
@@ -98,79 +97,70 @@ export default async function AreaPageRoute({ params }: { params: Promise<Params
                 and the wider North East.
               </p>
             ) : (
-              <p className="mt-6 text-sm text-navy/50">
+              <p className="mt-6 text-sm text-text-2">
                 Part of our wider North East coverage — see the full list of{" "}
-                <Link href="/areas" className="font-semibold text-terracotta hover:underline">
+                <Link href="/areas" className="font-semibold text-navy underline decoration-navy/30 underline-offset-4">
                   areas we cover
                 </Link>
                 .
               </p>
             )}
-          </div>
+          </Reveal>
         </section>
 
-        <section className="bg-cream py-14 sm:py-20">
+        <section className="bg-page py-14 lg:py-28">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="mx-auto mb-10 max-w-2xl text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">
-                In {area.name}
-              </p>
-              <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">
-                Services available in your area
-              </h2>
-            </div>
+            <Reveal className="max-w-2xl">
+              <Eyebrow>In {area.name}</Eyebrow>
+              <Heading lead="Services in your area." em="All the same promise." className="mt-3 text-3xl sm:text-4xl lg:text-5xl" />
+            </Reveal>
 
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <Reveal className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {serviceLinks.map(({ icon: Icon, href, title, text }) => (
                 <Link
                   key={href}
                   href={href}
-                  className="group flex flex-col rounded-[24px] bg-white p-6 shadow-[0_10px_25px_-18px_rgba(31,42,58,0.3)] transition-shadow hover:shadow-[0_15px_30px_-15px_rgba(31,42,58,0.35)]"
+                  className="group flex flex-col rounded-[24px] border border-line bg-cream p-6 transition-colors hover:bg-grey"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-grey text-terracotta">
+                  <div className="grid h-[52px] w-[52px] place-items-center rounded-2xl bg-white text-navy">
                     <Icon className="h-6 w-6" />
                   </div>
                   <h3 className="mt-4 text-base font-bold text-navy">{title}</h3>
-                  <p className="mt-1.5 flex-1 text-sm text-navy/70">{text}</p>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-terracotta">
+                  <p className="mt-1.5 flex-1 text-sm leading-relaxed text-text-2">{text}</p>
+                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-navy">
                     Learn more
                     <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </span>
                 </Link>
               ))}
-            </div>
+            </Reveal>
 
-            <div className="mt-8 flex items-start gap-3 rounded-2xl bg-terracotta-light px-5 py-4 text-sm leading-relaxed text-navy/80">
-              <VanIcon className="mt-0.5 h-5 w-5 shrink-0 text-terracotta" />
+            <p className="mt-8 flex items-start gap-3 text-base leading-relaxed text-text-2">
+              <VanIcon className="mt-1 h-5 w-5 shrink-0 text-navy" />
               Our engineers carry common parts on the van, so most {area.name} repairs are sorted
-              in one visit rather than needing a return trip.
-            </div>
+              in one visit rather than needing a return trip. {guarantee.text}
+            </p>
           </div>
         </section>
 
-        <section className="bg-white py-14 sm:py-20">
+        <section className="bg-cream py-14 lg:py-28">
           <div className="mx-auto max-w-2xl px-4 sm:px-6">
-            <div className="mb-8 text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-terracotta">
-                Common Questions
-              </p>
-              <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">
-                {area.name} FAQs
-              </h2>
-            </div>
+            <Reveal>
+              <Eyebrow>Common questions</Eyebrow>
+              <Heading lead={`${area.name}.`} em="Asked and answered." className="mt-3 text-3xl sm:text-4xl" />
+            </Reveal>
 
-            <div className="flex flex-col gap-3">
+            <Reveal className="mt-8 flex flex-col gap-3">
               {area.faqs.map((item) => (
-                <div key={item.q} className="rounded-2xl bg-grey px-5 py-4">
-                  <p className="text-sm font-semibold text-navy sm:text-base">{item.q}</p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-navy/70">{item.a}</p>
+                <div key={item.q} className="rounded-2xl border border-line bg-white px-5 py-4">
+                  <p className="text-base font-semibold text-navy">{item.q}</p>
+                  <p className="mt-1.5 text-base leading-relaxed text-text-2">{item.a}</p>
                 </div>
               ))}
-            </div>
+            </Reveal>
           </div>
         </section>
 
-        <GuaranteeBlock />
         <Reviews />
         <FinalCta />
       </main>

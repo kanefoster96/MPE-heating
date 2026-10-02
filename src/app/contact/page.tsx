@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { business } from "@/lib/content";
 import { SITE_URL } from "@/lib/seo";
 import { ContactForm } from "./ContactForm";
 
 export const metadata: Metadata = {
-  title: "Contact Us",
-  description: `Have a question or need to book a callout? Send MPE a message and we'll get back to you — or call ${business.phoneDisplay} directly.`,
+  title: "Book a Visit",
+  description: `Book a same-day boiler repair, an annual service or a free new-boiler quote. Two minutes online and we ring you back — or call ${business.phoneDisplay} directly.`,
   alternates: { canonical: `${SITE_URL}/contact` },
   openGraph: { url: `${SITE_URL}/contact` },
 };
 
 export default function ContactPage() {
-  return <ContactForm />;
+  // Suspense is required around useSearchParams() so the rest of the page
+  // can still be statically rendered.
+  return (
+    <Suspense fallback={null}>
+      <ContactForm />
+    </Suspense>
+  );
 }

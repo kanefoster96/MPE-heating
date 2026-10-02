@@ -23,7 +23,7 @@ const TERMS_DISCLAIMER: ContentBlock = {
 
 const PRIVACY_DISCLAIMER: ContentBlock = {
   type: "callout",
-  text: "This is a general template, not a substitute for legal advice — worth having it reviewed to confirm it fully reflects how your systems handle data, especially once payments and accounts are fully connected.",
+  text: "This is a general template, not a substitute for legal advice — worth having it reviewed to confirm it fully reflects how your systems handle data, especially how enquiries are stored once they reach your inbox.",
 };
 
 export const lastUpdated = "28 August 2026";
@@ -106,10 +106,8 @@ export const privacyContent: ContentBlock[] = [
   {
     type: "list",
     items: [
-      "Contact details you give us — name, phone number, email address, and postal address — when you book a visit, request a quote, or get in touch through our contact form.",
-      "Account information, if you create an account — the same contact details, plus details about your boiler and the work we've carried out, so you and our team have a record of it.",
-      "Postcode and address lookups — when you search for your address on our site, your postcode is sent to our address-lookup provider to return matching addresses. We don't store the postcode you search unless you go on to submit it as part of a booking.",
-      "Payment information — card payments, when available, are handled directly by our payment provider. We don't see or store your full card details.",
+      "Contact details you give us — name, phone number, email address, and a description of the problem — when you book a visit, request a quote, or get in touch through our contact form.",
+      "Job records — details about your boiler and the work we've carried out, so future visits go smoothly and we can honour the guarantee.",
       "Basic technical information — standard web server logs (like browser type and IP address), used only to keep the site running securely.",
     ],
   },
@@ -121,12 +119,12 @@ export const privacyContent: ContentBlock[] = [
   { type: "h2", text: "Who we share it with" },
   {
     type: "p",
-    text: "We share information only where it's needed to provide our service — for example, with our address-lookup and payment providers. We don't share your information with third parties for their own marketing purposes.",
+    text: "We share information only where it's needed to provide our service — for example, with the email service that delivers your enquiry to our team. We don't share your information with third parties for their own marketing purposes.",
   },
   { type: "h2", text: "How long we keep it" },
   {
     type: "p",
-    text: "We keep booking and job records for as long as needed for guarantee, warranty and legal/tax purposes — generally up to 6 years, in line with standard UK record-keeping requirements for trade businesses. You can ask us to delete your account and personal data at any time, subject to what we're legally required to keep.",
+    text: "We keep booking and job records for as long as needed for guarantee, warranty and legal/tax purposes — generally up to 6 years, in line with standard UK record-keeping requirements for trade businesses. You can ask us to delete your personal data at any time, subject to what we're legally required to keep.",
   },
   { type: "h2", text: "Your rights" },
   {

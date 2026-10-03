@@ -17,7 +17,7 @@ export function Reviews() {
   };
 
   return (
-    <section className="bg-page py-14 lg:py-28">
+    <section className="bg-cream py-14 lg:py-28">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal className="flex items-end justify-between gap-4">
           <div>
@@ -52,7 +52,7 @@ export function Reviews() {
             <blockquote
               key={r.name}
               data-review-card
-              className="w-[85%] shrink-0 snap-start rounded-[24px] border border-line bg-cream p-6 sm:w-[340px]"
+              className="w-[85%] shrink-0 snap-start rounded-[24px] border border-line bg-white p-6 sm:w-[340px]"
             >
               <div className="flex gap-0.5 text-navy" aria-label="Five stars">
                 {Array.from({ length: 5 }).map((_, i) => (

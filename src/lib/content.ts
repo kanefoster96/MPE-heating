@@ -54,17 +54,15 @@ export type ChipContent = { icon: ChipIcon; title: string; sub?: string };
 // Hero copy is built on the value equation: dream outcome + likelihood it
 // works, minus time delay and effort. Every claim must be one MPE can keep.
 export const hero = {
-  status: "Same-day boiler repairs across the North East",
+  status: "Same-day call-outs across the North East",
   // Dream outcome, then the time promise carries the gradient.
   headline: { lead: "Heating and hot water back.", em: "The same day." } satisfies TwoTone,
   // Effort (we come to you), sacrifice (price agreed first), likelihood
-  // (Gas Safe, one visit).
+  // (Gas Safe, parts on the van), and the honest version of "same day".
   subline:
-    "A Gas Safe engineer comes to you, agrees the price before starting, and fixes most boilers in one visit.",
-  cta: "Book a same-day visit",
+    "A Gas Safe engineer comes out for a £50 call-out and agrees the price before any work starts. Fixed the same day where we have the parts, or the next available day.",
+  cta: "Book a same-day call-out",
   fieldPlaceholder: "Your phone number",
-  // One sentence, not a list: the risk reversal in a line.
-  reassurance: "£50 call-out, 100% off your bill when fixed. Price agreed first. Every repair guaranteed for 3 months.",
   // Two or three chips around the one visual. Real events the booking
   // produces, no invented numbers.
   chips: [
@@ -72,6 +70,18 @@ export const hero = {
     { icon: "van", title: "Engineer on the way", sub: "Same day" },
     { icon: "check", title: "Fixed, price agreed first", sub: "£50 off the bill" },
   ] satisfies ChipContent[],
+};
+
+// The £50 call-out, explained. Shown before every booking ask (hero,
+// form, repair page) so nobody books without knowing the deal.
+export const fee = {
+  title: "The £50 call-out, explained",
+  lines: [
+    "£50 covers the visit and the diagnosis.",
+    "Go ahead with the repair and the whole £50 comes off your bill.",
+    "Decide not to, and £50 is all you pay.",
+  ],
+  short: "£50 call-out. Refunded in full when we do the repair.",
 };
 
 // Story cards: a few tilted cards whose chips show what happens, instead
@@ -273,24 +283,28 @@ export const howItWorks = {
   steps: [
     {
       number: 1,
-      title: "Tell us what's wrong",
-      text: "Two minutes online or on WhatsApp. You pick the time that suits.",
+      title: "Fill in the form",
+      text: `Tell us what's wrong and when suits. No heating or hot water? Tick "I need someone today" and we'll ask you to call an engineer direct on ${business.phoneDisplay}, so we can get to you fastest.`,
       icon: "form" as const,
-      chip: { icon: "form" as const, title: "Repair booked", sub: "Two minutes" },
+      // The words on the illustration card, so it reads as the real step.
+      rows: ["Your name and number", "What the boiler's doing", "I need someone today"],
+      chip: { icon: "form" as const, title: "Same-day call-out", sub: "Call an engineer direct" },
     },
     {
       number: 2,
-      title: "Your engineer arrives",
-      text: "On time, with ID, and common parts on the van so most jobs finish in one visit.",
+      title: "We come out for £50",
+      text: "The £50 call-out covers the visit and the diagnosis. Your Gas Safe engineer finds the fault and agrees the repair price with you before any work starts.",
       icon: "doorstep" as const,
-      chip: { icon: "van" as const, title: "Engineer on the way", sub: "Same day" },
+      rows: ["Engineer on the way", "Fault found", "Price agreed with you first"],
+      chip: { icon: "price" as const, title: "£50 call-out", sub: "Refunded when we repair" },
     },
     {
       number: 3,
-      title: "You approve the price, we fix it",
-      text: "Nothing starts until you've agreed the cost. Then it's fixed, tested and guaranteed for 3 months.",
+      title: "Fixed, and the £50 comes off",
+      text: "Go ahead and the whole £50 comes off your bill. We repair the same day where we have the parts on the van, or arrange the next available day to get you up and running again fast.",
       icon: "wrench" as const,
-      chip: { icon: "check" as const, title: "Fixed, price agreed first", sub: "Guaranteed 3 months" },
+      rows: ["Parts on the van", "Repair done and tested", "£50 taken off the bill"],
+      chip: { icon: "check" as const, title: "Fixed", sub: "Guaranteed 3 months" },
     },
   ],
 };
@@ -302,11 +316,11 @@ export const offer = {
   items: [
     "£50 call-out, and 100% of it comes off your bill when we fix it",
     "A Gas Safe engineer who diagnoses the fault and agrees the price with you first",
-    "Common parts carried on the van, so most faults are fixed in one visit",
+    "Common parts carried on the van: fixed the same day where we have them, or the next available day",
     "The repair tested and working before we leave",
     "The 3-month fixed-for-good guarantee: same fault back, we return free",
   ],
-  cta: "Book a same-day visit",
+  cta: "Book a same-day call-out",
   note: "You only pay the £50 on its own if you get the diagnosis and decide not to go ahead.",
 };
 
@@ -349,7 +363,7 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
   homes: [
     {
       q: "How quickly can you get to me?",
-      a: "Most domestic repairs are seen the same day if you book before midday. For no heat or no hot water we prioritise you — just call and let us know it's urgent.",
+      a: `Most domestic repairs are seen the same day if you book before midday. We fix on the spot where we have the parts on the van, otherwise we arrange the next available day to get you up and running again fast. No heat or hot water? Call an engineer direct on ${business.phoneDisplay}.`,
     },
     {
       q: "How much is the call-out?",
@@ -438,10 +452,10 @@ export const boilerRepairPage: ServicePage = {
   eyebrow: "Boiler Repair",
   headline: { lead: "Boiler fixed the same day.", em: "Price agreed first." },
   headlineText: "Boiler fixed the same day, price agreed first",
-  status: "Same-day repairs across the North East",
+  status: "Same-day call-outs across the North East",
   subline:
-    "Tell us what's wrong and a Gas Safe engineer comes to you anywhere in the North East, usually the same day. Most faults are fixed in one visit, and every repair is guaranteed for 3 months.",
-  cta: "Book a same-day repair",
+    "Tell us what's wrong and a Gas Safe engineer comes out for a £50 call-out, refunded in full when we do the repair. Fixed the same day where we have the parts, or the next available day.",
+  cta: "Book a same-day call-out",
   enquiry: "repair",
   reassurance: "£50 call-out, 100% off your bill when fixed. Every repair guaranteed for 3 months.",
   features: [
@@ -675,7 +689,7 @@ export const faqsPage = {
 
 export const finalCta = {
   heading: { lead: "Boiler playing up?", em: "We can be out today." } satisfies TwoTone,
-  cta: "Book a same-day visit",
+  cta: "Book a same-day call-out",
 };
 
 export const footerLinks: { label: string; href?: string }[] = [

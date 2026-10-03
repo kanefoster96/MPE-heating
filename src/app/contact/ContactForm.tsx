@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { FormLayout } from "@/components/FormLayout";
 import { FormField } from "@/components/FormField";
+import { FeeNote } from "@/components/FeeNote";
 import { WhatsAppIcon, PhoneIcon } from "@/components/icons";
 import { business } from "@/lib/content";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
@@ -31,7 +32,7 @@ export function ContactForm() {
   const [phone, setPhone] = useState(() => (searchParams.get("phone") ?? "").slice(0, 40));
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [sameDayRequested, setSameDayRequested] = useState(false);
+  const [sameDayRequested, setSameDayRequested] = useState(() => searchParams.get("sameDay") === "1");
   const [company, setCompany] = useState(""); // honeypot, hidden from people
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -80,8 +81,8 @@ export function ContactForm() {
         title={{ lead: `Thanks${firstName ? `, ${firstName}` : ""}.`, em: "We've got it." }}
         subtitle={
           sameDayRequested
-            ? "You've asked for a same-day callout, so we'll ring you back as soon as an engineer is free to confirm a time."
-            : "We'll ring you back to confirm a time. If it's urgent, call or WhatsApp us now and we'll move faster."
+            ? `You've asked for someone today. The quickest way to lock that in is to call an engineer direct on ${business.phoneDisplay} now; otherwise we'll ring you back as soon as one is free.`
+            : "We'll ring you back to confirm a time and agree the price before any work starts. If it's urgent, call or WhatsApp us now."
         }
       >
         <ContactFallbackLinks />
@@ -91,17 +92,25 @@ export function ContactForm() {
 
   return (
     <FormLayout
-      eyebrow="Book a visit"
+      eyebrow={type === "repair" ? "Boiler repair" : "Book a visit"}
       title={
-        type === "quote"
-          ? { lead: "A new boiler.", em: "Free fixed-price quote." }
-          : type === "commercial"
-            ? { lead: "Commercial cover.", em: "Priority call-outs." }
-            : { lead: "Book a visit.", em: "Two minutes." }
+        type === "repair"
+          ? { lead: "Same-day call-out.", em: "£50, refunded when fixed." }
+          : type === "quote"
+            ? { lead: "A new boiler.", em: "Free fixed-price quote." }
+            : type === "commercial"
+              ? { lead: "Commercial cover.", em: "Priority call-outs." }
+              : { lead: "Book a visit.", em: "Two minutes." }
       }
-      subtitle="Tell us what you need and we'll ring you back to agree a time, and the price, before anyone starts work."
+      subtitle={
+        type === "repair"
+          ? "Two minutes. We ring you back to confirm a time, come out for £50, and agree the repair price before any work starts."
+          : "Tell us what you need and we'll ring you back to agree a time, and the price, before anyone starts work."
+      }
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+        {type === "repair" && <FeeNote />}
+
         <fieldset>
           <legend className="mb-2 block text-sm font-semibold text-navy">What do you need?</legend>
           <div className="flex flex-wrap gap-2">
@@ -177,15 +186,35 @@ export function ContactForm() {
         </div>
 
         {type === "repair" && (
-          <label className="flex min-h-11 items-start gap-2.5 rounded-2xl border border-line px-4 py-3.5 text-sm text-navy/80">
-            <input
-              type="checkbox"
-              checked={sameDayRequested}
-              onChange={(e) => setSameDayRequested(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 rounded border-line accent-navy"
-            />
-            <span className="font-semibold text-navy">No heating or hot water. I need someone today.</span>
-          </label>
+          <div className={`rounded-2xl border ${sameDayRequested ? "border-navy bg-cream" : "border-line"}`}>
+            <label className="flex min-h-11 cursor-pointer items-start gap-2.5 px-4 py-3.5 text-sm text-navy/80">
+              <input
+                type="checkbox"
+                checked={sameDayRequested}
+                onChange={(e) => setSameDayRequested(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-line accent-navy"
+              />
+              <span className="font-semibold text-navy">No heating or hot water. I need someone today.</span>
+            </label>
+            {sameDayRequested && (
+              <div className="border-t border-line px-4 py-4" role="status">
+                <p className="text-sm font-semibold text-navy">
+                  Quickest way: call an engineer direct.
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-text-2">
+                  Same-day slots go by phone first. Ring now and we&rsquo;ll tell you straight away whether we can be
+                  out today. You can still send this form and we&rsquo;ll ring you back.
+                </p>
+                <a
+                  href={business.phoneHref}
+                  className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-navy px-5 text-base font-semibold text-white transition-colors hover:bg-navy-light"
+                >
+                  <PhoneIcon className="h-4 w-4" />
+                  Call {business.phoneDisplay}
+                </a>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Honeypot: hidden from people, filled by bots. */}
@@ -222,8 +251,9 @@ export function ContactForm() {
           {submitting ? "Sending…" : current.cta}
         </button>
 
-        <p className="text-center text-xs text-text-3">
-          Price agreed before any work starts. Every repair guaranteed for 3 months.
+        <p className="text-center text-xs leading-relaxed text-text-3">
+          Price agreed before any work starts. Fixed the same day where we have the parts, or the next available
+          day. Every repair guaranteed for 3 months.
         </p>
       </form>
     </FormLayout>

@@ -53,7 +53,7 @@ export default function ServicingPage() {
         />
 
         <Reviews />
-        <FinalCta heading={{ lead: "Due a service?", em: "Book it in two minutes." }} cta="Book a service" type="service" />
+        <FinalCta heading={{ lead: "Due a service?", em: "Book it in two minutes." }} cta="Book a service" shortCta="Book" type="service" />
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(servicingPage)} />

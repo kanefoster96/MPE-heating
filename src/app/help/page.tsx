@@ -28,6 +28,7 @@ export default function HelpIndexPage() {
           subline="Common problems explained, honest advice on servicing, and plain answers from Gas Safe engineers."
           cta="Ask us a question"
           type="other"
+          shortCta="Ask us"
           reassurance="If it's quicker to ask than to read, WhatsApp us and an engineer will answer."
         />
 

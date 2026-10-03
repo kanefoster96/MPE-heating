@@ -34,6 +34,7 @@ export default function BoilerRepairPage() {
           cta={boilerRepairPage.cta}
           type={boilerRepairPage.enquiry}
           reassurance={boilerRepairPage.reassurance}
+          showFee
         />
 
         <FeatureGrid

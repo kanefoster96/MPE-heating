@@ -61,7 +61,7 @@ export const hero = {
   // Proof row above the headline: the marks we hold, then who we serve.
   // No invented numbers.
   proof: { lead: "Trusted by homes & businesses", sub: "in Whitley Bay and across the North East", rated: "Rated on TrustATrader" },
-  status: "Same-day boiler repairs, Whitley Bay and the North East",
+  status: "Same-day boiler repairs in Whitley Bay",
   // Dream outcome, then the time promise carries the gradient.
   headline: { lead: "Heating and hot water back.", em: "The same day." } satisfies TwoTone,
   // Effort (we come to you), sacrifice (price agreed first), likelihood
@@ -71,7 +71,6 @@ export const hero = {
   cta: "Book a same-day call-out",
   // Two quiet lines under the button, like "No card, no commitment."
   underButton: ["£50 call-out. Refunded in full when we do the repair.", "Decide not to go ahead and £50 is all you pay."],
-  secondary: "Prefer to talk?",
 };
 
 // The £50 call-out, explained. Shown before every booking ask (hero,

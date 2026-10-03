@@ -7,7 +7,7 @@ import { FormLayout } from "./FormLayout";
 import { FormField } from "./FormField";
 import { FeeNote } from "./FeeNote";
 import { ArrowRightIcon, ChevronLeftIcon, PhoneIcon, WhatsAppIcon, QuestionIcon } from "./icons";
-import { business, type TwoTone } from "@/lib/content";
+import { business, sameDay as sameDayCopy, type TwoTone } from "@/lib/content";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
 import { funnel, resolvePath, type FunnelNode } from "@/lib/funnel";
 import { funnelIconMap } from "@/lib/funnelIcons";
@@ -126,7 +126,7 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
         title={{ lead: `Thanks${firstName ? `, ${firstName}` : ""}.`, em: "We've got it." }}
         subtitle={
           sameDay && leaf?.sameDay
-            ? "You've asked for someone today, so you're at the front of the queue. We'll ring you back shortly to confirm."
+            ? `You've asked for a same-day call-out. For the best chance of someone today, call our engineers directly on ${business.phoneDisplay}.`
             : "We'll ring you back to confirm a time and agree the price before any work starts."
         }
       >
@@ -170,22 +170,41 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
           </div>
 
           {leaf.sameDay && (
-            <label
-              className={`flex min-h-11 cursor-pointer items-start gap-2.5 rounded-2xl border px-4 py-3.5 text-sm transition-colors ${
-                sameDay ? "border-navy bg-cream" : "border-line"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={sameDay}
-                onChange={(e) => setSameDay(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-line accent-navy"
-              />
-              <span>
-                <span className="block font-semibold text-navy">I need someone today</span>
-                <span className="block text-text-2">You go to the front of the queue and we ring you back first.</span>
-              </span>
-            </label>
+            <div className={`rounded-2xl border transition-colors ${sameDay ? "border-navy bg-cream" : "border-line"}`}>
+              <label className="flex min-h-11 cursor-pointer items-center gap-2.5 px-4 py-3.5 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sameDay}
+                  onChange={(e) => setSameDay(e.target.checked)}
+                  className="h-4 w-4 shrink-0 rounded border-line accent-navy"
+                />
+                <span className="font-semibold text-navy">{sameDayCopy.tick}</span>
+              </label>
+              {/* Ticking shows the number: calling is the best route to today. */}
+              {sameDay && (
+                <div className="fold-in px-4 pb-4" data-sameday-call>
+                  <p className="text-sm text-text-2">{sameDayCopy.callLine}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2.5">
+                    <a
+                      href={business.phoneHref}
+                      className="flex h-12 items-center justify-center gap-2 rounded-full bg-terracotta-deep px-3 text-sm font-semibold text-white"
+                    >
+                      <PhoneIcon className="h-4 w-4" aria-hidden="true" />
+                      {business.phoneDisplay}
+                    </a>
+                    <a
+                      href={business.whatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-12 items-center justify-center gap-2 rounded-full bg-whatsapp-dark px-3 text-sm font-semibold text-white"
+                    >
+                      <WhatsAppIcon className="h-4 w-4" aria-hidden="true" />
+                      WhatsApp
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Honeypot: hidden from people, filled by bots. */}

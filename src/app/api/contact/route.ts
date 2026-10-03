@@ -59,10 +59,18 @@ export async function POST(request: NextRequest) {
     ? body.path.map((p) => str(p, 60)).filter(Boolean).slice(0, 6)
     : [];
 
-  if (name.length < 2 || !isValidPhone(phone) || message.length < 10) {
+  // The booking forms send a name and phone; the quick email fields send
+  // an email and a request, with a phone only if they want a call. So a
+  // request needs a message and at least one valid way to reply.
+  const hasPhone = isValidPhone(phone);
+  const hasEmail = !!email && isValidEmail(email);
+  if (message.length < 10 || (!hasPhone && !hasEmail) || (name && name.length < 2)) {
     return NextResponse.json({ error: "Check the details and try again." }, { status: 400 });
   }
-  if (email && !isValidEmail(email)) {
+  if (phone && !hasPhone) {
+    return NextResponse.json({ error: "Check the phone number." }, { status: 400 });
+  }
+  if (email && !hasEmail) {
     return NextResponse.json({ error: "Check the email address." }, { status: 400 });
   }
 
@@ -75,13 +83,13 @@ export async function POST(request: NextRequest) {
   const from = process.env.CONTACT_FROM_EMAIL || "MPE Website <onboarding@resend.dev>";
   const label = path.length ? path.join(" › ") : ENQUIRY_TYPES[type].label;
   const urgent = sameDayRequested ? " — SAME-DAY" : "";
-  const subject = `${label}${urgent}: ${name}`;
+  const subject = `${label}${urgent}: ${name || email || phone}`;
 
   const lines = [
     `Request: ${label}${sameDayRequested ? " (same-day requested)" : ""}`,
     `Type: ${ENQUIRY_TYPES[type].label}`,
-    `Name: ${name}`,
-    `Phone: ${phone}`,
+    `Name: ${name || "not given"}`,
+    `Phone: ${phone || "not given"}`,
     `Email: ${email || "not given"}`,
     "",
     message,
@@ -90,8 +98,8 @@ export async function POST(request: NextRequest) {
   const html = `<p><strong>${escapeHtml(label)}</strong>${
     sameDayRequested ? " &middot; <strong>same-day requested</strong>" : ""
   }</p>
-<p><strong>Name:</strong> ${escapeHtml(name)}<br/>
-<strong>Phone:</strong> <a href="tel:${escapeHtml(phone.replace(/\s+/g, ""))}">${escapeHtml(phone)}</a><br/>
+<p><strong>Name:</strong> ${name ? escapeHtml(name) : "not given"}<br/>
+<strong>Phone:</strong> ${phone ? `<a href="tel:${escapeHtml(phone.replace(/\s+/g, ""))}">${escapeHtml(phone)}</a>` : "not given"}<br/>
 <strong>Email:</strong> ${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : "not given"}</p>
 <p style="white-space:pre-wrap">${escapeHtml(message)}</p>`;
 

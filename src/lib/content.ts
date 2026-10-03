@@ -74,6 +74,13 @@ export const hero = {
   ticks: ["Price agreed first", "3-month guarantee", "Local to Whitley Bay"],
 };
 
+// The same-day tick on every form. Ticking it is a nudge to book, not a
+// promise of priority: it shows our number with this line.
+export const sameDay = {
+  tick: "I need a same-day call-out",
+  callLine: "Call our engineers directly, for the best chance of a same-day call-out.",
+};
+
 // The £50 call-out, explained. Shown before every booking ask (hero,
 // form, repair page) so nobody books without knowing the deal.
 export const fee = {
@@ -281,7 +288,7 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
   homes: [
     {
       q: "How quickly can you get to me?",
-      a: "Most domestic repairs are seen the same day if you book before midday. We fix on the spot where we have the parts on the van, otherwise we arrange the next available day to get you up and running again fast. No heat or hot water? Tick \"I need someone today\" when you book and you go to the front of the queue.",
+      a: `Most domestic repairs are seen the same day if you book before midday. We fix on the spot where we have the parts on the van, otherwise we arrange the next available day to get you up and running again fast. Need someone today? Call our engineers directly on ${business.phoneDisplay}, for the best chance of a same-day call-out.`,
     },
     {
       q: "How much is the call-out?",
@@ -394,7 +401,7 @@ export const boilerRepairPage: ServicePage = {
     {
       icon: "clock",
       title: "Out the same day",
-      text: "No heat or hot water goes to the front of the queue. Most repairs are seen the same day you call.",
+      text: "Most repairs are seen the same day if you book before midday. Call our engineers directly for the best chance of a same-day call-out.",
     },
     {
       icon: "price",

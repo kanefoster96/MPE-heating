@@ -3,51 +3,46 @@ import { business } from "@/lib/content";
 import { areaPages } from "@/lib/areas";
 import { Heading, Eyebrow } from "./Heading";
 import { Reveal } from "./Reveal";
+import { MapPinIcon } from "./icons";
 
-// One sentence listing the towns, each linked to its page. Built from the
-// area list so a new area page ships already linked here.
+// Every town as a tappable chip linking to its page. Built from the area
+// list so a new area page ships already linked here.
 const areaPageSlugs: Record<string, string> = Object.fromEntries(
   areaPages.map((area) => [area.name, `/areas/${area.slug}`])
 );
 
-const linkClass = "font-semibold text-navy underline decoration-navy/25 underline-offset-4 hover:decoration-navy";
-
 export function AreasCovered() {
-  const towns = business.areasList;
-
   return (
-    <section className="bg-cream py-14 lg:py-28">
-      <Reveal className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+    <section className="bg-cream py-14 lg:py-24">
+      <Reveal className="mx-auto max-w-4xl px-4 text-center sm:px-6">
         <Eyebrow>Areas we cover</Eyebrow>
         <Heading
-          lead={`Boiler repairs near you.`}
+          lead="Boiler repairs near you."
           em={`${business.base} and across the North East.`}
-          emLine
           className="mt-3 text-3xl sm:text-4xl"
         />
-        <p className="mt-5 text-base leading-relaxed text-text-2">
-          Based in {business.base}, covering{" "}
-          {towns.map((town, i) => {
-            const href = areaPageSlugs[town];
-            const separator = i === towns.length - 1 ? "" : i === towns.length - 2 ? " and " : ", ";
+        <ul className="mt-8 flex flex-wrap justify-center gap-2">
+          {business.areasList.map((town) => {
+            const href = areaPageSlugs[town] ?? "/areas";
             return (
-              <span key={town}>
-                {href ? (
-                  <Link href={href} className={linkClass}>
-                    {town}
-                  </Link>
-                ) : (
-                  town
-                )}
-                {separator}
-              </span>
+              <li key={town}>
+                <Link
+                  href={href}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-white px-4 text-sm font-semibold text-navy transition-colors hover:border-navy/40"
+                >
+                  <MapPinIcon className="h-3.5 w-3.5 text-text-3" />
+                  {town}
+                </Link>
+              </li>
             );
           })}
-          . See every{" "}
-          <Link href="/areas" className={linkClass}>
-            area we cover
+        </ul>
+        <p className="mt-6 text-sm text-text-2">
+          Not listed?{" "}
+          <Link href="/contact" className="font-semibold text-navy underline decoration-navy/30 underline-offset-4">
+            Ask us
           </Link>
-          .
+          . We cover the wider North East.
         </p>
       </Reveal>
     </section>

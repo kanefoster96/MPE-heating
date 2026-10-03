@@ -81,60 +81,31 @@ export const fee = {
   short: "£50 call-out. Refunded in full when we do the repair.",
 };
 
-// Pain points we understand: the four things that make a broken boiler
-// miserable, in the customer's words. Tiles, not a list.
-export const pains = {
-  heading: { lead: "Boiler broken down?", em: "We know how that day goes." } satisfies TwoTone,
-  text: "Cold house, no hot water, and no idea what it's going to cost or when someone will turn up. That's the bit we fix first.",
+// Quick picks: one tappable card per job, straight under the hero, so
+// every visitor sees a direct button for what they came for. Each links
+// to the right form or funnel branch. Icons are funnel icon keys.
+export const quickPicks = {
+  heading: { lead: "What do you need?", em: "Tap one, book in two minutes." } satisfies TwoTone,
   items: [
-    {
-      icon: "boiler" as const,
-      title: "No heating or hot water",
-      text: "The house is cold, the kids need a bath, and every hour matters.",
-    },
-    {
-      icon: "clock" as const,
-      title: "Waiting days for an engineer",
-      text: "Or being given a window and nobody turning up in it.",
-    },
-    {
-      icon: "price" as const,
-      title: "Not knowing the cost",
-      text: "Work starts, the bill lands later, and it's more than you expected.",
-    },
-    {
-      icon: "card" as const,
-      title: "Paying a call-out and then the repair",
-      text: "Being charged to turn up, then charged again on top for the fix.",
-    },
+    { icon: "alert" as const, title: "Boiler broken down", line: "Same-day call-out, £50 refunded when fixed", href: "/emergency", primary: true },
+    { icon: "service" as const, title: "Boiler service", line: "From £79, warranty kept valid", href: "/book?path=boilers.service" },
+    { icon: "newboiler" as const, title: "New boiler", line: "Free fixed-price quote", href: "/book?path=boilers.new" },
+    { icon: "plumbing" as const, title: "Plumbing", line: "Leaks, taps, bathrooms", href: "/book?path=plumbing" },
+    { icon: "electrics" as const, title: "Electrics", line: "Faults, fuse boards, EV chargers", href: "/book?path=electrics" },
+    { icon: "landlord" as const, title: "Landlord certificates", line: "CP12 and EICR", href: "/book?path=landlord" },
+    { icon: "building" as const, title: "Commercial", line: "Priority call-outs", href: "/book?path=commercial" },
+    { icon: "question" as const, title: "Something else", line: "Ask us anything", href: "/contact" },
   ],
 };
 
-// How we solve it: one answer for each pain, in the same order.
-export const solution = {
-  heading: { lead: "How we solve it.", em: "Same day, price agreed, guaranteed." } satisfies TwoTone,
-  text: "A family-run Whitley Bay firm with Gas Safe engineers and common parts on the van.",
-  tiles: [
-    {
-      icon: "clock" as const,
-      title: "Out the same day",
-      text: "No heat or hot water goes to the front of the queue. Fixed on the spot where we have the parts, or the next available day.",
-    },
-    {
-      icon: "van" as const,
-      title: "A time you can rely on",
-      text: "We ring to confirm, turn up when we said, with ID.",
-    },
-    {
-      icon: "price" as const,
-      title: "Price agreed before we start",
-      text: "You hear the number and say yes before any work begins. Nothing is added later.",
-    },
-    {
-      icon: "check" as const,
-      title: "£50 call-out, refunded when we repair",
-      text: "Go ahead with the fix and the whole £50 comes off the bill. One charge, not two.",
-    },
+// The worry, and what we do about it. One card each, short.
+export const problemFix = {
+  heading: { lead: "Boiler broken down?", em: "Here's how we take the stress out." } satisfies TwoTone,
+  items: [
+    { icon: "clock" as const, worry: "No heating or hot water", fix: "Out the same day", text: "Fixed on the spot where we have the parts, or the next available day." },
+    { icon: "van" as const, worry: "Waiting in for no-shows", fix: "A time you can rely on", text: "We ring to confirm and turn up when we said." },
+    { icon: "price" as const, worry: "Not knowing the cost", fix: "Price agreed first", text: "You say yes before any work starts." },
+    { icon: "card" as const, worry: "Paying twice", fix: "£50, refunded when we repair", text: "One charge, not a call-out plus the fix." },
   ],
 };
 
@@ -207,17 +178,13 @@ export const services: ServiceCard[] = [
   },
 ];
 
-export const servicePicker = {
-  heading: { lead: "What do you need?", em: "One call covers it." } satisfies TwoTone,
-  text: "Boilers, plumbing, electrics and landlord certificates, for homes and businesses across the North East. Whatever it is: price agreed before we start, quotes free, repairs guaranteed for 3 months.",
-  commercialPill: { label: "Commercial", href: "/commercial" },
-  commercial: {
-    eyebrow: "Run a business?",
-    heading: { lead: "Priority call-outs for commercial.", em: "So downtime doesn't cost you." } satisfies TwoTone,
-    text: "Catering equipment, commercial boilers, gas appliances, EICR and gas safety certificates. Breakdowns that stop you trading come first, most sites are seen within 24 hours, and we can invoice on account.",
-    cta: "See commercial cover",
-    href: "/commercial",
-  },
+export const commercialPush = {
+  eyebrow: "Run a business?",
+  heading: { lead: "Priority call-outs for commercial.", em: "So downtime doesn't cost you." } satisfies TwoTone,
+  text: "Catering equipment, commercial boilers, gas safety and EICR. Most sites seen within 24 hours, with account invoicing.",
+  cta: "Book commercial",
+  href: "/book?path=commercial",
+  secondary: { label: "See commercial cover", href: "/commercial" },
 };
 
 // Full version for a future About page/section. whyMpeIntro below is the
@@ -276,19 +243,17 @@ export const howItWorks = {
   ],
 };
 
-// The one ticked list on the homepage: the repair offer, the thing people
-// compare. Everything else on the page is a sentence, a tile or a chip.
-export const offer = {
-  heading: { lead: "Your risk, removed.", em: "Guaranteed on every repair." } satisfies TwoTone,
+// Four promise badges: a big short value and one line under it.
+export const promises = {
+  heading: { lead: "Your risk, removed.", em: "On every repair." } satisfies TwoTone,
   items: [
-    "£50 call-out, and 100% of it comes off your bill when we fix it",
-    "A Gas Safe engineer who diagnoses the fault and agrees the price with you first",
-    "Common parts carried on the van: fixed the same day where we have them, or the next available day",
-    "The repair tested and working before we leave",
-    "The 3-month fixed-for-good guarantee: same fault back, we return free",
+    { value: "£50", label: "call-out, refunded in full when we do the repair" },
+    { value: "Price first", label: "agreed with you before any work starts" },
+    { value: "Same day", label: "where we have the parts, or the next available day" },
+    { value: "3 months", label: "guarantee: same fault back, we return free" },
   ],
   cta: "Book a same-day call-out",
-  note: "You only pay the £50 on its own if you get the diagnosis and decide not to go ahead.",
+  note: "Decide not to go ahead after the diagnosis and £50 is all you pay.",
 };
 
 export const guarantee = {

@@ -18,14 +18,19 @@ export function HowItWorks() {
           />
         </Reveal>
 
-        <Reveal as="ol" className="mt-10 grid gap-4 sm:grid-cols-3">
+        <Reveal as="ol" className="mt-8 grid gap-3 sm:mt-10 sm:grid-cols-3 sm:gap-4">
           {howItWorks.steps.map((step) => (
-            <li key={step.number} className="rounded-[24px] border border-line bg-white p-6">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-navy text-sm font-bold text-white">
+            <li
+              key={step.number}
+              className="flex gap-4 rounded-[24px] border border-line bg-white p-4 sm:block sm:p-6"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy text-sm font-bold text-white">
                 {step.number}
               </span>
-              <h3 className="mt-5 text-lg font-bold leading-tight text-navy">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-2">{step.text}</p>
+              <span className="block">
+                <h3 className="text-base font-bold leading-tight text-navy sm:mt-5 sm:text-lg">{step.title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-text-2 sm:mt-2">{step.text}</p>
+              </span>
             </li>
           ))}
         </Reveal>

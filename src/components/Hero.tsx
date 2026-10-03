@@ -16,7 +16,7 @@ export function Hero() {
           <ul className="flex flex-wrap gap-2">
             <li className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-2 text-[13px] font-semibold">
               <Stars />
-              {rating.score} on {rating.source}
+              5-star rated on {rating.source}
             </li>
             <li className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-2 text-[13px] font-semibold">
               <ShieldIcon className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden="true" />

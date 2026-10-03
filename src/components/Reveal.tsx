@@ -13,8 +13,9 @@ export function Reveal({
 }: {
   as?: ElementType;
   // The CSS class that holds the hidden state: "reveal" fades up,
-  // "pop-in" floats a small chip in.
-  base?: "reveal" | "pop-in";
+  // "pop-in" floats a small chip in, "star-pop" pops its children (stars)
+  // in one by one.
+  base?: "reveal" | "pop-in" | "star-pop";
   className?: string;
   children: ReactNode;
 }) {

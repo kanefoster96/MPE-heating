@@ -173,6 +173,32 @@ textarea {
     transform: none;
   }
 
+  /* Stars pop in one after another when scrolled into view (Reveal with
+     base="star-pop" adds .is-in), then stay. */
+  .js .star-pop > * {
+    opacity: 0;
+    transform: scale(0.3) rotate(-25deg);
+    transition:
+      opacity 0.35s ease,
+      transform 0.5s cubic-bezier(0.3, 1.5, 0.5, 1);
+  }
+  .js .star-pop.is-in > * {
+    opacity: 1;
+    transform: none;
+  }
+  .js .star-pop > :nth-child(2) {
+    transition-delay: 0.08s;
+  }
+  .js .star-pop > :nth-child(3) {
+    transition-delay: 0.16s;
+  }
+  .js .star-pop > :nth-child(4) {
+    transition-delay: 0.24s;
+  }
+  .js .star-pop > :nth-child(5) {
+    transition-delay: 0.32s;
+  }
+
   /* The status dot's soft pulse is the only looping motion on the page. */
   @keyframes pulse-soft {
     0%,
@@ -212,7 +238,8 @@ textarea {
   .highlight {
     animation: none;
   }
-  .js .pop-in {
+  .js .pop-in,
+  .js .star-pop > * {
     opacity: 1;
     transform: none;
     transition: none;

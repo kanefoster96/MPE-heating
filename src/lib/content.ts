@@ -259,27 +259,19 @@ export const guarantee = {
   pill: "We'll always confirm costs before any further work.",
 };
 
-// The real rating, from MPE's TrustATrader profile. Update the score and
-// count from the profile when they change; never round up.
+// MPE's rating on TrustATrader, shown as five stars. No review count on
+// the site.
 export const rating = {
   source: "TrustATrader",
-  score: "4.99",
-  count: 30,
   url: "https://www.trustatrader.com/traders/m-p-e-heating-gas---commercial-blyth-and-whitley-bay",
-  // The profile's score for each part of the job.
-  categories: [
-    { label: "Initial impression", score: "5.0" },
-    { label: "Punctuality", score: "4.97" },
-    { label: "Cleanliness", score: "5.0" },
-    { label: "Quality", score: "5.0" },
-    { label: "Value", score: "5.0" },
-    { label: "Overall opinion", score: "5.0" },
-  ],
+  // The parts of the job customers score on the profile.
+  categories: ["Initial impression", "Punctuality", "Cleanliness", "Quality", "Value", "Overall opinion"],
 };
 
 // Customer reviews shown on the site. Real reviews only, copied word for
 // word from the TrustATrader profile with the name as it appears there.
-// While this is empty, the Reviews section shows the rating card alone.
+// While this is empty, the review carousels stay hidden and the rating
+// card shows alone.
 export type Review = { quote: string; name: string; date: string };
 export const reviews: Review[] = [];
 

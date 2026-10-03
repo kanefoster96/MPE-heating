@@ -54,6 +54,11 @@ export type ChipContent = { icon: ChipIcon; title: string; sub?: string };
 // Hero copy is built on the value equation: dream outcome + likelihood it
 // works, minus time delay and effort. Every claim must be one MPE can keep.
 export const hero = {
+  // Thin banner under the nav: one line and a small pill.
+  banner: { text: "Boiler broken down? Same-day call-outs.", cta: "Book now" },
+  // Proof row above the headline: the marks we hold, then who we serve.
+  // No invented numbers.
+  proof: { lead: "Trusted by homes & businesses", sub: "across the North East", rated: "Rated on TrustATrader" },
   status: "Same-day call-outs across the North East",
   // Dream outcome, then the time promise carries the gradient.
   headline: { lead: "Heating and hot water back.", em: "The same day." } satisfies TwoTone,
@@ -62,14 +67,9 @@ export const hero = {
   subline:
     "A Gas Safe engineer comes out for a £50 call-out and agrees the price before any work starts. Fixed the same day where we have the parts, or the next available day.",
   cta: "Book a same-day call-out",
-  fieldPlaceholder: "Your phone number",
-  // Two or three chips around the one visual. Real events the booking
-  // produces, no invented numbers.
-  chips: [
-    { icon: "form", title: "Repair booked", sub: "Online, two minutes" },
-    { icon: "van", title: "Engineer on the way", sub: "Same day" },
-    { icon: "check", title: "Fixed, price agreed first", sub: "£50 off the bill" },
-  ] satisfies ChipContent[],
+  // Two quiet lines under the button, like "No card, no commitment."
+  underButton: ["£50 call-out. Refunded in full when we do the repair.", "Decide not to go ahead and £50 is all you pay."],
+  secondary: "Prefer to talk?",
 };
 
 // The £50 call-out, explained. Shown before every booking ask (hero,

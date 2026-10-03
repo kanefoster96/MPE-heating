@@ -1,4 +1,5 @@
 import { Nav } from "@/components/Nav";
+import { PromoBar } from "@/components/PromoBar";
 import { Hero } from "@/components/Hero";
 import { BrandsRow } from "@/components/BrandsRow";
 import { StoryCards } from "@/components/StoryCards";
@@ -19,6 +20,7 @@ export default function Home() {
   return (
     <>
       <Nav />
+      <PromoBar />
       <main>
         <Hero />
         <BrandsRow />

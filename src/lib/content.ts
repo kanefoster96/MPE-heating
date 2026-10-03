@@ -56,10 +56,10 @@ export type TwoTone = { lead: string; em: string };
 export const hero = {
   // Navy strip under the nav: one line and a yellow pill.
   banner: { text: "Boiler down? We're out today.", cta: "Book now" },
-  chips: { rated: "Whitley Bay rated", gasSafe: "Gas Safe engineers" },
+  chips: { rated: "Whitley Bay rated", gasSafe: "Gas Safe reg. 552052" },
   headline: { line1: "Heating off?", line2: "We'll be round", highlight: "today." },
   subline:
-    "A Gas Safe engineer at your door for a £50 call-out. Price agreed before any work starts, and fixed the same day when we have the parts.",
+    "A Gas Safe engineer at your door for a £50 call-out. Price agreed before any work starts, and most faults fixed on the spot with parts from the van.",
   // The tear-off ticket: what you pay, and what you pay when we fix it.
   ticket: {
     label: "Same-day call-out",
@@ -71,7 +71,7 @@ export const hero = {
   },
   underTicket: "Decide not to go ahead and £50 is all you pay.",
   cta: "Book a same-day call-out",
-  ticks: ["Price agreed first", "No fix, just £50", "Local to Whitley Bay"],
+  ticks: ["Price agreed first", "3-month guarantee", "Local to Whitley Bay"],
 };
 
 // The £50 call-out, explained. Shown before every booking ask (hero,
@@ -214,8 +214,8 @@ export const howItWorks = {
   heading: ["From cold house", "to cosy, in three steps."],
   steps: [
     { title: "You book", text: "Online, by phone or on WhatsApp." },
-    { title: "We come out today", text: "A Gas Safe engineer finds the fault and agrees the price with you first." },
-    { title: "Fixed. Heating's back on.", text: "And your £50 call-out comes back in full." },
+    { title: "We come out today", text: "Book by midday and we're usually with you the same day. A Gas Safe engineer finds the fault and agrees the price first." },
+    { title: "Fixed. Heating's back on.", text: "Your £50 call-out comes back in full, and the repair's guaranteed for 3\u00a0months." },
   ],
   chips: { agreed: "Price agreed", refunded: "£50 refunded" },
 };
@@ -224,6 +224,7 @@ export const howItWorks = {
 // booking flow for that trade.
 export const homeServices = {
   heading: ["Gas, heating, plumbing", "and electrics."],
+  text: "One local team for the whole house, so it's one call whatever's broken.",
   items: [
     { key: "boilers", title: "Boilers", text: "Breakdowns and repairs", href: "/boiler-repair" },
     { key: "heating", title: "Heating", text: "Radiators and controls", href: "/book?path=boilers.radiators" },
@@ -235,7 +236,7 @@ export const homeServices = {
 // The navy card at the foot of the homepage.
 export const closingCard = {
   heading: ["Cold house", "right now?"],
-  text: "Book a same-day call-out. When we do the repair, your £50 comes back.",
+  text: "Book a same-day call-out. When we do the repair, your £50 comes back and the fix is guaranteed for 3\u00a0months.",
   cta: "Book now",
 };
 

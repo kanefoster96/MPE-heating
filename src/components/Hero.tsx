@@ -17,7 +17,7 @@ export function Hero() {
           {hero.proof.lead}
           <span className="block font-semibold text-text-3">{hero.proof.sub}</span>
         </p>
-        <p className="mt-3 flex items-center gap-1 text-navy" aria-label={`Five stars. ${hero.proof.rated}`}>
+        <p className="mt-3 flex items-center gap-1 text-terracotta" aria-label={`Five stars. ${hero.proof.rated}`}>
           {Array.from({ length: 5 }).map((_, i) => (
             <StarIcon key={i} className="h-5 w-5" />
           ))}
@@ -44,6 +44,13 @@ export function Hero() {
 
         <p className="mt-4 text-sm font-semibold text-navy">{hero.underButton[0]}</p>
         <p className="mt-1 text-sm text-text-2">{hero.underButton[1]}</p>
+
+        <Link
+          href="/book"
+          className="mt-8 inline-flex min-h-12 w-full max-w-xl items-center justify-center rounded-full border border-navy/20 px-8 text-base font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
+        >
+          {hero.servicesCta}
+        </Link>
       </div>
     </section>
   );

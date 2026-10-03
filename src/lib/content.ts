@@ -65,6 +65,8 @@ export const hero = {
   subline:
     "Boiler repairs in Whitley Bay and across the North East. A Gas Safe engineer comes out for a £50 call-out, agrees the price before any work starts, and fixes it the same day where we have the parts, or the next available day.",
   cta: "Book a same-day call-out",
+  // Second action: everything else MPE does, via the service cards.
+  servicesCta: "See our services",
   // Two quiet lines under the button, like "No card, no commitment."
   underButton: ["£50 call-out. Refunded in full when we do the repair.", "Decide not to go ahead and £50 is all you pay."],
 };
@@ -79,23 +81,6 @@ export const fee = {
     "Decide not to, and £50 is all you pay.",
   ],
   short: "£50 call-out. Refunded in full when we do the repair.",
-};
-
-// Quick picks: one tappable card per job, straight under the hero, so
-// every visitor sees a direct button for what they came for. Each links
-// to the right form or funnel branch. Icons are funnel icon keys.
-export const quickPicks = {
-  heading: { lead: "What do you need?", em: "Tap one, book in two minutes." } satisfies TwoTone,
-  items: [
-    { icon: "alert" as const, title: "Boiler broken down", line: "Same-day call-out, £50 refunded when fixed", href: "/emergency", primary: true },
-    { icon: "service" as const, title: "Boiler service", line: "From £79, warranty kept valid", href: "/book?path=boilers.service" },
-    { icon: "newboiler" as const, title: "New boiler", line: "Free fixed-price quote", href: "/book?path=boilers.new" },
-    { icon: "plumbing" as const, title: "Plumbing", line: "Leaks, taps, bathrooms", href: "/book?path=plumbing" },
-    { icon: "electrics" as const, title: "Electrics", line: "Faults, fuse boards, EV chargers", href: "/book?path=electrics" },
-    { icon: "landlord" as const, title: "Landlord certificates", line: "CP12 and EICR", href: "/book?path=landlord" },
-    { icon: "building" as const, title: "Commercial", line: "Priority call-outs", href: "/book?path=commercial" },
-    { icon: "question" as const, title: "Something else", line: "Ask us anything", href: "/contact" },
-  ],
 };
 
 // The worry, and what we do about it. One card each, short.

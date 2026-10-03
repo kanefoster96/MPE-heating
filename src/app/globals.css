@@ -132,6 +132,35 @@ textarea {
     transform: none;
   }
 
+  /* The ticket's perforation notches: two half-circles cut out of the
+     top and bottom edges where the stub starts, so whatever is behind
+     shows through. Each mask layer covers half the height. The shadow
+     comes from drop-shadow on the parent, which follows the cut shape. */
+  .ticket-notches {
+    --notch-x: calc(100% - var(--stub) + 1px);
+    -webkit-mask:
+      radial-gradient(circle 11px at var(--notch-x) 0, transparent 98%, #000 100%) top / 100% 51% no-repeat,
+      radial-gradient(circle 11px at var(--notch-x) 100%, transparent 98%, #000 100%) bottom / 100% 51% no-repeat;
+    mask:
+      radial-gradient(circle 11px at var(--notch-x) 0, transparent 98%, #000 100%) top / 100% 51% no-repeat,
+      radial-gradient(circle 11px at var(--notch-x) 100%, transparent 98%, #000 100%) bottom / 100% 51% no-repeat;
+  }
+
+  /* The request box under an email field folds open once. */
+  @keyframes fold-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .fold-in {
+    animation: fold-in 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
   /* A yellow highlighter swipe behind a word. It draws in once on load;
      only the background moves, so nothing shifts. */
   @keyframes swipe {
@@ -235,7 +264,8 @@ textarea {
   .pulse-soft {
     animation: none;
   }
-  .highlight {
+  .highlight,
+  .fold-in {
     animation: none;
   }
   .js .pop-in,

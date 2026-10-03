@@ -34,8 +34,8 @@ export function Hero() {
         </div>
 
         <div className="mt-[18px] flex flex-col gap-[18px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0">
-          <div className="mx-1 mt-2 -rotate-2 [--stub:122px] sm:[--stub:150px] lg:mx-0 lg:mt-0">
-            <div className="relative flex rounded-[18px] bg-terracotta-deep text-white shadow-[0_16px_32px_-14px_rgba(181,65,28,0.6)] lg:rounded-3xl">
+          <div className="mx-1 mt-2 -rotate-2 [--stub:122px] [filter:drop-shadow(0_14px_14px_rgba(181,65,28,0.32))] sm:[--stub:150px] lg:mx-0 lg:mt-0">
+            <div className="ticket-notches relative flex rounded-[18px] bg-terracotta-deep text-white lg:rounded-3xl">
               <div className="flex flex-1 flex-col gap-0.5 py-[18px] pr-[18px] pl-5 sm:p-7">
                 <span className="text-xs font-bold uppercase tracking-[0.12em] text-ticket-ink">{t.label}</span>
                 <span className="text-[54px] font-extrabold leading-none tracking-[-0.03em] sm:text-7xl">{t.price}</span>
@@ -46,9 +46,6 @@ export function Hero() {
                 <span className="text-[54px] font-extrabold leading-none tracking-[-0.03em] text-sun sm:text-7xl">{t.stubPrice}</span>
                 <span className="text-xs leading-[1.3] text-ticket-ink sm:mt-1 sm:text-sm">{t.stubText}</span>
               </div>
-              {/* The perforation's notches, cut out in the page colour. */}
-              <span aria-hidden="true" className="absolute -top-[11px] right-[calc(var(--stub)-12px)] h-[22px] w-[22px] rounded-full bg-page" />
-              <span aria-hidden="true" className="absolute -bottom-[11px] right-[calc(var(--stub)-12px)] h-[22px] w-[22px] rounded-full bg-page" />
             </div>
           </div>
           <p className="mt-0.5 text-center text-sm text-text-2">{hero.underTicket}</p>

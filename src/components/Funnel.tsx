@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormLayout } from "./FormLayout";
 import { FormField } from "./FormField";
 import { FeeNote } from "./FeeNote";
-import { IconTile } from "./IconTile";
 import { ArrowRightIcon, ChevronLeftIcon, PhoneIcon, WhatsAppIcon, QuestionIcon } from "./icons";
 import { business, type TwoTone } from "@/lib/content";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
@@ -225,7 +224,7 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
   return (
     <FormLayout eyebrow={eyebrow} title={titleFor(current, title)} subtitle={current ? undefined : subtitle} wide>
       <Crumb trail={trail} canBack={path.length > minDepth} onBack={back} />
-      <ul className="mt-2 grid gap-3 sm:grid-cols-2">
+      <ul className="mt-2 grid grid-cols-2 gap-3 sm:gap-4">
         {(choices ?? []).map((node) => {
           const Icon = funnelIconMap[node.icon];
           return (
@@ -234,14 +233,10 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
                 type="button"
                 onClick={() => choose(node)}
                 data-choice={node.id}
-                className="group flex min-h-[88px] w-full items-center gap-4 rounded-2xl border border-line bg-cream p-4 text-left transition-colors hover:border-navy/40 hover:bg-white"
+                className={`${SQUARE} border-line bg-cream hover:border-navy/40 hover:bg-white`}
               >
-                <IconTile icon={<Icon />} primary={node.leaf?.sameDay === true} className="shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-base font-bold leading-tight text-navy">{node.label}</span>
-                  <span className="mt-1 block text-sm leading-snug text-text-2">{node.text}</span>
-                </span>
-                <ArrowRightIcon className="h-4 w-4 shrink-0 text-navy transition-transform group-hover:translate-x-0.5" />
+                <CardTop icon={<Icon />} primary={node.leaf?.sameDay === true} />
+                <CardText label={node.label} text={node.text} />
               </button>
             </li>
           );
@@ -253,20 +248,47 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
             <Link
               href="/contact"
               data-contact
-              className="group flex min-h-[88px] w-full items-center gap-4 rounded-2xl border border-dashed border-navy/25 bg-white p-4 text-left transition-colors hover:border-navy/50"
+              className={`${SQUARE} border-dashed border-navy/25 bg-white hover:border-navy/50`}
             >
-              <IconTile icon={<QuestionIcon />} className="shrink-0" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-base font-bold leading-tight text-navy">Something else?</span>
-                <span className="mt-1 block text-sm leading-snug text-text-2">Contact us today and we&rsquo;ll sort it.</span>
-              </span>
-              <ArrowRightIcon className="h-4 w-4 shrink-0 text-navy transition-transform group-hover:translate-x-0.5" />
+              <CardTop icon={<QuestionIcon />} />
+              <CardText label="Something else?" text="Contact us today and we'll sort it." />
             </Link>
           </li>
         )}
       </ul>
       <p className="mt-5 text-center text-xs text-text-3">Two minutes. Price agreed before any work starts.</p>
     </FormLayout>
+  );
+}
+
+// Square choice cards, two to a row: icon and arrow at the top, label and
+// one line at the bottom.
+const SQUARE =
+  "group flex aspect-square w-full flex-col justify-between overflow-hidden rounded-2xl border p-3.5 text-left transition-colors sm:p-6";
+
+function CardTop({ icon, primary = false }: { icon: ReactNode; primary?: boolean }) {
+  return (
+    <span className="flex items-start justify-between">
+      <span
+        className={`grid h-11 w-11 place-items-center rounded-xl sm:h-14 sm:w-14 sm:rounded-2xl [&_svg]:h-5 [&_svg]:w-5 sm:[&_svg]:h-7 sm:[&_svg]:w-7 ${
+          primary ? "bg-navy text-white" : "bg-white text-navy"
+        }`}
+      >
+        {icon}
+      </span>
+      <ArrowRightIcon className="h-4 w-4 text-navy/50 transition-transform group-hover:translate-x-0.5 group-hover:text-navy sm:h-5 sm:w-5" />
+    </span>
+  );
+}
+
+function CardText({ label, text }: { label: string; text: string }) {
+  return (
+    <span className="block">
+      <span className="line-clamp-2 text-[15px] font-bold leading-tight text-navy sm:text-xl">{label}</span>
+      <span className="mt-1 line-clamp-1 text-xs leading-snug text-text-2 sm:mt-1.5 sm:line-clamp-3 sm:text-sm">
+        {text}
+      </span>
+    </span>
   );
 }
 

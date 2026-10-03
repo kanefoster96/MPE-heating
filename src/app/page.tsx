@@ -1,7 +1,6 @@
 import { Nav } from "@/components/Nav";
 import { PromoBar } from "@/components/PromoBar";
 import { Hero } from "@/components/Hero";
-import { QuickPick } from "@/components/QuickPick";
 import { BrandsRow } from "@/components/BrandsRow";
 import { ProblemFix } from "@/components/ProblemFix";
 import { HowItWorks } from "@/components/HowItWorks";
@@ -18,8 +17,9 @@ import { faqPageJsonLd } from "@/lib/seo";
 
 const HOME_FAQS = 4;
 
-// Page order: hero and the main ask; a card for every job so people can
-// tap straight to what they want; the worries we fix; how easy it is;
+// Page order: hero with the main ask and "See our services" (which opens
+// the service cards, each starting its own booking flow); the worries we
+// fix; how easy it is;
 // four promise badges; reviews; the top questions; a push to business
 // owners; town chips; the ask again with a second option.
 export default function Home() {
@@ -29,7 +29,6 @@ export default function Home() {
       <PromoBar />
       <main>
         <Hero />
-        <QuickPick />
         <BrandsRow />
         <ProblemFix />
         <HowItWorks />
@@ -38,7 +37,7 @@ export default function Home() {
         <Faq limit={HOME_FAQS} />
         <CommercialBanner />
         <AreasCovered />
-        <FinalCta secondary={{ label: "Book a service or something else", href: "/book" }} />
+        <FinalCta secondary={{ label: "See our services", href: "/book" }} />
       </main>
       <Footer />
       <JsonLd data={faqPageJsonLd(faqs.homes.slice(0, HOME_FAQS))} />

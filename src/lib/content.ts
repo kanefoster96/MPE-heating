@@ -266,6 +266,15 @@ export const rating = {
   score: "4.99",
   count: 30,
   url: "https://www.trustatrader.com/traders/m-p-e-heating-gas---commercial-blyth-and-whitley-bay",
+  // The profile's score for each part of the job.
+  categories: [
+    { label: "Initial impression", score: "5.0" },
+    { label: "Punctuality", score: "4.97" },
+    { label: "Cleanliness", score: "5.0" },
+    { label: "Quality", score: "5.0" },
+    { label: "Value", score: "5.0" },
+    { label: "Overall opinion", score: "5.0" },
+  ],
 };
 
 // Customer reviews shown on the site. Real reviews only, copied word for
@@ -625,6 +634,7 @@ export const finalCta = {
 
 export const footerLinks: { label: string; href?: string }[] = [
   { label: "About", href: "/about" },
+  { label: "Reviews", href: "/reviews" },
   { label: "Commercial", href: "/commercial" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },

@@ -16,6 +16,7 @@ const links: { label: string; href: string }[] = [
   { label: "Areas we cover", href: "/areas" },
   { label: "FAQs", href: "/faqs" },
   { label: "Help & advice", href: "/help" },
+  { label: "Reviews", href: "/reviews" },
   { label: "About", href: "/about" },
   { label: "Book a boiler service", href: "/book?path=boilers.service" },
   { label: "Book a visit", href: "/book" },

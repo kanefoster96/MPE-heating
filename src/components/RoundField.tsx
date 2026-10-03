@@ -26,14 +26,7 @@ export function RoundField({
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const base = contactHref(type);
-    const trimmed = phone.trim();
-    if (!trimmed) {
-      router.push(base);
-      return;
-    }
-    const joiner = base.includes("?") ? "&" : "?";
-    router.push(`${base}${joiner}phone=${encodeURIComponent(trimmed)}`);
+    router.push(contactHref(type, { phone: phone.trim() }));
   };
 
   return (

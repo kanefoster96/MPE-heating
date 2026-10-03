@@ -7,10 +7,14 @@ import { useEffect, useRef, type ElementType, type ReactNode } from "react";
 // (globals.css handles that).
 export function Reveal({
   as: Tag = "div",
+  base = "reveal",
   className = "",
   children,
 }: {
   as?: ElementType;
+  // The CSS class that holds the hidden state: "reveal" fades up,
+  // "pop-in" floats a small chip in.
+  base?: "reveal" | "pop-in";
   className?: string;
   children: ReactNode;
 }) {
@@ -39,7 +43,7 @@ export function Reveal({
   }, []);
 
   return (
-    <Tag ref={ref} className={`reveal ${className}`}>
+    <Tag ref={ref} className={`${base} ${className}`}>
       {children}
     </Tag>
   );

@@ -447,3 +447,19 @@ export function RadiatorIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function FlameIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 22c4 0 7-2.8 7-6.8 0-3.3-2.2-5.6-3.6-7.4-.4 1.8-1.4 3-2.6 3.4.3-3.3-1.2-6.4-3.8-8.2.2 3-1.6 5-3.2 7A8 8 0 0 0 5 15.2C5 19.2 8 22 12 22Z" />
+    </svg>
+  );
+}
+
+export function DropIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z" />
+    </svg>
+  );
+}

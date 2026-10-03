@@ -1,45 +1,54 @@
 import Link from "next/link";
 import { commercialPush } from "@/lib/content";
-import { IconTile } from "./IconTile";
-import { ArrowRightIcon, BuildingIcon } from "./icons";
+import { Heading, Eyebrow } from "./Heading";
+import { ArrowRightIcon } from "./icons";
 import { Reveal } from "./Reveal";
 
-// A navy band pushing commercial cover to business owners, with two clear
-// actions: book, or read more first.
+const WHAT = ["Catering equipment", "Commercial boilers", "Gas safety & EICR", "Maintenance contracts"];
+
+// Split layout for business owners: the pitch and two buttons on one side,
+// what we cover set large on the other, each line linking into the
+// commercial branch of the booking funnel.
 export function CommercialBanner() {
   const c = commercialPush;
   return (
-    <section className="bg-page py-14 lg:py-20">
-      <Reveal className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="rounded-[28px] bg-navy p-7 text-white sm:p-10 lg:flex lg:items-center lg:gap-16 lg:p-14">
-          <div className="flex-1">
-            <div className="flex items-center gap-4">
-              <IconTile icon={<BuildingIcon />} className="bg-white/10 text-white" />
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/60">{c.eyebrow}</p>
-            </div>
-            <h2 className="mt-5 text-3xl font-extrabold leading-[1.05] tracking-tight sm:text-4xl">
-              {c.heading.lead}
-              <span className="block text-white/70">{c.heading.em}</span>
-            </h2>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/75">{c.text}</p>
-          </div>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:mt-0 lg:flex-col">
+    <section className="border-y border-line bg-page py-14 lg:py-24">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-16">
+        <Reveal>
+          <Eyebrow>{c.eyebrow}</Eyebrow>
+          <Heading lead={c.heading.lead} em={c.heading.em} className="mt-3 text-3xl sm:text-4xl lg:text-5xl" />
+          <p className="mt-5 max-w-lg text-base leading-relaxed text-text-2">{c.text}</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href={c.href}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-7 text-base font-semibold text-navy transition-colors hover:bg-cream"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-navy px-7 text-base font-semibold text-white transition-colors hover:bg-navy-light"
             >
               {c.cta}
               <ArrowRightIcon className="h-4 w-4" />
             </Link>
             <Link
               href={c.secondary.href}
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/25 px-7 text-base font-semibold text-white transition-colors hover:bg-white/10"
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-navy/20 px-7 text-base font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
             >
               {c.secondary.label}
             </Link>
           </div>
-        </div>
-      </Reveal>
+        </Reveal>
+
+        <Reveal as="ul" className="divide-y divide-line border-y border-line">
+          {WHAT.map((label) => (
+            <li key={label}>
+              <Link
+                href={c.href}
+                className="group flex min-h-16 items-center justify-between gap-4 py-4 text-2xl font-extrabold tracking-tight text-navy transition-colors hover:text-terracotta-dark sm:text-3xl"
+              >
+                {label}
+                <ArrowRightIcon className="h-5 w-5 shrink-0 text-navy/40 transition-transform group-hover:translate-x-1 group-hover:text-terracotta-dark" />
+              </Link>
+            </li>
+          ))}
+        </Reveal>
+      </div>
     </section>
   );
 }

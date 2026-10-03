@@ -13,7 +13,7 @@ const areaPageSlugs: Record<string, string> = Object.fromEntries(
 
 export function AreasCovered() {
   return (
-    <section className="bg-cream py-14 lg:py-24">
+    <section className="bg-page py-14 lg:py-24">
       <Reveal className="mx-auto max-w-4xl px-4 text-center sm:px-6">
         <Eyebrow>Areas we cover</Eyebrow>
         <Heading
@@ -28,7 +28,7 @@ export function AreasCovered() {
               <li key={town}>
                 <Link
                   href={href}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-white px-4 text-sm font-semibold text-navy transition-colors hover:border-navy/40"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-cream px-4 text-sm font-semibold text-navy transition-colors hover:border-navy/40"
                 >
                   <MapPinIcon className="h-3.5 w-3.5 text-text-3" />
                   {town}

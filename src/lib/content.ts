@@ -51,24 +51,27 @@ export type TwoTone = { lead: string; em: string };
 
 // Hero copy is built on the value equation: dream outcome + likelihood it
 // works, minus time delay and effort. Every claim must be one MPE can keep.
+// The homepage follows the "ticket" board: chips, headline, the £50 / £0
+// coupon, one big button, call and WhatsApp, three ticks.
 export const hero = {
-  // Thin banner under the nav: one line and a small pill.
-  banner: { text: "Boiler broken down? Same-day call-outs.", cta: "Book now" },
-  // Proof row above the headline: the marks we hold, then who we serve.
-  // No invented numbers.
-  proof: { lead: "Trusted by homes & businesses", sub: "in Whitley Bay and across the North East", rated: "Rated on TrustATrader" },
-  status: "Same-day boiler repairs in Whitley Bay",
-  // Dream outcome, then the time promise carries the gradient.
-  headline: { lead: "Heating and hot water back.", em: "The same day." } satisfies TwoTone,
-  // Effort (we come to you), sacrifice (price agreed first), likelihood
-  // (Gas Safe, parts on the van), and the honest version of "same day".
+  // Navy strip under the nav: one line and a yellow pill.
+  banner: { text: "Boiler down? We're out today.", cta: "Book now" },
+  chips: { rated: "Whitley Bay rated", gasSafe: "Gas Safe engineers" },
+  headline: { line1: "Heating off?", line2: "We'll be round", highlight: "today." },
   subline:
-    "Boiler repairs in Whitley Bay and across the North East. A Gas Safe engineer comes out for a £50 call-out, agrees the price before any work starts, and fixes it the same day where we have the parts, or the next available day.",
+    "A Gas Safe engineer at your door for a £50 call-out. Price agreed before any work starts, and fixed the same day when we have the parts.",
+  // The tear-off ticket: what you pay, and what you pay when we fix it.
+  ticket: {
+    label: "Same-day call-out",
+    price: "£50",
+    text: "We come out, find the fault and agree the price.",
+    stubLabel: "We fix it?",
+    stubPrice: "£0",
+    stubText: "call-out back in full",
+  },
+  underTicket: "Decide not to go ahead and £50 is all you pay.",
   cta: "Book a same-day call-out",
-  // Second action: everything else MPE does, via the service cards.
-  servicesCta: "See our services",
-  // Two quiet lines under the button, like "No card, no commitment."
-  underButton: ["£50 call-out. Refunded in full when we do the repair.", "Decide not to go ahead and £50 is all you pay."],
+  ticks: ["Price agreed first", "No fix, just £50", "Local to Whitley Bay"],
 };
 
 // The £50 call-out, explained. Shown before every booking ask (hero,
@@ -206,26 +209,34 @@ export const aboutPageContent: ContentBlock[] = [
   },
 ];
 
-// How it works, 1, 2, 3: three short steps, one line each.
+// How it works: three steps on one tilted card.
 export const howItWorks = {
-  heading: { lead: "Booking takes two minutes.", em: "As easy as 1,\u00a02,\u00a03." } satisfies TwoTone,
+  heading: ["From cold house", "to cosy, in three steps."],
   steps: [
-    {
-      number: 1,
-      title: "Fill in the form",
-      text: "Tell us what's wrong and when suits. Need someone today? Tick the box and you go to the front of the queue.",
-    },
-    {
-      number: 2,
-      title: "We come out for £50",
-      text: "Your engineer finds the fault and agrees the repair price with you before any work starts.",
-    },
-    {
-      number: 3,
-      title: "Fixed, and the £50 comes off",
-      text: "Same day where we have the parts, or the next available day. Guaranteed for 3 months.",
-    },
+    { title: "You book", text: "Online, by phone or on WhatsApp." },
+    { title: "We come out today", text: "A Gas Safe engineer finds the fault and agrees the price with you first." },
+    { title: "Fixed. Heating's back on.", text: "And your £50 call-out comes back in full." },
   ],
+  chips: { agreed: "Price agreed", refunded: "£50 refunded" },
+};
+
+// The four service tiles on the homepage. Each opens the page or the
+// booking flow for that trade.
+export const homeServices = {
+  heading: ["Gas, heating, plumbing", "and electrics."],
+  items: [
+    { key: "boilers", title: "Boilers", text: "Breakdowns and repairs", href: "/boiler-repair" },
+    { key: "heating", title: "Heating", text: "Radiators and controls", href: "/book?path=boilers.radiators" },
+    { key: "plumbing", title: "Plumbing", text: "Leaks and hot water", href: "/book?path=plumbing" },
+    { key: "electrics", title: "Electrics", text: "Faults and fittings", href: "/book?path=electrics" },
+  ],
+};
+
+// The navy card at the foot of the homepage.
+export const closingCard = {
+  heading: ["Cold house", "right now?"],
+  text: "Book a same-day call-out. When we do the repair, your £50 comes back.",
+  cta: "Book now",
 };
 
 // Four promise badges: a big short value and one line under it.

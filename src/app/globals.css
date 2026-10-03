@@ -20,6 +20,16 @@
   --color-terracotta-deep: #b5411c;
   --color-terracotta-light: #fbe4db;
   --color-whatsapp: #25d366;
+  /* The homepage "ticket" palette. The board's #c24e1c only gets 3.9:1
+     with the ticket's pale text, so the ticket and its buttons use
+     terracotta-deep (5.6:1 with white) and a darker stub. */
+  --color-ticket-stub: #963514; /* 4.7:1 with the yellow £0 */
+  --color-sun: #ffc53d; /* yellow pills and the highlighter; navy text on it */
+  --color-ticket-ink: #ffe1d0; /* pale text on the ticket, 4.5:1 or better */
+  --color-whatsapp-dark: #178245; /* white text on it, 4.9:1 */
+  --color-whatsapp-tint: #e5f3ea;
+  --color-whatsapp-ink: #11602f;
+  --color-edge: #ece8e3; /* tile and bar borders */
   --color-red: #dc2626;
   /* Dark-to-light orange, the emphasised clause of a heading. The light
      end stays at terracotta (about 3.3:1 on white), which is past the 3:1
@@ -47,6 +57,13 @@
   --color-terracotta-deep: var(--color-terracotta-deep);
   --color-terracotta-light: var(--color-terracotta-light);
   --color-whatsapp: var(--color-whatsapp);
+  --color-ticket-stub: var(--color-ticket-stub);
+  --color-sun: var(--color-sun);
+  --color-ticket-ink: var(--color-ticket-ink);
+  --color-whatsapp-dark: var(--color-whatsapp-dark);
+  --color-whatsapp-tint: var(--color-whatsapp-tint);
+  --color-whatsapp-ink: var(--color-whatsapp-ink);
+  --color-edge: var(--color-edge);
   --color-red: var(--color-red);
   --font-sans: var(--font-outfit);
 }
@@ -115,6 +132,47 @@ textarea {
     transform: none;
   }
 
+  /* A yellow highlighter swipe behind a word. It draws in once on load;
+     only the background moves, so nothing shifts. */
+  @keyframes swipe {
+    from {
+      background-size: 0% 100%;
+    }
+    to {
+      background-size: 100% 100%;
+    }
+  }
+  .highlight {
+    background-image: linear-gradient(
+      transparent 56%,
+      var(--color-sun) 56%,
+      var(--color-sun) 90%,
+      transparent 90%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    padding: 0 4px;
+    margin: 0 -4px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    animation: swipe 0.6s 0.25s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  /* Small chips that float in once when scrolled into view, then sit
+     still. Reveal (with base="pop-in") adds .is-in. */
+  .js .pop-in {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(14px) scale(0.92);
+    transition:
+      opacity 0.5s cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+  }
+  .js .pop-in.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
   /* The status dot's soft pulse is the only looping motion on the page. */
   @keyframes pulse-soft {
     0%,
@@ -150,5 +208,13 @@ textarea {
   }
   .pulse-soft {
     animation: none;
+  }
+  .highlight {
+    animation: none;
+  }
+  .js .pop-in {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }

@@ -1,57 +1,111 @@
 import Link from "next/link";
-import { hero } from "@/lib/content";
+import { business, hero } from "@/lib/content";
 import { contactHref } from "@/lib/enquiry";
-import { StarIcon } from "./icons";
-import { Heading } from "./Heading";
-import { StatusLine } from "./StatusLine";
+import { ArrowRightIcon, CheckIcon, PhoneIcon, ShieldIcon, WhatsAppIcon } from "./icons";
 
-// Hero, in the Academy's order: proof line and stars, status line,
-// two-tone headline, one paragraph, one big pill button, two quiet lines
-// under it. One job on this page: the button. The phone number lives in
-// the header, and on the form when someone needs same day.
+// The "ticket" hero: two chips, a left-aligned headline with a highlighter
+// on "today.", one paragraph, then the £50 / £0 tear-off ticket, one big
+// button, call and WhatsApp, three ticks. On a phone it is one column in
+// that order; on desktop the ticket moves to the right-hand column.
 export function Hero() {
+  const t = hero.ticket;
   return (
-    <section className="bg-page pt-12 pb-14 sm:pt-16 lg:pt-20 lg:pb-24">
-      <div className="mx-auto flex max-w-4xl flex-col items-center px-4 text-center sm:px-6">
-        <p className="text-xs font-bold uppercase tracking-[0.14em] text-navy">
-          {hero.proof.lead}
-          <span className="block font-semibold text-text-3">{hero.proof.sub}</span>
-        </p>
-        <p className="mt-3 flex items-center gap-1 text-terracotta" aria-label={`Five stars. ${hero.proof.rated}`}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <StarIcon key={i} className="h-5 w-5" />
-          ))}
-        </p>
+    <section className="overflow-x-clip bg-page">
+      <div className="mx-auto grid max-w-2xl px-5 pt-7 pb-9 sm:px-6 lg:max-w-6xl lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-center lg:gap-x-16 lg:pt-16 lg:pb-20">
+        <div className="flex flex-col gap-[18px] lg:col-start-1 lg:row-start-1 lg:self-end">
+          <ul className="flex flex-wrap gap-2">
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-2 text-[13px] font-semibold">
+              <Stars />
+              {hero.chips.rated}
+            </li>
+            <li className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-2 text-[13px] font-semibold">
+              <ShieldIcon className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden="true" />
+              {hero.chips.gasSafe}
+            </li>
+          </ul>
 
-        <StatusLine className="mt-10">{hero.status}</StatusLine>
+          <h1 className="text-[46px] font-extrabold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-[72px]">
+            {hero.headline.line1}
+            <br />
+            {hero.headline.line2} <span className="highlight">{hero.headline.highlight}</span>
+          </h1>
 
-        <Heading
-          as="h1"
-          lead={hero.headline.lead}
-          em={hero.headline.em}
-          emLine
-          className="mt-5 text-[40px] sm:text-6xl lg:text-[64px]"
-        />
+          <p className="text-[17px] leading-normal text-text-2 lg:max-w-lg lg:text-lg">{hero.subline}</p>
+        </div>
 
-        <p className="mt-6 max-w-xl text-base leading-relaxed text-text-2 sm:text-lg">{hero.subline}</p>
+        <div className="mt-[18px] flex flex-col gap-[18px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0">
+          <div className="mx-1 mt-2 -rotate-2 [--stub:122px] sm:[--stub:150px] lg:mx-0 lg:mt-0">
+            <div className="relative flex rounded-[18px] bg-terracotta-deep text-white shadow-[0_16px_32px_-14px_rgba(181,65,28,0.6)] lg:rounded-3xl">
+              <div className="flex flex-1 flex-col gap-0.5 py-[18px] pr-[18px] pl-5 sm:p-7">
+                <span className="text-xs font-bold uppercase tracking-[0.12em] text-ticket-ink">{t.label}</span>
+                <span className="text-[54px] font-extrabold leading-none tracking-[-0.03em] sm:text-7xl">{t.price}</span>
+                <span className="text-sm leading-[1.35] text-ticket-ink sm:mt-1 sm:text-base">{t.text}</span>
+              </div>
+              <div className="flex w-[var(--stub)] flex-none flex-col items-center justify-center gap-0.5 rounded-r-[18px] border-l-2 border-dashed border-white/60 bg-ticket-stub px-3 py-[18px] text-center lg:rounded-r-3xl">
+                <span className="text-xs font-bold uppercase tracking-[0.12em] text-ticket-ink">{t.stubLabel}</span>
+                <span className="text-[54px] font-extrabold leading-none tracking-[-0.03em] text-sun sm:text-7xl">{t.stubPrice}</span>
+                <span className="text-xs leading-[1.3] text-ticket-ink sm:mt-1 sm:text-sm">{t.stubText}</span>
+              </div>
+              {/* The perforation's notches, cut out in the page colour. */}
+              <span aria-hidden="true" className="absolute -top-[11px] right-[calc(var(--stub)-12px)] h-[22px] w-[22px] rounded-full bg-page" />
+              <span aria-hidden="true" className="absolute -bottom-[11px] right-[calc(var(--stub)-12px)] h-[22px] w-[22px] rounded-full bg-page" />
+            </div>
+          </div>
+          <p className="mt-0.5 text-center text-sm text-text-2">{hero.underTicket}</p>
+        </div>
 
-        <Link
-          href={contactHref("repair")}
-          className="bg-btn-gradient mt-8 inline-flex min-h-14 w-full max-w-xl items-center justify-center rounded-full px-8 text-lg font-semibold text-white shadow-[0_18px_40px_-20px_rgba(207,80,41,0.6)]"
-        >
-          {hero.cta}
-        </Link>
+        <div className="mt-[18px] flex flex-col gap-[18px] lg:col-start-1 lg:row-start-2 lg:mt-8 lg:self-start">
+          <Link
+            href={contactHref("repair")}
+            className="flex h-[62px] items-center justify-center gap-2.5 rounded-full bg-terracotta-deep px-6 text-[19px] font-bold text-white shadow-[0_14px_28px_-14px_rgba(181,65,28,0.7)] transition-colors hover:bg-ticket-stub"
+          >
+            {hero.cta}
+            <ArrowRightIcon className="h-5 w-5" strokeWidth={2.4} aria-hidden="true" />
+          </Link>
 
-        <p className="mt-4 text-sm font-semibold text-navy">{hero.underButton[0]}</p>
-        <p className="mt-1 text-sm text-text-2">{hero.underButton[1]}</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <a
+              href={business.phoneHref}
+              className="flex h-[52px] items-center justify-center gap-2 rounded-full border-[1.5px] border-navy text-base font-semibold transition-colors hover:bg-navy hover:text-white"
+            >
+              <PhoneIcon className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden="true" />
+              Call now
+            </a>
+            <a
+              href={business.whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-[52px] items-center justify-center gap-2 rounded-full bg-whatsapp-dark text-base font-semibold text-white transition-[filter] hover:brightness-110"
+            >
+              <WhatsAppIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+              WhatsApp
+            </a>
+          </div>
 
-        <Link
-          href="/book"
-          className="mt-8 inline-flex min-h-12 w-full max-w-xl items-center justify-center rounded-full border border-navy/20 px-8 text-base font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
-        >
-          {hero.servicesCta}
-        </Link>
+          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm font-semibold lg:justify-start">
+            {hero.ticks.map((tick) => (
+              <li key={tick} className="inline-flex items-center gap-1.5">
+                <CheckIcon className="h-4 w-4 text-whatsapp-dark" strokeWidth={3} aria-hidden="true" />
+                {tick}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
+  );
+}
+
+// Five small orange stars for the "rated" chip.
+function Stars() {
+  const star = "7,0 9,5 14,5.3 10.2,8.5 11.4,13.5 7,10.8 2.6,13.5 3.8,8.5 0,5.3 5,5";
+  return (
+    <svg width="76" height="14" viewBox="0 0 76 14" role="img" aria-label="5 stars" className="text-terracotta">
+      <g fill="currentColor">
+        {[0, 15.5, 31, 46.5, 62].map((x) => (
+          <polygon key={x} points={star} transform={`translate(${x} 0)`} />
+        ))}
+      </g>
+    </svg>
   );
 }

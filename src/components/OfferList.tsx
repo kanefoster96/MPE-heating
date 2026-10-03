@@ -13,7 +13,7 @@ export function OfferList() {
       <Reveal className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="rounded-[28px] border border-line bg-white p-7 shadow-[0_24px_50px_-32px_rgba(31,42,58,0.3)] sm:p-10 lg:grid lg:grid-cols-2 lg:gap-16 lg:p-14">
           <div>
-            <Eyebrow>The repair</Eyebrow>
+            <Eyebrow>Guarantees and risk removal</Eyebrow>
             <Heading lead={offer.heading.lead} em={offer.heading.em} emLine className="mt-3 text-3xl sm:text-4xl" />
             <Link
               href={contactHref("repair")}

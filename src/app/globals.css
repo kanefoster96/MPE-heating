@@ -2,7 +2,7 @@
 
 /* Design tokens. The site follows the kanvas.one approach on a light page:
    minimal layouts, one emphasis per heading in an orange gradient, a few
-   playful cards whose chips float in once and then rest. Colour is rare:
+   a few quiet cards and tiles. Colour is rare:
    navy and greys do almost everything; orange is for the one main button
    and the emphasised clause of a heading. */
 :root {
@@ -115,61 +115,6 @@ textarea {
     transform: none;
   }
 
-  /* Story cards in a sideways rail. Vertical overflow is hidden, with
-     padding for the tilt, or tilted cards make the row scroll up and down
-     and catch the page's own scroll. */
-  .rail {
-    display: flex;
-    gap: 22px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x mandatory;
-    padding: 28px max(16px, calc((100vw - 1152px) / 2 + 24px)) 36px;
-    scrollbar-width: none;
-  }
-  .rail::-webkit-scrollbar {
-    display: none;
-  }
-  .story-card {
-    flex: 0 0 min(370px, 84vw);
-    scroll-snap-align: center;
-    transition: transform 0.4s ease;
-  }
-  .story-card:nth-child(odd) {
-    transform: rotate(-1.5deg);
-  }
-  .story-card:nth-child(even) {
-    transform: rotate(1deg);
-  }
-  .story-card:hover {
-    transform: none;
-  }
-
-  /* Chips float in once, one card at a time (StoryRail adds .chips-in).
-     Hidden until their turn so nothing shows, disappears and reappears. */
-  @keyframes floatIn {
-    from {
-      opacity: 0;
-      transform: translateY(16px) scale(0.96);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-  .anim .chip {
-    opacity: 0;
-  }
-  .anim .chips-in .chip {
-    animation: floatIn 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  }
-  .anim .chips-in .chip:nth-child(2) {
-    animation-delay: 0.18s;
-  }
-  .anim .chips-in .chip:nth-child(3) {
-    animation-delay: 0.36s;
-  }
-
   /* The status dot's soft pulse is the only looping motion on the page. */
   @keyframes pulse-soft {
     0%,
@@ -203,14 +148,7 @@ textarea {
     transform: none;
     transition: none;
   }
-  .anim .chip {
-    opacity: 1;
-    animation: none;
-  }
   .pulse-soft {
     animation: none;
-  }
-  .story-card {
-    transition: none;
   }
 }

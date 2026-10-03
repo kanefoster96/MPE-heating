@@ -1,24 +1,16 @@
+import Link from "next/link";
 import { howItWorks } from "@/lib/content";
-import { chipIconMap } from "@/lib/chipIcons";
-import { FormIcon, DoorstepIcon, WrenchFixIcon } from "./icons";
+import { contactHref } from "@/lib/enquiry";
 import { Heading, Eyebrow } from "./Heading";
-import { Chip, IconTile } from "./Chip";
 import { Reveal } from "./Reveal";
 
-const iconMap = {
-  form: FormIcon,
-  doorstep: DoorstepIcon,
-  wrench: WrenchFixIcon,
-};
-
-// How it works, 1, 2, 3: text on one side, a small tilted illustration
-// card on the other, alternating.
+// How it works, 1, 2, 3: three short steps in a row, then the ask.
 export function HowItWorks() {
   return (
-    <section className="bg-page py-14 lg:py-28">
+    <section className="bg-cream py-14 lg:py-28">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal className="max-w-2xl">
-          <Eyebrow>The process</Eyebrow>
+          <Eyebrow>How easy it is</Eyebrow>
           <Heading
             lead={howItWorks.heading.lead}
             em={howItWorks.heading.em}
@@ -26,55 +18,26 @@ export function HowItWorks() {
           />
         </Reveal>
 
-        <ol className="mt-12 flex flex-col gap-14 lg:mt-16 lg:gap-20">
-          {howItWorks.steps.map((step, i) => {
-            const Icon = iconMap[step.icon];
-            const ChipIcon = chipIconMap[step.chip.icon];
-            const flip = i % 2 === 1;
-            return (
-              <Reveal
-                as="li"
-                key={step.number}
-                className={`flex flex-col items-start gap-8 lg:flex-row lg:items-center lg:gap-16 ${
-                  flip ? "lg:flex-row-reverse" : ""
-                }`}
-              >
-                <div className="flex-1">
-                  <span className="grid h-9 w-9 place-items-center rounded-full bg-navy text-sm font-bold text-white">
-                    {step.number}
-                  </span>
-                  <h3 className="mt-5 text-[23px] font-extrabold leading-tight tracking-tight text-navy sm:text-2xl">
-                    {step.title}
-                  </h3>
-                  <p className="mt-3 max-w-md text-base leading-relaxed text-text-2 sm:text-lg">{step.text}</p>
-                </div>
+        <Reveal as="ol" className="mt-10 grid gap-4 sm:grid-cols-3">
+          {howItWorks.steps.map((step) => (
+            <li key={step.number} className="rounded-[24px] border border-line bg-white p-6">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-navy text-sm font-bold text-white">
+                {step.number}
+              </span>
+              <h3 className="mt-5 text-lg font-bold leading-tight text-navy">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-text-2">{step.text}</p>
+            </li>
+          ))}
+        </Reveal>
 
-                <div
-                  className={`w-full max-w-sm rounded-[28px] border border-line bg-cream p-7 shadow-[0_24px_50px_-32px_rgba(31,42,58,0.35)] ${
-                    flip ? "lg:-rotate-1" : "lg:rotate-1"
-                  }`}
-                >
-                  <IconTile icon={<Icon />} primary />
-                  {/* Looks like the step, not like a form: grey text on a
-                      lighter fill, no cursor, nothing to tap. */}
-                  <ul className="mt-6 flex flex-col gap-2" aria-label={`Step ${step.number} in brief`}>
-                    {step.rows.map((row) => (
-                      <li
-                        key={row}
-                        className="rounded-xl border border-line bg-white/70 px-4 py-2.5 text-sm font-medium text-text-2"
-                      >
-                        {row}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="chips-in mt-5">
-                    <Chip icon={<ChipIcon />} title={step.chip.title} sub={step.chip.sub} />
-                  </div>
-                </div>
-              </Reveal>
-            );
-          })}
-        </ol>
+        <Reveal className="mt-8">
+          <Link
+            href={contactHref("repair")}
+            className="bg-btn-gradient inline-flex min-h-12 w-full items-center justify-center rounded-full px-8 text-base font-semibold text-white sm:w-auto"
+          >
+            Book a same-day call-out
+          </Link>
+        </Reveal>
       </div>
     </section>
   );

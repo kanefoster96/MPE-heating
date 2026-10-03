@@ -20,7 +20,7 @@ export function Faq() {
   };
 
   return (
-    <section className="bg-cream py-14 lg:py-28">
+    <section className="bg-page py-14 lg:py-28">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <Reveal>
           <Eyebrow>Questions</Eyebrow>
@@ -38,7 +38,7 @@ export function Faq() {
                 aria-selected={selected}
                 onClick={() => selectTab(t)}
                 className={`min-h-11 rounded-full px-5 text-sm font-semibold transition-colors ${
-                  selected ? "bg-navy text-white" : "bg-white text-navy hover:bg-grey"
+                  selected ? "bg-navy text-white" : "bg-grey text-navy hover:bg-navy/10"
                 }`}
               >
                 {t === "homes" ? "Homes" : "Commercial"}
@@ -51,7 +51,7 @@ export function Faq() {
           {items.map((item, i) => {
             const isOpen = openIndex === i;
             return (
-              <div key={item.q} className="overflow-hidden rounded-2xl border border-line bg-white">
+              <div key={item.q} className="overflow-hidden rounded-2xl border border-line bg-cream">
                 <button
                   type="button"
                   onClick={() => setOpenIndex(isOpen ? null : i)}

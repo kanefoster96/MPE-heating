@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { TwoTone } from "@/lib/content";
 import { Heading, Eyebrow } from "./Heading";
-import { IconTile } from "./Chip";
+import { IconTile } from "./IconTile";
 import { Reveal } from "./Reveal";
 
 // Small tiles: an icon, a bold line and a short line. Used on the service

@@ -4,7 +4,7 @@ import type { EnquiryType } from "@/lib/enquiry";
 import { Heading, Eyebrow } from "./Heading";
 import { StatusLine } from "./StatusLine";
 import { RoundField } from "./RoundField";
-import { IconTile } from "./Chip";
+import { IconTile } from "./IconTile";
 import { FeeNote } from "./FeeNote";
 
 // Hero for every page that isn't the homepage: an icon tile, a status

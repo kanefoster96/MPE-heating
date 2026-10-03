@@ -49,10 +49,6 @@ export const business = {
 // (the outcome, the speed, the price), never on body copy or buttons.
 export type TwoTone = { lead: string; em: string };
 
-// Icon keys for notification chips, mapped to components in chipIcons.tsx.
-export type ChipIcon = "form" | "van" | "check" | "shield" | "clock" | "note" | "mail" | "calendar" | "price";
-export type ChipContent = { icon: ChipIcon; title: string; sub?: string };
-
 // Hero copy is built on the value equation: dream outcome + likelihood it
 // works, minus time delay and effort. Every claim must be one MPE can keep.
 export const hero = {
@@ -85,59 +81,62 @@ export const fee = {
   short: "£50 call-out. Refunded in full when we do the repair.",
 };
 
-// Story cards: a few tilted cards whose chips show what happens, instead
-// of a list saying it. Three chips each, real events only.
-export type StoryCardContent = {
-  icon: "boiler" | "service" | "newboiler" | "landlord";
-  title: string;
-  text: string;
-  chips: ChipContent[];
+// Pain points we understand: the four things that make a broken boiler
+// miserable, in the customer's words. Tiles, not a list.
+export const pains = {
+  heading: { lead: "Boiler broken down?", em: "We know how that day goes." } satisfies TwoTone,
+  text: "Cold house, no hot water, and no idea what it's going to cost or when someone will turn up. That's the bit we fix first.",
+  items: [
+    {
+      icon: "boiler" as const,
+      title: "No heating or hot water",
+      text: "The house is cold, the kids need a bath, and every hour matters.",
+    },
+    {
+      icon: "clock" as const,
+      title: "Waiting days for an engineer",
+      text: "Or being given a window and nobody turning up in it.",
+    },
+    {
+      icon: "price" as const,
+      title: "Not knowing the cost",
+      text: "Work starts, the bill lands later, and it's more than you expected.",
+    },
+    {
+      icon: "card" as const,
+      title: "Paying a call-out and then the repair",
+      text: "Being charged to turn up, then charged again on top for the fix.",
+    },
+  ],
 };
 
-export const storyCards: StoryCardContent[] = [
-  {
-    icon: "boiler",
-    title: "Warm again today",
-    text: "No heat this morning. Warm again by tonight, at a price you agreed first.",
-    chips: [
-      { icon: "form", title: "Booked online", sub: "Two minutes" },
-      { icon: "van", title: "Engineer on the way", sub: "Common parts on the van" },
-      { icon: "check", title: "Fixed in one visit", sub: "Guaranteed 3 months" },
-    ],
-  },
-  {
-    icon: "service",
-    title: "Warranty kept valid",
-    text: "Forty-five minutes a year that keeps your warranty valid and your home safe.",
-    chips: [
-      { icon: "calendar", title: "Service booked", sub: "From £79" },
-      { icon: "note", title: "Written report", sub: "Everything checked" },
-      { icon: "clock", title: "Reminder set", sub: "We chase it, not you" },
-    ],
-  },
-  {
-    icon: "newboiler",
-    title: "A new boiler, fitted in a day",
-    text: "Free fixed-price quote, old boiler taken away, usually fitted in a day.",
-    chips: [
-      { icon: "price", title: "Fixed-price quote", sub: "Free, no obligation" },
-      { icon: "van", title: "Fitted in a day", sub: "Old boiler removed" },
-      { icon: "shield", title: "Warranty registered", sub: "Building control handled" },
-    ],
-  },
-  {
-    icon: "landlord",
-    title: "Certificates without the chasing",
-    text: "CP12 and EICR without the chasing. We remind you before they expire.",
-    chips: [
-      { icon: "calendar", title: "Inspection booked", sub: "At a time the tenant suits" },
-      { icon: "mail", title: "Certificate sent", sub: "Straight to your inbox" },
-      { icon: "clock", title: "Renewal reminder", sub: "Before it runs out" },
-    ],
-  },
-];
-
-export const storyRailHeading = { lead: "What happens when you book.", em: "No chasing, no surprises." } satisfies TwoTone;
+// How we solve it: one answer for each pain, in the same order.
+export const solution = {
+  heading: { lead: "How we solve it.", em: "Same day, price agreed, guaranteed." } satisfies TwoTone,
+  text: "A family-run Whitley Bay firm with Gas Safe engineers and common parts on the van.",
+  tiles: [
+    {
+      icon: "clock" as const,
+      title: "Out the same day",
+      text: "No heat or hot water goes to the front of the queue. Fixed on the spot where we have the parts, or the next available day.",
+    },
+    {
+      icon: "van" as const,
+      title: "A time you can rely on",
+      text: "We ring to confirm, turn up when we said, with ID.",
+    },
+    {
+      icon: "price" as const,
+      title: "Price agreed before we start",
+      text: "You hear the number and say yes before any work begins. Nothing is added later.",
+    },
+    {
+      icon: "check" as const,
+      title: "£50 call-out, refunded when we repair",
+      text: "Go ahead with the fix and the whole £50 comes off the bill. One charge, not two.",
+    },
+  ],
+};
 
 export const accreditations = ["Gas Safe Register", "TrustATrader", "City & Guilds"];
 
@@ -212,6 +211,13 @@ export const servicePicker = {
   heading: { lead: "What do you need?", em: "One call covers it." } satisfies TwoTone,
   text: "Boilers, plumbing, electrics and landlord certificates, for homes and businesses across the North East. Whatever it is: price agreed before we start, quotes free, repairs guaranteed for 3 months.",
   commercialPill: { label: "Commercial", href: "/commercial" },
+  commercial: {
+    eyebrow: "Run a business?",
+    heading: { lead: "Priority call-outs for commercial.", em: "So downtime doesn't cost you." } satisfies TwoTone,
+    text: "Catering equipment, commercial boilers, gas appliances, EICR and gas safety certificates. Breakdowns that stop you trading come first, most sites are seen within 24 hours, and we can invoice on account.",
+    cta: "See commercial cover",
+    href: "/commercial",
+  },
 };
 
 // Full version for a future About page/section. whyMpeIntro below is the
@@ -248,64 +254,24 @@ export const aboutPageContent: ContentBlock[] = [
   },
 ];
 
-// The promise: four small tiles in a row, each an icon, a bold line and a
-// short line. Principles, not a list.
-export const promise = {
-  heading: { lead: "Our promise.", em: "No surprises." } satisfies TwoTone,
-  text: "A family-run North East firm. The price before we start, an engineer the same day when it's urgent, and every repair guaranteed for 3 months.",
-  tiles: [
-    {
-      icon: "price" as const,
-      title: "Price before we start",
-      text: "You approve the cost before any work begins.",
-    },
-    {
-      icon: "clock" as const,
-      title: "Out the same day",
-      text: "No heat or hot water goes to the front of the queue.",
-    },
-    {
-      icon: "shield" as const,
-      title: "Fixed for good",
-      text: "Same fault back within 3 months? We return free.",
-    },
-    {
-      icon: "gassafe" as const,
-      title: "Gas Safe registered",
-      text: `Every engineer, every job. Registration ${business.gasSafeNumber}.`,
-    },
-  ],
-};
-
-// How it works, 1, 2, 3: text on one side, a small tilted illustration
-// card on the other, alternating.
+// How it works, 1, 2, 3: three short steps, one line each.
 export const howItWorks = {
-  heading: { lead: "How it works.", em: "As easy as 1,\u00a02,\u00a03." } satisfies TwoTone,
+  heading: { lead: "Booking takes two minutes.", em: "As easy as 1,\u00a02,\u00a03." } satisfies TwoTone,
   steps: [
     {
       number: 1,
       title: "Fill in the form",
-      text: `Tell us what's wrong and when suits. No heating or hot water? Tick "I need someone today" and we'll ask you to call an engineer direct on ${business.phoneDisplay}, so we can get to you fastest.`,
-      icon: "form" as const,
-      // The words on the illustration card, so it reads as the real step.
-      rows: ["Your name and number", "What the boiler's doing", "I need someone today"],
-      chip: { icon: "form" as const, title: "Same-day call-out", sub: "Call an engineer direct" },
+      text: `Tell us what's wrong and when suits. Need someone today? Tick the box and we'll ask you to call an engineer direct on ${business.phoneDisplay}.`,
     },
     {
       number: 2,
       title: "We come out for £50",
-      text: "The £50 call-out covers the visit and the diagnosis. Your Gas Safe engineer finds the fault and agrees the repair price with you before any work starts.",
-      icon: "doorstep" as const,
-      rows: ["Engineer on the way", "Fault found", "Price agreed with you first"],
-      chip: { icon: "price" as const, title: "£50 call-out", sub: "Refunded when we repair" },
+      text: "Your engineer finds the fault and agrees the repair price with you before any work starts.",
     },
     {
       number: 3,
       title: "Fixed, and the £50 comes off",
-      text: "Go ahead and the whole £50 comes off your bill. We repair the same day where we have the parts on the van, or arrange the next available day to get you up and running again fast.",
-      icon: "wrench" as const,
-      rows: ["Parts on the van", "Repair done and tested", "£50 taken off the bill"],
-      chip: { icon: "check" as const, title: "Fixed", sub: "Guaranteed 3 months" },
+      text: "Same day where we have the parts, or the next available day. Guaranteed for 3 months.",
     },
   ],
 };
@@ -313,7 +279,7 @@ export const howItWorks = {
 // The one ticked list on the homepage: the repair offer, the thing people
 // compare. Everything else on the page is a sentence, a tile or a chip.
 export const offer = {
-  heading: { lead: "Every repair includes.", em: "No extras, no small print." } satisfies TwoTone,
+  heading: { lead: "Your risk, removed.", em: "Guaranteed on every repair." } satisfies TwoTone,
   items: [
     "£50 call-out, and 100% of it comes off your bill when we fix it",
     "A Gas Safe engineer who diagnoses the fault and agrees the price with you first",
@@ -423,6 +389,8 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
 // actual icon components in src/lib/featureIcons.tsx, not here, so this
 // file stays free of any component/JSX dependency.
 export type FeatureIcon =
+  | "card"
+  | "van"
   | "price"
   | "clock"
   | "check"

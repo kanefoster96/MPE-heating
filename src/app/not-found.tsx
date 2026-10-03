@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { Heading, Eyebrow } from "@/components/Heading";
-import { IconTile } from "@/components/Chip";
+import { IconTile } from "@/components/IconTile";
 import { QuestionIcon } from "@/components/icons";
 
 export default function NotFound() {

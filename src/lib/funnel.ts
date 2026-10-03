@@ -1,3 +1,7 @@
+// Every option list below the top level also ends with a "Something
+// else? Contact us today" card (added by the Funnel component), which
+// goes to the contact form.
+//
 // The booking funnel: a tree of choices. Each step shows cards; picking one
 // shows the next list, until a leaf, where the details form appears with
 // the right prompt, button label and extras (the £50 fee note and the
@@ -103,13 +107,6 @@ export const funnel: FunnelNode[] = [
           cta: "Book a visit",
         },
       },
-      {
-        id: "boiler-other",
-        label: "Not sure",
-        text: "Describe it and we'll point you to the right engineer.",
-        icon: "question",
-        leaf: { type: "other", prompt: describe("the problem"), cta: "Send details" },
-      },
     ],
   },
   {
@@ -154,13 +151,6 @@ export const funnel: FunnelNode[] = [
         text: "Hot water cylinders, tanks, moving or replacing pipes.",
         icon: "radiator",
         leaf: { type: "other", prompt: describe("the pipework or cylinder"), cta: "Book a plumber" },
-      },
-      {
-        id: "plumbing-other",
-        label: "Something else",
-        text: "Describe it and we'll take it from there.",
-        icon: "question",
-        leaf: { type: "other", prompt: describe("the job"), cta: "Send details" },
       },
     ],
   },

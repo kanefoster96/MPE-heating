@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormLayout } from "./FormLayout";
 import { FormField } from "./FormField";
 import { FeeNote } from "./FeeNote";
 import { IconTile } from "./IconTile";
-import { ArrowRightIcon, ChevronLeftIcon, PhoneIcon, WhatsAppIcon } from "./icons";
+import { ArrowRightIcon, ChevronLeftIcon, PhoneIcon, WhatsAppIcon, QuestionIcon } from "./icons";
 import { business, type TwoTone } from "@/lib/content";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
 import { funnel, resolvePath, type FunnelNode } from "@/lib/funnel";
@@ -245,6 +246,24 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
             </li>
           );
         })}
+        {/* Every list below the top level ends with a way out to the
+            contact form, for jobs that don't fit a card. */}
+        {current && (
+          <li>
+            <Link
+              href="/contact"
+              data-contact
+              className="group flex min-h-[88px] w-full items-center gap-4 rounded-2xl border border-dashed border-navy/25 bg-white p-4 text-left transition-colors hover:border-navy/50"
+            >
+              <IconTile icon={<QuestionIcon />} className="shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-bold leading-tight text-navy">Something else?</span>
+                <span className="mt-1 block text-sm leading-snug text-text-2">Contact us today and we&rsquo;ll sort it.</span>
+              </span>
+              <ArrowRightIcon className="h-4 w-4 shrink-0 text-navy transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </li>
+        )}
       </ul>
       <p className="mt-5 text-center text-xs text-text-3">Two minutes. Price agreed before any work starts.</p>
     </FormLayout>

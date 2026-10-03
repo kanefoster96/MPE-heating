@@ -11,9 +11,9 @@ const outfit = Outfit({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-const defaultTitle = `${business.fullName} | Boiler Repairs, Servicing, Plumbing & Electrics`;
+const defaultTitle = `Boiler Repairs Whitley Bay & North East | Same-Day Call-Outs | ${business.name}`;
 const defaultDescription =
-  "Same-day boiler repairs, servicing, new boilers, plumbing and electrics across the North East. Gas Safe registered, price agreed before we start, £50 call-out refunded when fixed, 3-month guarantee.";
+  "Same-day boiler repairs in Whitley Bay and across the North East. Gas Safe engineers, £50 call-out refunded when we fix it, price agreed before we start, 3-month guarantee. Servicing from £79, new boilers, plumbing and electrics.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -8,11 +8,11 @@ import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { newBoilersPage } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
-import { SITE_URL, serviceJsonLd } from "@/lib/seo";
+import { SITE_URL, serviceJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "New Boiler Installation North East",
+  title: "New Boiler Installation Whitley Bay & North East | Free Fixed-Price Quote",
   description: newBoilersPage.subline,
   alternates: { canonical: `${SITE_URL}/${newBoilersPage.slug}` },
   openGraph: { url: `${SITE_URL}/${newBoilersPage.slug}` },
@@ -58,6 +58,7 @@ export default function NewBoilersPage() {
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(newBoilersPage)} />
+      <JsonLd data={breadcrumbJsonLd([{ name: "New boilers", path: `/${newBoilersPage.slug}` }])} />
     </>
   );
 }

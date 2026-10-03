@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { business } from "@/lib/content";
 import { areaPages } from "@/lib/areas";
+import { Heading, Eyebrow } from "./Heading";
+import { Reveal } from "./Reveal";
 
 // One sentence listing the towns, each linked to its page. Built from the
 // area list so a new area page ships already linked here.
@@ -14,10 +16,17 @@ export function AreasCovered() {
   const towns = business.areasList;
 
   return (
-    <section className="bg-cream py-10">
-      <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-        <p className="text-sm leading-relaxed text-text-2">
-          Across the North East, including{" "}
+    <section className="bg-cream py-14 lg:py-28">
+      <Reveal className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+        <Eyebrow>Areas we cover</Eyebrow>
+        <Heading
+          lead={`Boiler repairs near you.`}
+          em={`${business.base} and across the North East.`}
+          emLine
+          className="mt-3 text-3xl sm:text-4xl"
+        />
+        <p className="mt-5 text-base leading-relaxed text-text-2">
+          Based in {business.base}, covering{" "}
           {towns.map((town, i) => {
             const href = areaPageSlugs[town];
             const separator = i === towns.length - 1 ? "" : i === towns.length - 2 ? " and " : ", ";
@@ -40,7 +49,7 @@ export function AreasCovered() {
           </Link>
           .
         </p>
-      </div>
+      </Reveal>
     </section>
   );
 }

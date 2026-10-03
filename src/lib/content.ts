@@ -37,6 +37,8 @@ export const business = {
   whatsappHref: "https://wa.me/447448628101",
   email: "fergal@mpenortheast.co.uk",
   gasSafeNumber: "552052",
+  base: "Whitley Bay",
+  baseRegion: "Tyne and Wear",
   region: "North East England",
   areasList,
   areas: `We operate across all areas in the North East, including ${joinWithAnd(areasList)}.`,
@@ -58,14 +60,14 @@ export const hero = {
   banner: { text: "Boiler broken down? Same-day call-outs.", cta: "Book now" },
   // Proof row above the headline: the marks we hold, then who we serve.
   // No invented numbers.
-  proof: { lead: "Trusted by homes & businesses", sub: "across the North East", rated: "Rated on TrustATrader" },
-  status: "Same-day call-outs across the North East",
+  proof: { lead: "Trusted by homes & businesses", sub: "in Whitley Bay and across the North East", rated: "Rated on TrustATrader" },
+  status: "Same-day boiler repairs, Whitley Bay and the North East",
   // Dream outcome, then the time promise carries the gradient.
   headline: { lead: "Heating and hot water back.", em: "The same day." } satisfies TwoTone,
   // Effort (we come to you), sacrifice (price agreed first), likelihood
   // (Gas Safe, parts on the van), and the honest version of "same day".
   subline:
-    "A Gas Safe engineer comes out for a £50 call-out and agrees the price before any work starts. Fixed the same day where we have the parts, or the next available day.",
+    "Boiler repairs in Whitley Bay and across the North East. A Gas Safe engineer comes out for a £50 call-out, agrees the price before any work starts, and fixes it the same day where we have the parts, or the next available day.",
   cta: "Book a same-day call-out",
   // Two quiet lines under the button, like "No card, no commitment."
   underButton: ["£50 call-out. Refunded in full when we do the repair.", "Decide not to go ahead and £50 is all you pay."],
@@ -96,7 +98,7 @@ export type StoryCardContent = {
 export const storyCards: StoryCardContent[] = [
   {
     icon: "boiler",
-    title: "A same-day repair",
+    title: "Warm again today",
     text: "No heat this morning. Warm again by tonight, at a price you agreed first.",
     chips: [
       { icon: "form", title: "Booked online", sub: "Two minutes" },
@@ -106,7 +108,7 @@ export const storyCards: StoryCardContent[] = [
   },
   {
     icon: "service",
-    title: "An annual service",
+    title: "Warranty kept valid",
     text: "Forty-five minutes a year that keeps your warranty valid and your home safe.",
     chips: [
       { icon: "calendar", title: "Service booked", sub: "From £79" },
@@ -116,7 +118,7 @@ export const storyCards: StoryCardContent[] = [
   },
   {
     icon: "newboiler",
-    title: "A new boiler",
+    title: "A new boiler, fitted in a day",
     text: "Free fixed-price quote, old boiler taken away, usually fitted in a day.",
     chips: [
       { icon: "price", title: "Fixed-price quote", sub: "Free, no obligation" },
@@ -126,7 +128,7 @@ export const storyCards: StoryCardContent[] = [
   },
   {
     icon: "landlord",
-    title: "A landlord certificate",
+    title: "Certificates without the chasing",
     text: "CP12 and EICR without the chasing. We remind you before they expire.",
     chips: [
       { icon: "calendar", title: "Inspection booked", sub: "At a time the tenant suits" },
@@ -209,7 +211,7 @@ export const services: ServiceCard[] = [
 
 export const servicePicker = {
   heading: { lead: "What do you need?", em: "One call covers it." } satisfies TwoTone,
-  text: "Boilers, plumbing, electrics and landlord certificates, for homes and businesses across the North East.",
+  text: "Boilers, plumbing, electrics and landlord certificates, for homes and businesses across the North East. Whatever it is: price agreed before we start, quotes free, repairs guaranteed for 3 months.",
   commercialPill: { label: "Commercial", href: "/commercial" },
 };
 
@@ -368,6 +370,18 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
     {
       q: "How much is the call-out?",
       a: "£50 — and if you go ahead with the repair, 100% of that comes off your final bill, so you're never charged the call-out and the full price. You only end up paying the £50 on its own if you get the diagnosis and decide not to proceed.",
+    },
+    {
+      q: "What if you can't fix it the same day?",
+      a: "Most faults we fix on the spot because we carry the common parts on the van. If yours needs a part we don't have, we order it and book the next available day, and you don't pay a second call-out.",
+    },
+    {
+      q: "What if I decide not to go ahead?",
+      a: "Then the £50 call-out is all you pay. You'll have a diagnosis and a price in writing, with no pressure to use us for the repair.",
+    },
+    {
+      q: "Which areas do you cover?",
+      a: `We're based in Whitley Bay and cover the North East, including ${joinWithAnd(areasList)}. If you're nearby but not on that list, ask: we probably still come to you.`,
     },
     {
       q: "Do you give a price before starting work?",

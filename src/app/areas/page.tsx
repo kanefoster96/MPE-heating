@@ -11,8 +11,8 @@ import { business } from "@/lib/content";
 import { SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Areas We Cover",
-  description: `Gas Safe registered boiler repairs, servicing and new installs across ${business.region} — find your area for local response times and coverage.`,
+  title: "Areas We Cover | Boiler Repairs from Whitley Bay across the North East",
+  description: `Same-day boiler repairs, servicing and new boilers from Whitley Bay across ${business.region}: ${business.areasList.slice(0, 8).join(", ")} and more. Find your area for local detail.`,
   alternates: { canonical: `${SITE_URL}/areas` },
   openGraph: { url: `${SITE_URL}/areas` },
 };

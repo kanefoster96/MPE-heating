@@ -9,7 +9,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { Eyebrow } from "@/components/Heading";
 import { ArrowRightIcon, ChevronLeftIcon } from "@/components/icons";
 import { helpArticles, getHelpArticle } from "@/lib/help";
-import { SITE_URL, articleJsonLd } from "@/lib/seo";
+import { SITE_URL, articleJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 
 type Params = { slug: string };
 
@@ -78,6 +78,7 @@ export default async function HelpArticlePage({ params }: { params: Promise<Para
       <FinalCta />
       <Footer />
       <JsonLd data={articleJsonLd(post)} />
+      <JsonLd data={breadcrumbJsonLd([{ name: "Help and advice", path: "/help" }, { name: post.title, path: `/help/${post.slug}` }])} />
     </>
   );
 }

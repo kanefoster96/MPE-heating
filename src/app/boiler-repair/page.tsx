@@ -8,11 +8,11 @@ import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { boilerRepairPage, guarantee } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
-import { SITE_URL, serviceJsonLd } from "@/lib/seo";
+import { SITE_URL, serviceJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "Boiler Repairs North East",
+  title: "Boiler Repairs Whitley Bay & North East | Same-Day, £50 Call-Out Refunded",
   description: boilerRepairPage.subline,
   alternates: { canonical: `${SITE_URL}/${boilerRepairPage.slug}` },
   openGraph: { url: `${SITE_URL}/${boilerRepairPage.slug}` },
@@ -58,6 +58,7 @@ export default function BoilerRepairPage() {
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(boilerRepairPage)} />
+      <JsonLd data={breadcrumbJsonLd([{ name: "Boiler repair", path: `/${boilerRepairPage.slug}` }])} />
     </>
   );
 }

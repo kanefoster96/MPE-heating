@@ -8,11 +8,11 @@ import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { servicingPage } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
-import { SITE_URL, serviceJsonLd } from "@/lib/seo";
+import { SITE_URL, serviceJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "Boiler Servicing North East",
+  title: "Boiler Servicing Whitley Bay & North East | From £79, Gas Safe",
   description: servicingPage.subline,
   alternates: { canonical: `${SITE_URL}/${servicingPage.slug}` },
   openGraph: { url: `${SITE_URL}/${servicingPage.slug}` },
@@ -57,6 +57,7 @@ export default function ServicingPage() {
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(servicingPage)} />
+      <JsonLd data={breadcrumbJsonLd([{ name: "Servicing", path: `/${servicingPage.slug}` }])} />
     </>
   );
 }

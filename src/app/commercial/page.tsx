@@ -8,11 +8,11 @@ import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 import { commercialPage } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
-import { SITE_URL, serviceJsonLd } from "@/lib/seo";
+import { SITE_URL, serviceJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 
 export const metadata: Metadata = {
-  title: "Commercial Gas, Heating & Electrics",
+  title: "Commercial Gas, Heating & Electrics North East | Priority Call-Outs",
   description: commercialPage.subline,
   alternates: { canonical: `${SITE_URL}/${commercialPage.slug}` },
   openGraph: { url: `${SITE_URL}/${commercialPage.slug}` },
@@ -58,6 +58,7 @@ export default function CommercialPage() {
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(commercialPage)} />
+      <JsonLd data={breadcrumbJsonLd([{ name: "Commercial", path: `/${commercialPage.slug}` }])} />
     </>
   );
 }

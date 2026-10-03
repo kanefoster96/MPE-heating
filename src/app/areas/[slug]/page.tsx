@@ -18,7 +18,8 @@ import { Heading, Eyebrow } from "@/components/Heading";
 import { Reveal } from "@/components/Reveal";
 import { guarantee } from "@/lib/content";
 import { areaPages, getAreaPage } from "@/lib/areas";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_URL, breadcrumbJsonLd, faqPageJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
 
 type Params = { slug: string };
 
@@ -36,8 +37,8 @@ export async function generateMetadata({
   if (!area) return {};
 
   return {
-    title: `Boiler Repairs in ${area.name}`,
-    description: area.subline,
+    title: `Boiler Repairs ${area.name} | Same-Day Gas Safe Engineers`,
+    description: `${area.subline} Based in Whitley Bay, every repair guaranteed for 3 months.`,
     alternates: { canonical: `${SITE_URL}/areas/${area.slug}` },
     openGraph: { url: `${SITE_URL}/areas/${area.slug}` },
   };
@@ -165,6 +166,8 @@ export default async function AreaPageRoute({ params }: { params: Promise<Params
         <FinalCta />
       </main>
       <Footer />
+      <JsonLd data={breadcrumbJsonLd([{ name: "Areas we cover", path: "/areas" }, { name: area.name, path: `/areas/${area.slug}` }])} />
+      <JsonLd data={faqPageJsonLd(area.faqs)} />
     </>
   );
 }

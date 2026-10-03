@@ -15,12 +15,9 @@ const phoneE164 = `+44${business.phoneHref.replace("tel:0", "")}`;
 // once in the root layout so it's present on every page. No `address` is
 // published: MPE is a service-area business, not a storefront, and
 // schema.org/Google's own guidance for SABs is to describe areaServed
-// instead of a precise address. No aggregateRating/review markup either —
-// the testimonials in content.ts (`reviews`) are placeholder example copy
-// from the initial design brief, not verified real customer reviews, and
-// marking them up as structured review data would misrepresent them to
-// search engines. Swap in real reviews (and add AggregateRating) once
-// there are some to point at.
+// instead of a precise address. No aggregateRating/review markup either:
+// the rating shown on the site lives on TrustATrader, and Google ignores
+// review markup a business adds about itself on its own site.
 export function localBusinessJsonLd() {
   return {
     "@context": "https://schema.org",

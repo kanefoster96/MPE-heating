@@ -3,7 +3,8 @@ import { homeServices } from "@/lib/content";
 import { DropIcon, ElectricsIcon, FlameIcon, RadiatorIcon } from "./icons";
 
 // Four trades as tiles: an icon in a tinted square, a name and one line.
-// Two by two on a phone, one row of four on desktop.
+// Two by two on a phone, one row of four on desktop. Top padding is small
+// because it follows the reviews section, also on white.
 const look = {
   boilers: { Icon: FlameIcon, tint: "bg-[#fff0e6] text-terracotta-deep" },
   heating: { Icon: RadiatorIcon, tint: "bg-[#fff0e6] text-terracotta-deep" },
@@ -14,7 +15,7 @@ const look = {
 export function ServiceTiles() {
   const [line1, line2] = homeServices.heading;
   return (
-    <section className="bg-page pt-11 pb-10 lg:py-24">
+    <section className="bg-page pt-2 pb-10 lg:pt-4 lg:pb-24">
       <div className="mx-auto max-w-6xl px-5 sm:px-6">
         <h2 className="text-[28px] font-extrabold leading-[1.08] tracking-[-0.03em] sm:text-4xl">
           {line1}

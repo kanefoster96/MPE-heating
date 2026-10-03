@@ -56,7 +56,7 @@ export type TwoTone = { lead: string; em: string };
 export const hero = {
   // Navy strip under the nav: one line and a yellow pill.
   banner: { text: "Boiler down? We're out today.", cta: "Book now" },
-  chips: { rated: "Whitley Bay rated", gasSafe: "Gas Safe reg. 552052" },
+  chips: { gasSafe: "Gas Safe reg. 552052" },
   headline: { line1: "Heating off?", line2: "We'll be round", highlight: "today." },
   subline:
     "A Gas Safe engineer at your door for a £50 call-out. Price agreed before any work starts, and most faults fixed on the spot with parts from the van.",
@@ -259,32 +259,20 @@ export const guarantee = {
   pill: "We'll always confirm costs before any further work.",
 };
 
-export const reviews = [
-  {
-    quote:
-      "The engineer who came out was brilliant — diagnosed the fault straight away and had the heating back on within the hour. Really fair price too.",
-    name: "Sarah T.",
-    date: "2 days ago",
-  },
-  {
-    quote:
-      "Turned up same day when our boiler packed in over the weekend. Professional, tidy, explained everything clearly.",
-    name: "Mark H.",
-    date: "1 week ago",
-  },
-  {
-    quote:
-      "Used MPE for our landlord gas certificate — quick to book, on time, and the certificate landed in my inbox that afternoon.",
-    name: "Priya K.",
-    date: "2 weeks ago",
-  },
-  {
-    quote:
-      "No pressure, no upselling, just a straightforward fix at a fair price. Would use again without a second thought.",
-    name: "David W.",
-    date: "3 weeks ago",
-  },
-];
+// The real rating, from MPE's TrustATrader profile. Update the score and
+// count from the profile when they change; never round up.
+export const rating = {
+  source: "TrustATrader",
+  score: "4.99",
+  count: 30,
+  url: "https://www.trustatrader.com/traders/m-p-e-heating-gas---commercial-blyth-and-whitley-bay",
+};
+
+// Customer reviews shown on the site. Real reviews only, copied word for
+// word from the TrustATrader profile with the name as it appears there.
+// While this is empty, the Reviews section shows the rating card alone.
+export type Review = { quote: string; name: string; date: string };
+export const reviews: Review[] = [];
 
 export type FaqItem = { q: string; a: string };
 

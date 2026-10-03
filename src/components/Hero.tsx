@@ -1,63 +1,76 @@
-import Image from "next/image";
-import { hero } from "@/lib/content";
-import { chipIconMap } from "@/lib/chipIcons";
+import Link from "next/link";
+import { business, hero, accreditations } from "@/lib/content";
+import { contactHref } from "@/lib/enquiry";
+import { GasSafeMarkIcon, ShieldIcon, AwardIcon, StarIcon } from "./icons";
 import { Heading } from "./Heading";
 import { StatusLine } from "./StatusLine";
-import { RoundField } from "./RoundField";
-import { Chip } from "./Chip";
-import { Reveal } from "./Reveal";
-import { FeeNote } from "./FeeNote";
 
-// Hero: a status line, one two-tone headline, one line of copy, the round
-// field for the main ask, and one visual underneath with three chips
-// around it. Nothing else competes with the ask.
+const markIcons = [GasSafeMarkIcon, ShieldIcon, AwardIcon];
+
+// Hero, in the Academy's order: proof row (overlapping marks, who we
+// serve, stars), status line, two-tone headline, one paragraph, one big
+// pill button, two quiet lines under it, and a text link for people who'd
+// rather call. No visual.
 export function Hero() {
   return (
-    <section className="bg-page pt-12 pb-14 sm:pt-16 lg:pt-24 lg:pb-28">
-      <div className="mx-auto flex max-w-6xl flex-col items-center px-4 text-center sm:px-6">
-        <StatusLine>{hero.status}</StatusLine>
+    <section className="bg-page pt-12 pb-14 sm:pt-16 lg:pt-20 lg:pb-24">
+      <div className="mx-auto flex max-w-4xl flex-col items-center px-4 text-center sm:px-6">
+        <ul className="flex -space-x-2.5" aria-label="Accreditations">
+          {accreditations.map((label, i) => {
+            const Icon = markIcons[i];
+            return (
+              <li
+                key={label}
+                title={label}
+                className="grid h-12 w-12 place-items-center rounded-full border-2 border-white bg-navy text-white"
+              >
+                <Icon className="h-5 w-5" />
+                <span className="sr-only">{label}</span>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-4 text-xs font-bold uppercase tracking-[0.14em] text-navy">
+          {hero.proof.lead}
+          <span className="block font-semibold text-text-3">{hero.proof.sub}</span>
+        </p>
+        <p className="mt-3 flex items-center gap-1 text-navy" aria-label={`Five stars. ${hero.proof.rated}`}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <StarIcon key={i} className="h-5 w-5" />
+          ))}
+        </p>
+
+        <StatusLine className="mt-10">{hero.status}</StatusLine>
 
         <Heading
           as="h1"
           lead={hero.headline.lead}
           em={hero.headline.em}
           emLine
-          className="mt-5 max-w-4xl text-[40px] sm:text-6xl lg:text-[64px]"
+          className="mt-5 text-[40px] sm:text-6xl lg:text-[64px]"
         />
 
-        <p className="mt-5 max-w-xl text-base leading-relaxed text-text-2 sm:text-lg">{hero.subline}</p>
+        <p className="mt-6 max-w-xl text-base leading-relaxed text-text-2 sm:text-lg">{hero.subline}</p>
 
-        <RoundField cta={hero.cta} type="repair" placeholder={hero.fieldPlaceholder} className="mt-8" />
+        <Link
+          href={contactHref("repair")}
+          className="bg-btn-gradient mt-8 inline-flex min-h-14 w-full max-w-xl items-center justify-center rounded-full px-8 text-lg font-semibold text-white shadow-[0_18px_40px_-20px_rgba(207,80,41,0.6)]"
+        >
+          {hero.cta}
+        </Link>
 
-        <FeeNote className="mt-5 w-full max-w-xl" />
+        <p className="mt-4 text-sm font-semibold text-navy">{hero.underButton[0]}</p>
+        <p className="mt-1 text-sm text-text-2">{hero.underButton[1]}</p>
 
-        <Reveal className="relative mt-12 w-full max-w-3xl sm:mt-16">
-          <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-[28px] border border-line bg-cream sm:h-72 sm:w-72">
-            <Image
-              src="/worcester-boiler.png"
-              alt="Worcester Bosch boiler"
-              width={800}
-              height={800}
-              priority
-              className="h-40 w-40 drop-shadow-[0_24px_40px_rgba(31,42,58,0.25)] sm:h-52 sm:w-52"
-            />
-          </div>
-          <div className="anim mt-6 flex flex-wrap items-center justify-center gap-3 sm:absolute sm:inset-0 sm:mt-0 sm:block">
-            {hero.chips.map((chip, i) => {
-              const Icon = chipIconMap[chip.icon];
-              const position = [
-                "sm:absolute sm:left-0 sm:top-6 sm:-rotate-3",
-                "sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2 sm:rotate-2",
-                "sm:absolute sm:left-6 sm:bottom-2 sm:rotate-1",
-              ][i];
-              return (
-                <div key={chip.title} className={`chips-in ${position}`}>
-                  <Chip icon={<Icon />} title={chip.title} sub={chip.sub} />
-                </div>
-              );
-            })}
-          </div>
-        </Reveal>
+        <p className="mt-5 text-sm text-text-2">
+          {hero.secondary}{" "}
+          <a
+            href={business.phoneHref}
+            className="font-semibold text-navy underline decoration-navy/30 underline-offset-4 hover:decoration-navy"
+          >
+            Call {business.phoneDisplay}
+          </a>
+        </p>
       </div>
     </section>
   );

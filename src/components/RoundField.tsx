@@ -9,11 +9,14 @@ import { contactHref, type EnquiryType } from "@/lib/enquiry";
 // the visitor only types it once. The button is the one orange thing.
 export function RoundField({
   cta,
+  shortCta = "Book now",
   type = "repair",
   placeholder = "Your phone number",
   className = "",
 }: {
   cta: string;
+  // Phones get a shorter label so the field keeps room to type in.
+  shortCta?: string;
   type?: EnquiryType;
   placeholder?: string;
   className?: string;
@@ -53,9 +56,10 @@ export function RoundField({
       />
       <button
         type="submit"
-        className="bg-btn-gradient inline-flex h-12 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold text-white sm:px-6"
+        className="bg-btn-gradient inline-flex h-12 shrink-0 items-center justify-center rounded-full px-5 text-sm font-semibold text-white sm:px-6"
       >
-        {cta}
+        <span className="sm:hidden">{shortCta}</span>
+        <span className="hidden sm:inline">{cta}</span>
       </button>
     </form>
   );

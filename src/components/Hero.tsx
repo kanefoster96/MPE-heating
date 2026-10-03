@@ -6,6 +6,7 @@ import { StatusLine } from "./StatusLine";
 import { RoundField } from "./RoundField";
 import { Chip } from "./Chip";
 import { Reveal } from "./Reveal";
+import { FeeNote } from "./FeeNote";
 
 // Hero: a status line, one two-tone headline, one line of copy, the round
 // field for the main ask, and one visual underneath with three chips
@@ -28,7 +29,7 @@ export function Hero() {
 
         <RoundField cta={hero.cta} type="repair" placeholder={hero.fieldPlaceholder} className="mt-8" />
 
-        <p className="mt-4 max-w-md text-xs leading-relaxed text-text-3 sm:text-sm">{hero.reassurance}</p>
+        <FeeNote className="mt-5 w-full max-w-xl" />
 
         <Reveal className="relative mt-12 w-full max-w-3xl sm:mt-16">
           <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-[28px] border border-line bg-cream sm:h-72 sm:w-72">

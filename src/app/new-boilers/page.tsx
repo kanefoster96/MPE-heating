@@ -33,6 +33,7 @@ export default function NewBoilersPage() {
           subline={newBoilersPage.subline}
           cta={newBoilersPage.cta}
           type={newBoilersPage.enquiry}
+          shortCta="Get a quote"
           reassurance={newBoilersPage.reassurance}
         />
 
@@ -53,7 +54,7 @@ export default function NewBoilersPage() {
         />
 
         <Reviews />
-        <FinalCta heading={{ lead: "Thinking about a new boiler?", em: "Get a free fixed-price quote." }} cta="Get a free quote" type="quote" />
+        <FinalCta heading={{ lead: "Thinking about a new boiler?", em: "Get a free fixed-price quote." }} cta="Get a free quote" shortCta="Get a quote" type="quote" />
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(newBoilersPage)} />

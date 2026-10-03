@@ -55,9 +55,19 @@ export function HowItWorks() {
                   }`}
                 >
                   <IconTile icon={<Icon />} primary />
-                  <div className="mt-6 h-2.5 w-2/3 rounded-full bg-navy/10" aria-hidden="true" />
-                  <div className="mt-2.5 h-2.5 w-1/2 rounded-full bg-navy/10" aria-hidden="true" />
-                  <div className="chips-in mt-6">
+                  {/* Looks like the step, not like a form: grey text on a
+                      lighter fill, no cursor, nothing to tap. */}
+                  <ul className="mt-6 flex flex-col gap-2" aria-label={`Step ${step.number} in brief`}>
+                    {step.rows.map((row) => (
+                      <li
+                        key={row}
+                        className="rounded-xl border border-line bg-white/70 px-4 py-2.5 text-sm font-medium text-text-2"
+                      >
+                        {row}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="chips-in mt-5">
                     <Chip icon={<ChipIcon />} title={step.chip.title} sub={step.chip.sub} />
                   </div>
                 </div>

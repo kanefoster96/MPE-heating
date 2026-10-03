@@ -12,7 +12,7 @@ export const ENQUIRY_TYPES: Record<
     label: "Boiler repair",
     pill: "Boiler repair",
     prompt: "What's the boiler doing? Fault codes, noises, no heat or hot water…",
-    cta: "Book a same-day repair",
+    cta: "Book a same-day call-out",
   },
   service: {
     label: "Boiler service",

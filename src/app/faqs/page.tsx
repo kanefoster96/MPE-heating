@@ -29,6 +29,7 @@ export default function FaqsPage() {
           subline={faqsPage.subline}
           cta={faqsPage.cta}
           type={faqsPage.enquiry}
+          shortCta="Ask us"
           reassurance={faqsPage.reassurance}
         />
 

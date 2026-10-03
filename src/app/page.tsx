@@ -12,9 +12,9 @@ import { AreasCovered } from "@/components/AreasCovered";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
 
-// Page order: hero and the main ask; story cards (what happens when you
-// book); how it works 1, 2, 3; pick a service; the promise; the one list
-// (the repair offer); reviews; questions; the ask again.
+// Page order: hero and the main ask; how it works 1, 2, 3 (the process and
+// the £50 call-out, before anyone books); story cards; pick a service; the
+// promise; the one list (the repair offer); reviews; questions; the ask.
 export default function Home() {
   return (
     <>
@@ -22,8 +22,8 @@ export default function Home() {
       <main>
         <Hero />
         <BrandsRow />
-        <StoryCards />
         <HowItWorks />
+        <StoryCards />
         <ServicePicker />
         <PromiseTiles />
         <OfferList />

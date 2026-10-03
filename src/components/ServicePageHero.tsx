@@ -5,6 +5,7 @@ import { Heading, Eyebrow } from "./Heading";
 import { StatusLine } from "./StatusLine";
 import { RoundField } from "./RoundField";
 import { IconTile } from "./Chip";
+import { FeeNote } from "./FeeNote";
 
 // Hero for every page that isn't the homepage: an icon tile, a status
 // line, the two-tone headline, one line of copy, the round field, and one
@@ -19,6 +20,8 @@ export function ServicePageHero({
   cta,
   type,
   reassurance,
+  shortCta,
+  showFee = false,
 }: {
   icon: ReactNode;
   eyebrow: string;
@@ -28,6 +31,9 @@ export function ServicePageHero({
   cta: string;
   type: EnquiryType;
   reassurance?: string;
+  shortCta?: string;
+  // Repair-type pages show the £50 call-out explainer under the ask.
+  showFee?: boolean;
 }) {
   return (
     <section className="bg-page pt-12 pb-14 sm:pt-16 lg:pt-24 lg:pb-24">
@@ -43,8 +49,9 @@ export function ServicePageHero({
           className="mt-4 max-w-3xl text-[36px] sm:text-5xl lg:text-6xl"
         />
         <p className="mt-5 max-w-xl text-base leading-relaxed text-text-2 sm:text-lg">{subline}</p>
-        <RoundField cta={cta} type={type} className="mt-8" />
-        {reassurance && (
+        <RoundField cta={cta} shortCta={shortCta} type={type} className="mt-8" />
+        {showFee && <FeeNote className="mt-5 w-full max-w-xl" />}
+        {reassurance && !showFee && (
           <p className="mt-4 max-w-md text-xs leading-relaxed text-text-3 sm:text-sm">{reassurance}</p>
         )}
       </div>

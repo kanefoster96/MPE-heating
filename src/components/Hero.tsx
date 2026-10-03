@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { business, hero } from "@/lib/content";
+import { business, hero, rating } from "@/lib/content";
 import { contactHref } from "@/lib/enquiry";
 import { ArrowRightIcon, CheckIcon, PhoneIcon, ShieldIcon, WhatsAppIcon } from "./icons";
 
@@ -16,7 +16,7 @@ export function Hero() {
           <ul className="flex flex-wrap gap-2">
             <li className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-2 text-[13px] font-semibold">
               <Stars />
-              {hero.chips.rated}
+              {rating.score} on {rating.source}
             </li>
             <li className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-2 text-[13px] font-semibold">
               <ShieldIcon className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden="true" />
@@ -96,11 +96,12 @@ export function Hero() {
   );
 }
 
-// Five small orange stars for the "rated" chip.
+// Five small orange stars for the rating chip. Decorative: the chip
+// text gives the real score.
 function Stars() {
   const star = "7,0 9,5 14,5.3 10.2,8.5 11.4,13.5 7,10.8 2.6,13.5 3.8,8.5 0,5.3 5,5";
   return (
-    <svg width="76" height="14" viewBox="0 0 76 14" role="img" aria-label="5 stars" className="text-terracotta">
+    <svg width="76" height="14" viewBox="0 0 76 14" aria-hidden="true" className="text-terracotta">
       <g fill="currentColor">
         {[0, 15.5, 31, 46.5, 62].map((x) => (
           <polygon key={x} points={star} transform={`translate(${x} 0)`} />

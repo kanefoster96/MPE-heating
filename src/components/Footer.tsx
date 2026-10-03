@@ -28,6 +28,13 @@ export function Footer() {
                 {business.email}
               </a>
               <p className="text-text-3">Gas Safe registration: {business.gasSafeNumber}</p>
+              <p className="text-text-3">
+                Based in {business.base}, {business.baseRegion}. Covering the{" "}
+                <Link href="/areas" className="underline decoration-navy/25 underline-offset-4 hover:text-navy">
+                  North East
+                </Link>
+                .
+              </p>
             </div>
           </div>
 

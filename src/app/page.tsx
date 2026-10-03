@@ -12,6 +12,9 @@ import { Faq } from "@/components/Faq";
 import { AreasCovered } from "@/components/AreasCovered";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
+import { JsonLd } from "@/components/JsonLd";
+import { faqs } from "@/lib/content";
+import { faqPageJsonLd } from "@/lib/seo";
 
 // Page order: hero and the main ask; how it works 1, 2, 3 (the process and
 // the £50 call-out, before anyone books); story cards; pick a service; the
@@ -35,6 +38,7 @@ export default function Home() {
         <FinalCta />
       </main>
       <Footer />
+      <JsonLd data={faqPageJsonLd(faqs.homes)} />
     </>
   );
 }

@@ -25,14 +25,26 @@ export function localBusinessJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": ["HVACBusiness", "Plumber", "Electrician"],
+    "@id": `${SITE_URL}/#business`,
     name: business.fullName,
     alternateName: business.name,
     image: `${SITE_URL}/mpe-logo.png`,
+    logo: `${SITE_URL}/mpe-logo.png`,
     url: SITE_URL,
     telephone: phoneE164,
     email: business.email,
     description:
-      "Same-day boiler repairs, servicing, new boilers, plumbing and electrics across the North East of England. Gas Safe registered, price agreed before we start, £50 call-out refunded when fixed, 3-month guarantee.",
+      "Same-day boiler repairs in Whitley Bay and across the North East of England. Gas Safe registered, price agreed before we start, £50 call-out refunded when fixed, 3-month guarantee. Servicing, new boilers, plumbing and electrics.",
+    // Locality only: MPE is a service-area business with no public
+    // premises, so no street address is published.
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: business.base,
+      addressRegion: business.baseRegion,
+      addressCountry: "GB",
+    },
+    priceRange: "££",
+    currenciesAccepted: "GBP",
     areaServed: business.areasList.map((name) => ({ "@type": "City", name })),
     hasOfferCatalog: {
       "@type": "OfferCatalog",
@@ -55,6 +67,21 @@ export function localBusinessJsonLd() {
   };
 }
 
+// BreadcrumbList for inner pages: helps Google show the site structure
+// (and sitelinks) for "boiler repair <town>" style searches.
+export function breadcrumbJsonLd(trail: { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [{ name: "Home", path: "" }, ...trail].map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      item: `${SITE_URL}${item.path}`,
+    })),
+  };
+}
+
 export function serviceJsonLd(page: ServicePage) {
   return {
     "@context": "https://schema.org",
@@ -64,12 +91,7 @@ export function serviceJsonLd(page: ServicePage) {
     description: page.subline,
     url: `${SITE_URL}/${page.slug}`,
     areaServed: business.areasList.map((name) => ({ "@type": "City", name })),
-    provider: {
-      "@type": "HVACBusiness",
-      name: business.fullName,
-      telephone: phoneE164,
-      url: SITE_URL,
-    },
+    provider: { "@id": `${SITE_URL}/#business` },
   };
 }
 

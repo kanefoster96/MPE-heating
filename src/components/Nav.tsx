@@ -17,6 +17,8 @@ const links: { label: string; href: string }[] = [
   { label: "FAQs", href: "/faqs" },
   { label: "Help & advice", href: "/help" },
   { label: "About", href: "/about" },
+  { label: "Book a visit", href: "/book" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export function Nav() {

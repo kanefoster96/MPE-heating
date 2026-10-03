@@ -1,49 +1,41 @@
-// The kinds of enquiry the contact form takes. Site CTAs link to
-// /contact?type=<key> so the right one is preselected; the key is also
-// what the API route puts in the email subject.
+// The kinds of enquiry the forms send. The key goes in the email subject;
+// the funnel (src/lib/funnel.ts) maps every choice onto one of these.
 
 export type EnquiryType = "repair" | "service" | "quote" | "commercial" | "other";
 
-export const ENQUIRY_TYPES: Record<
-  EnquiryType,
-  { label: string; pill: string; prompt: string; cta: string }
-> = {
-  repair: {
-    label: "Boiler repair",
-    pill: "Boiler repair",
-    prompt: "What's the boiler doing? Fault codes, noises, no heat or hot water…",
-    cta: "Book a same-day call-out",
-  },
-  service: {
-    label: "Boiler service",
-    pill: "Annual service",
-    prompt: "Boiler make and model if you know it, and when it was last serviced.",
-    cta: "Book a service",
-  },
-  quote: {
-    label: "New boiler quote",
-    pill: "New boiler quote",
-    prompt: "Current boiler, roughly how many bedrooms and bathrooms, and anything you'd like changed.",
-    cta: "Get a free quote",
-  },
-  commercial: {
-    label: "Commercial enquiry",
-    pill: "Commercial",
-    prompt: "Type of premises, the equipment involved, and whether it's affecting trading.",
-    cta: "Get a commercial quote",
-  },
-  other: {
-    label: "General enquiry",
-    pill: "Something else",
-    prompt: "Tell us what you need and we'll point you to the right engineer.",
-    cta: "Send message",
-  },
+export const ENQUIRY_TYPES: Record<EnquiryType, { label: string }> = {
+  repair: { label: "Boiler repair" },
+  service: { label: "Boiler service" },
+  quote: { label: "New boiler quote" },
+  commercial: { label: "Commercial enquiry" },
+  other: { label: "Enquiry" },
 };
 
 export function isEnquiryType(value: string | null | undefined): value is EnquiryType {
   return !!value && value in ENQUIRY_TYPES;
 }
 
-export function contactHref(type: EnquiryType): string {
-  return type === "other" ? "/contact" : `/contact?type=${type}`;
+// Where a CTA for a given enquiry type lands:
+// - repairs go straight to the emergency call-out form
+// - general questions go to the contact form
+// - everything else drops into the booking funnel at the right branch
+export function contactHref(type: EnquiryType, extra?: Record<string, string>): string {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(extra ?? {})) if (v) params.set(k, v);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  switch (type) {
+    case "repair":
+      return `/emergency${q}`;
+    case "other":
+      return `/contact${q}`;
+    case "service":
+      params.set("path", "boilers.service");
+      return `/book?${params.toString()}`;
+    case "quote":
+      params.set("path", "boilers.new");
+      return `/book?${params.toString()}`;
+    case "commercial":
+      params.set("path", "commercial");
+      return `/book?${params.toString()}`;
+  }
 }

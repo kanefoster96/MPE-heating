@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
 
 // Two-tone heading: the first clause plain navy, the second carrying the
-// orange gradient. One emphasis per heading, nothing else styled. When
-// the emphasised clause is long, `emLine` puts it on its own line (as a
-// block wrapper around the inline gradient span, so the gradient still
-// hugs the text and the line centres with the heading).
+// orange gradient, always starting on its own line. One emphasis per
+// heading, nothing else styled. The block wrapper around the inline
+// gradient span keeps the gradient hugging the text and lets the line
+// centre with the heading.
 export function Heading({
   as: Tag = "h2",
   lead,
   em,
-  emLine = false,
+  emLine = true,
   className = "",
 }: {
   as?: "h1" | "h2" | "h3";

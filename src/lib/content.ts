@@ -186,7 +186,7 @@ export const services: ServiceCard[] = [
     eyebrow: "Plumbing",
     headline: "Leaks, taps, bathrooms and pipework",
     line: "Small jobs to full installs, price agreed first.",
-    href: "/contact",
+    href: "/book?path=plumbing",
     icon: "plumbing",
   },
   {
@@ -194,7 +194,7 @@ export const services: ServiceCard[] = [
     eyebrow: "Electrics",
     headline: "Fuse boards, rewires, EV chargers",
     line: "Part P certified, fully tested.",
-    href: "/contact",
+    href: "/book?path=electrics",
     icon: "electrics",
   },
   {
@@ -202,7 +202,7 @@ export const services: ServiceCard[] = [
     eyebrow: "Landlord Certificates",
     headline: "Gas safety and electrical certificates",
     line: "CP12 and EICR, with a reminder before they expire.",
-    href: "/contact",
+    href: "/book?path=landlord",
     icon: "landlord",
   },
 ];
@@ -261,7 +261,7 @@ export const howItWorks = {
     {
       number: 1,
       title: "Fill in the form",
-      text: `Tell us what's wrong and when suits. Need someone today? Tick the box and we'll ask you to call an engineer direct on ${business.phoneDisplay}.`,
+      text: "Tell us what's wrong and when suits. Need someone today? Tick the box and you go to the front of the queue.",
     },
     {
       number: 2,
@@ -330,7 +330,7 @@ export const faqs: { homes: FaqItem[]; commercial: FaqItem[] } = {
   homes: [
     {
       q: "How quickly can you get to me?",
-      a: `Most domestic repairs are seen the same day if you book before midday. We fix on the spot where we have the parts on the van, otherwise we arrange the next available day to get you up and running again fast. No heat or hot water? Call an engineer direct on ${business.phoneDisplay}.`,
+      a: "Most domestic repairs are seen the same day if you book before midday. We fix on the spot where we have the parts on the van, otherwise we arrange the next available day to get you up and running again fast. No heat or hot water? Tick \"I need someone today\" when you book and you go to the front of the queue.",
     },
     {
       q: "How much is the call-out?",

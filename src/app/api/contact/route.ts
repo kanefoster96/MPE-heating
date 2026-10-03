@@ -17,6 +17,8 @@ type Payload = {
   message?: unknown;
   type?: unknown;
   sameDayRequested?: unknown;
+  // The funnel choices that led here, e.g. ["Plumbing", "Leak or burst pipe"].
+  path?: unknown;
   // Honeypot: real visitors never see this field, bots fill it in.
   company?: unknown;
 };
@@ -53,6 +55,9 @@ export async function POST(request: NextRequest) {
   const typeKey = str(body.type, 40) as EnquiryType;
   const type = ENQUIRY_TYPES[typeKey] ? typeKey : "other";
   const sameDayRequested = body.sameDayRequested === true;
+  const path = Array.isArray(body.path)
+    ? body.path.map((p) => str(p, 60)).filter(Boolean).slice(0, 6)
+    : [];
 
   if (name.length < 2 || !isValidPhone(phone) || message.length < 10) {
     return NextResponse.json({ error: "Check the details and try again." }, { status: 400 });
@@ -68,12 +73,13 @@ export async function POST(request: NextRequest) {
 
   const to = process.env.CONTACT_TO_EMAIL || business.email;
   const from = process.env.CONTACT_FROM_EMAIL || "MPE Website <onboarding@resend.dev>";
-  const label = ENQUIRY_TYPES[type].label;
+  const label = path.length ? path.join(" › ") : ENQUIRY_TYPES[type].label;
   const urgent = sameDayRequested ? " — SAME-DAY" : "";
   const subject = `${label}${urgent}: ${name}`;
 
   const lines = [
-    `Type: ${label}${sameDayRequested ? " (same-day callout requested)" : ""}`,
+    `Request: ${label}${sameDayRequested ? " (same-day requested)" : ""}`,
+    `Type: ${ENQUIRY_TYPES[type].label}`,
     `Name: ${name}`,
     `Phone: ${phone}`,
     `Email: ${email || "not given"}`,
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
   ];
 
   const html = `<p><strong>${escapeHtml(label)}</strong>${
-    sameDayRequested ? " &middot; <strong>same-day callout requested</strong>" : ""
+    sameDayRequested ? " &middot; <strong>same-day requested</strong>" : ""
   }</p>
 <p><strong>Name:</strong> ${escapeHtml(name)}<br/>
 <strong>Phone:</strong> <a href="tel:${escapeHtml(phone.replace(/\s+/g, ""))}">${escapeHtml(phone)}</a><br/>

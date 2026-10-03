@@ -357,3 +357,93 @@ export function EyeOffIcon(props: IconProps) {
     </svg>
   );
 }
+
+/* --- Booking funnel icons --- */
+
+export function TapIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 11h11a3 3 0 0 1 3 3v1" />
+      <path d="M9 11V8h4v3M11 4v4M8 4h6" />
+      <path d="M17.5 17.5c0 1.1-.9 2-2 2s-2-.9-2-2c0-1.3 2-3.5 2-3.5s2 2.2 2 3.5Z" />
+    </svg>
+  );
+}
+
+export function BathIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 12h16v2a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5v-2Z" />
+      <path d="M6 12V6.5A2.5 2.5 0 0 1 8.5 4h.5a2 2 0 0 1 2 2" />
+      <path d="M7 19v1.5M17 19v1.5" />
+    </svg>
+  );
+}
+
+export function LeakIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 7h9a3 3 0 0 1 3 3v1" />
+      <path d="M15 11v2M3 4v6" />
+      <path d="M15.5 20.5c-1.7 0-3-1.3-3-3 0-2 3-5 3-5s3 3 3 5c0 1.7-1.3 3-3 3Z" />
+    </svg>
+  );
+}
+
+export function FuseboxIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 9v6M12 9v6M16 9v6M7 9h2M11 9h2M15 9h2" />
+    </svg>
+  );
+}
+
+export function PlugIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 3v5M15 3v5" />
+      <path d="M6 8h12v3a6 6 0 0 1-12 0V8Z" />
+      <path d="M12 17v4" />
+    </svg>
+  );
+}
+
+export function BulbIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 18h6M10 21h4" />
+      <path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z" />
+    </svg>
+  );
+}
+
+export function EvIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="5" y="3" width="11" height="18" rx="2" />
+      <path d="M16 8h2a1.5 1.5 0 0 1 1.5 1.5V16a2 2 0 1 1-4 0v-1" />
+      <path d="M11 7 8.5 12H12l-1.5 5" />
+    </svg>
+  );
+}
+
+export function OvenIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M4 9h16" />
+      <rect x="7" y="12" width="10" height="5" rx="1" />
+      <path d="M8 6.5h1M11 6.5h1M14 6.5h2" />
+    </svg>
+  );
+}
+
+export function RadiatorIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="7" width="18" height="11" rx="1.5" />
+      <path d="M7 7v11M11 7v11M15 7v11M6 18v2M18 18v2" />
+    </svg>
+  );
+}

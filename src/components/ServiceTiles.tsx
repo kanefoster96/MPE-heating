@@ -21,6 +21,7 @@ export function ServiceTiles() {
           <br />
           {line2}
         </h2>
+        <p className="mt-3 text-base leading-normal text-text-2 lg:text-lg">{homeServices.text}</p>
         <ul className="mt-5 grid grid-cols-2 gap-3 lg:mt-8 lg:grid-cols-4 lg:gap-5">
           {homeServices.items.map((item) => {
             const { Icon, tint } = look[item.key as keyof typeof look];

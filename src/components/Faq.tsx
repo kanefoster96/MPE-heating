@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { faqs, business } from "@/lib/content";
 import { ChevronDownIcon } from "./icons";
 import { Heading, Eyebrow } from "./Heading";
@@ -8,11 +9,13 @@ import { Reveal } from "./Reveal";
 
 type Tab = "homes" | "commercial";
 
-export function Faq() {
+// `limit` shows only the first few home questions with no tabs, for the
+// homepage; the full FAQs page shows everything.
+export function Faq({ limit }: { limit?: number } = {}) {
   const [tab, setTab] = useState<Tab>("homes");
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
-  const items = faqs[tab];
+  const items = limit ? faqs.homes.slice(0, limit) : faqs[tab];
 
   const selectTab = (t: Tab) => {
     setTab(t);
@@ -27,6 +30,7 @@ export function Faq() {
           <Heading lead="Questions." em="Straight answers." className="mt-3 text-3xl sm:text-4xl lg:text-5xl" />
         </Reveal>
 
+        {!limit && (
         <div className="mt-8 flex gap-2" role="tablist" aria-label="Who the questions are for">
           {(["homes", "commercial"] as Tab[]).map((t) => {
             const selected = tab === t;
@@ -46,6 +50,7 @@ export function Faq() {
             );
           })}
         </div>
+        )}
 
         <div className="mt-6 flex flex-col gap-3">
           {items.map((item, i) => {
@@ -69,6 +74,22 @@ export function Faq() {
           })}
         </div>
 
+        {limit ? (
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/faqs"
+              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-navy/20 px-6 text-base font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
+            >
+              See all questions
+            </Link>
+            <Link
+              href="/contact"
+              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-grey px-6 text-base font-semibold text-navy transition-colors hover:bg-navy/10"
+            >
+              Ask us something else
+            </Link>
+          </div>
+        ) : (
         <p className="mt-8 text-center text-sm text-text-2">
           Something else?{" "}
           <a
@@ -81,6 +102,7 @@ export function Faq() {
           </a>
           .
         </p>
+        )}
       </div>
     </section>
   );

@@ -1,14 +1,14 @@
 import { Nav } from "@/components/Nav";
 import { PromoBar } from "@/components/PromoBar";
 import { Hero } from "@/components/Hero";
+import { QuickPick } from "@/components/QuickPick";
 import { BrandsRow } from "@/components/BrandsRow";
-import { PainPoints } from "@/components/PainPoints";
-import { Solution } from "@/components/Solution";
+import { ProblemFix } from "@/components/ProblemFix";
 import { HowItWorks } from "@/components/HowItWorks";
-import { OfferList } from "@/components/OfferList";
-import { Faq } from "@/components/Faq";
+import { Promises } from "@/components/Promises";
 import { Reviews } from "@/components/Reviews";
-import { ServicePicker } from "@/components/ServicePicker";
+import { Faq } from "@/components/Faq";
+import { CommercialBanner } from "@/components/CommercialBanner";
 import { AreasCovered } from "@/components/AreasCovered";
 import { FinalCta } from "@/components/FinalCta";
 import { Footer } from "@/components/Footer";
@@ -16,10 +16,12 @@ import { JsonLd } from "@/components/JsonLd";
 import { faqs } from "@/lib/content";
 import { faqPageJsonLd } from "@/lib/seo";
 
-// Page order: hero and the ask; the pain points we understand; how we
-// solve it; how easy it is to book; guarantees and risk removal (the one
-// ticked list); questions; reviews; all services with a push to business
-// owners; where we cover; the final ask.
+const HOME_FAQS = 4;
+
+// Page order: hero and the main ask; a card for every job so people can
+// tap straight to what they want; the worries we fix; how easy it is;
+// four promise badges; reviews; the top questions; a push to business
+// owners; town chips; the ask again with a second option.
 export default function Home() {
   return (
     <>
@@ -27,19 +29,19 @@ export default function Home() {
       <PromoBar />
       <main>
         <Hero />
+        <QuickPick />
         <BrandsRow />
-        <PainPoints />
-        <Solution />
+        <ProblemFix />
         <HowItWorks />
-        <OfferList />
-        <Faq />
+        <Promises />
         <Reviews />
-        <ServicePicker />
+        <Faq limit={HOME_FAQS} />
+        <CommercialBanner />
         <AreasCovered />
-        <FinalCta />
+        <FinalCta secondary={{ label: "Book a service or something else", href: "/book" }} />
       </main>
       <Footer />
-      <JsonLd data={faqPageJsonLd(faqs.homes)} />
+      <JsonLd data={faqPageJsonLd(faqs.homes.slice(0, HOME_FAQS))} />
     </>
   );
 }

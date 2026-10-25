@@ -57,3 +57,34 @@ export async function saveReviewLink(formData: FormData) {
   revalidatePath("/staff/settings");
   redirect(to({ reviewDone: parsed.url ? "Review link saved." : "Review link removed." }));
 }
+
+/**
+ * The maintenance plan's prices, monthly and/or yearly, and any minimum
+ * term. A price left blank isn't offered; both blank and the plan can't be
+ * joined online. A change applies to people who join from now on: members
+ * keep the price they joined at.
+ */
+export async function savePlanPrices(formData: FormData) {
+  await requireAdmin();
+  const to = (params: Record<string, string>) => `/staff/settings?${new URLSearchParams(params).toString()}#plan`;
+  const pence = (key: string): number | null | "bad" => {
+    const raw = String(formData.get(key) ?? "").replace(/[£,\s]/g, "");
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 1 && n <= 5000 ? Math.round(n * 100) : "bad";
+  };
+  const month = pence("monthPrice");
+  const year = pence("yearPrice");
+  if (month === "bad" || year === "bad") redirect(to({ planError: "Prices need to be between £1 and £5,000." }));
+  const minRaw = String(formData.get("minMonths") ?? "").trim();
+  const min = minRaw ? Number(minRaw) : 0;
+  if (!Number.isInteger(min) || min < 0 || min > 24) redirect(to({ planError: "The minimum term is a number of months, up to 24." }));
+  const ok = (await Promise.all([
+    setSetting("plan_month_pence", month ? String(month) : null),
+    setSetting("plan_year_pence", year ? String(year) : null),
+    setSetting("plan_min_months", min ? String(min) : null),
+  ])).every(Boolean);
+  if (!ok) redirect(to({ planError: "Couldn't save that." }));
+  revalidatePath("/staff/settings");
+  redirect(to({ planDone: month || year ? "Plan prices saved." : "Plan prices cleared: the plan can't be joined online until a price is set." }));
+}

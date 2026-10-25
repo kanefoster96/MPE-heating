@@ -9,7 +9,9 @@ import { business } from "@/lib/content";
 import { getCustomer } from "@/lib/customers";
 import { enquiriesOn } from "@/lib/enquiries";
 import { PAID_VIA_LABEL, formatPence, getPaymentByToken, invoiceNumber, paymentsOn } from "@/lib/payments";
-import { payNow } from "./actions";
+import { changeCard, payMonthly, payNow } from "./actions";
+import { instalmentSchedule, scheduleSummary } from "@/lib/instalment-schedule";
+import { instalmentProgress } from "@/lib/instalments";
 import { PayForm } from "./pay-form";
 
 export const metadata: Metadata = {
@@ -30,16 +32,19 @@ export default async function PayPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ paid?: string; error?: string }>;
+  searchParams: Promise<{ paid?: string; monthly?: string; error?: string }>;
 }) {
   const { token } = await params;
-  const { paid, error } = await searchParams;
+  const { paid, monthly, error } = await searchParams;
   if (!enquiriesOn()) notFound();
   const p = await getPaymentByToken(token);
   if (!p) notFound();
   const customer = p.customerId ? await getCustomer(p.customerId) : null;
   const title = p.kind === "callout_fee" ? "Call-out fee" : `Invoice ${invoiceNumber(p.number)}`;
   const isPaid = p.status === "paid";
+  const onMonthly = p.planStatus === "active" || p.planStatus === "past_due";
+  const offerMonthly = p.status === "open" && !p.planStatus && p.instalments ? instalmentSchedule(p.amountPence, p.instalments.months, p.instalments.depositPence) : null;
+  const progress = p.planStatus ? (await instalmentProgress([p])).get(p.id) : undefined;
 
   return (
     <>
@@ -51,6 +56,11 @@ export default async function PayPage({
           {paid && !isPaid && (
             <p className="mb-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-success print:hidden" data-confirming>
               Thank you! We&rsquo;re just confirming your payment. Refresh in a moment to see your receipt.
+            </p>
+          )}
+          {monthly && !p.planStatus && (
+            <p className="mb-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-success print:hidden" data-confirming>
+              Thank you! We&rsquo;re just setting up your monthly payments. Refresh in a moment.
             </p>
           )}
           {error && <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger print:hidden">{error}</p>}
@@ -77,7 +87,7 @@ export default async function PayPage({
                     isPaid ? "bg-success/10 text-success" : p.status === "cancelled" ? "bg-navy/10 text-navy" : "bg-terracotta-deep/10 text-terracotta-deep"
                   }`}
                 >
-                  {isPaid ? "Paid" : p.status === "cancelled" ? "Cancelled" : "To pay"}
+                  {isPaid ? "Paid" : p.status === "cancelled" ? "Cancelled" : onMonthly ? "Paying monthly" : "To pay"}
                 </p>
               </div>
             </header>
@@ -107,7 +117,7 @@ export default async function PayPage({
               </tbody>
               <tfoot>
                 <tr>
-                  <td className="pt-4 text-lg font-bold text-navy">{isPaid ? "Paid" : p.offers.some((o) => !o.taken) ? "Invoice total" : "Total to pay"}</td>
+                  <td className="pt-4 text-lg font-bold text-navy">{isPaid ? "Paid" : p.offers.some((o) => !o.taken) || p.planStatus ? "Invoice total" : "Total to pay"}</td>
                   <td className="pt-4 text-right text-2xl font-extrabold text-navy" data-amount>
                     {formatPence(p.amountPence)}
                   </td>
@@ -125,12 +135,51 @@ export default async function PayPage({
               <p className="mt-4 text-sm text-text-2">If you go ahead with the repair, the call-out fee comes off your bill.</p>
             )}
 
-            {p.status === "open" &&
+            {p.instalments && progress && (onMonthly || p.planStatus === "stopped") && (
+              <div className="mt-6 rounded-2xl bg-cream p-5" data-monthly-progress>
+                <p className="font-semibold text-navy">
+                  Paying monthly: {progress.paidCount} of {p.instalments.months} payments made ({formatPence(progress.paidPence)} of {formatPence(p.amountPence)})
+                </p>
+                {p.planStatus === "past_due" ? (
+                  <p className="mt-1 text-sm text-danger">Your last payment didn&rsquo;t go through. Change your card and we&rsquo;ll try again.</p>
+                ) : p.planStatus === "stopped" ? (
+                  <p className="mt-1 text-sm text-text-2">Your monthly payments have stopped. Please call us on {business.phoneDisplay} about the rest.</p>
+                ) : progress.nextOn ? (
+                  <p className="mt-1 text-sm text-text-2">Next payment due {DATE.format(new Date(progress.nextOn))}, taken from your card automatically. No interest, nothing added.</p>
+                ) : null}
+                {onMonthly && (
+                  <form action={changeCard.bind(null, token)} className="mt-3 print:hidden">
+                    <button type="submit" className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline underline-offset-4">
+                      Change card or see payments
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {p.status === "open" && !onMonthly && p.planStatus !== "stopped" &&
               (paymentsOn() ? (
                 <PayForm
                   action={payNow.bind(null, token)}
                   amountPence={p.amountPence}
                   offers={p.offers.map((o, index) => ({ index, label: o.label, pence: o.pence, usualPence: o.usualPence, taken: o.taken })).filter((o) => !o.taken)}
+                  monthly={
+                    offerMonthly?.ok ? (
+                      <form action={payMonthly.bind(null, token)} className="rounded-2xl border-2 border-line bg-cream p-4" data-pay-monthly>
+                        <p className="font-semibold text-navy">Or spread the cost, interest-free</p>
+                        <p className="mt-1 text-sm text-text-2">
+                          {scheduleSummary(offerMonthly.schedule, formatPence)}, taken from your card automatically. {formatPence(p.amountPence)} in all: no interest,
+                          nothing added.
+                        </p>
+                        <button
+                          type="submit"
+                          className="mt-3 inline-flex min-h-12 items-center justify-center rounded-full border-2 border-navy px-5 font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
+                        >
+                          Pay {formatPence(offerMonthly.schedule.firstPence)} today and the rest monthly
+                        </button>
+                      </form>
+                    ) : null
+                  }
                 />
               ) : (
                 <p className="mt-8 rounded-2xl bg-cream px-4 py-3 text-text-2 print:hidden">

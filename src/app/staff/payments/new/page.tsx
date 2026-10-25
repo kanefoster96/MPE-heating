@@ -8,7 +8,6 @@ import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
 import {
   CALLOUT_FEE_PENCE,
   PAID_VIA_LABEL,
-
   calloutCreditFor,
   formatPence,
   invoiceNumber,
@@ -22,6 +21,8 @@ import {
 import { PaymentBuilder } from "@/components/staff/payment-builder";
 import { listProducts, upsellProducts } from "@/lib/products";
 import { managePayment, takePayment } from "./actions";
+import { planFor, planDate } from "@/lib/maintenance-plan";
+import { instalmentProgress, type InstalmentProgress } from "@/lib/instalments";
 
 export const metadata: Metadata = { title: "Take payment" };
 
@@ -63,6 +64,8 @@ export default async function TakePaymentPage({
     visit ? calloutCreditFor(visit.id) : Promise.resolve(0),
   ]);
   const first = customer.name?.split(" ")[0] ?? "them";
+  const [plan, progress] = await Promise.all([planFor(customer.id), instalmentProgress(existing)]);
+  const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
   const calloutAsked = existing.some((p) => p.kind === "callout_fee" && p.status !== "cancelled");
 
   return (
@@ -93,6 +96,15 @@ export default async function TakePaymentPage({
         </p>
       )}
 
+      {onPlan && (
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success" data-on-plan>
+          <strong>On the maintenance plan</strong>
+          {onPlan.status === "past_due" ? " (their last plan payment failed)" : ""}: no call-out fee
+          {visit?.kind === "service" ? `, and their yearly service is included${onPlan.lastServiceOn ? ` (last one ${longDate(onPlan.lastServiceOn)})` : ""}` : ""}.
+          {onPlan.startedAt ? ` Member since ${planDate(onPlan.startedAt)}.` : ""}
+        </p>
+      )}
+
       {existing.length > 0 && (
         <section className="mt-8" aria-labelledby="asked">
           <h2 id="asked" className="text-lg font-semibold">
@@ -100,13 +112,13 @@ export default async function TakePaymentPage({
           </h2>
           <ul className="mt-3 flex flex-col gap-2">
             {existing.map((p) => (
-              <ExistingPayment key={p.id} p={p} action={managePayment.bind(null, ctx, p.id)} card={card} online={online} />
+              <ExistingPayment key={p.id} p={p} action={managePayment.bind(null, ctx, p.id)} card={card} online={online} progress={progress.get(p.id)} />
             ))}
           </ul>
         </section>
       )}
 
-      {!calloutAsked && (
+      {!calloutAsked && !onPlan && (
         <section className="mt-8 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="callout">
           <h2 id="callout" className="text-lg font-semibold">
             Call-out fee
@@ -175,12 +187,15 @@ function ExistingPayment({
   action,
   card,
   online,
+  progress,
 }: {
   p: PaymentRequest;
   action: (formData: FormData) => void | Promise<void>;
   card: { brand: string; last4: string } | null;
   online: boolean;
+  progress?: InstalmentProgress;
 }) {
+  const monthly = p.planStatus === "active" || p.planStatus === "past_due";
   return (
     <li className="rounded-xl border border-border bg-surface px-4 py-3" data-payment={p.status}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -194,8 +209,15 @@ function ExistingPayment({
           ? `Paid ✓${p.paidVia ? ` · ${PAID_VIA_LABEL[p.paidVia]}` : ""}`
           : p.status === "cancelled"
             ? "Cancelled"
-            : `Waiting for them to pay${p.reminderCount ? ` · reminded ${p.reminderCount === 1 ? "once" : "twice"}` : ""}`}
+            : monthly && p.instalments
+              ? `Paying monthly: ${progress?.paidCount ?? 0} of ${p.instalments.months} paid (${formatPence(progress?.paidPence ?? 0)})${p.planStatus === "past_due" ? " · last payment failed" : ""}`
+              : p.planStatus === "stopped"
+                ? `Monthly payments stopped with ${formatPence(p.amountPence - (progress?.paidPence ?? 0))} to pay`
+                : `Waiting for them to pay${p.reminderCount ? ` · reminded ${p.reminderCount === 1 ? "once" : "twice"}` : ""}`}
       </p>
+      {p.status === "open" && !p.planStatus && p.instalments && (
+        <p className="text-xs text-muted">They can pay monthly over {p.instalments.months} months.</p>
+      )}
       {p.offers.length > 0 && (
         <p className="text-xs text-muted" data-offer-status>
           {p.offers.some((o) => o.taken)
@@ -208,9 +230,16 @@ function ExistingPayment({
               : "Didn't add the extras"}
         </p>
       )}
-      {p.status === "open" && (
+      {monthly && (
+        <form action={action} className="mt-2">
+          <button type="submit" name="intent" value="stop_monthly" className="min-h-9 px-2 text-xs font-medium text-danger">
+            Stop monthly payments
+          </button>
+        </form>
+      )}
+      {p.status === "open" && !monthly && (
         <form action={action} className="mt-2 flex flex-wrap gap-1.5">
-          {card && (
+          {card && !p.planStatus && (
             <button type="submit" name="intent" value="charge" className={`${SMALL} border-accent bg-accent text-accent-foreground`}>
               Charge {card.brand} ending {card.last4}
             </button>
@@ -224,7 +253,7 @@ function ExistingPayment({
           <button type="submit" name="intent" value="bank_transfer" className={SMALL}>
             Bank transfer
           </button>
-          {online && (
+          {online && !p.planStatus && (
             <button type="submit" name="intent" value="resend" className={SMALL}>
               Send the link again
             </button>

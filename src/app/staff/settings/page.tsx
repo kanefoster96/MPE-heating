@@ -4,7 +4,8 @@ import { requireStaff } from "@/lib/staff-auth";
 import { isAdmin } from "@/lib/coach";
 import { MAX_UPSELLS, SUGGESTED_PRODUCTS, defaultUpsellPrice, listProducts, type Product } from "@/lib/products";
 import { formatPence } from "@/lib/payments";
-import { addProduct, removeProduct, saveProduct, saveReviewLink, toggleUpsell } from "./actions";
+import { addProduct, removeProduct, saveProduct, savePlanPrices, saveReviewLink, toggleUpsell } from "./actions";
+import { PLAN_BENEFITS, planPrices } from "@/lib/maintenance-plan";
 import { getSetting } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -21,12 +22,12 @@ const pounds = (pence: number | null | undefined) => (pence ? (pence / 100).toSt
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string; reviewDone?: string; reviewError?: string }>;
+  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string; reviewDone?: string; reviewError?: string; planDone?: string; planError?: string }>;
 }) {
   const params = await searchParams;
   const user = await requireStaff("/staff/settings");
   if (!(await isAdmin(user.id))) redirect("/staff/schedule");
-  const [products, googleReview] = await Promise.all([listProducts(), getSetting("review_url").catch(() => null)]);
+  const [products, googleReview, plan] = await Promise.all([listProducts(), getSetting("review_url").catch(() => null), planPrices()]);
   const upsellCount = products.filter((p) => p.upsell).length;
   const have = new Set(products.map((p) => p.name.toLowerCase()));
   const suggestions = SUGGESTED_PRODUCTS.filter((s) => !have.has(s.name.toLowerCase()));
@@ -36,6 +37,47 @@ export default async function SettingsPage({
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <p className="text-sm uppercase tracking-widest text-muted">MPE team</p>
       <h1 className="mt-1 text-3xl font-semibold tracking-tight">Settings</h1>
+
+      <section id="plan" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="plan-heading">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="plan-heading" className="text-lg font-semibold">
+            Maintenance plan
+          </h2>
+          <a href="/staff/plan" className="inline-flex min-h-11 items-center text-sm font-semibold text-accent underline underline-offset-4">
+            See members
+          </a>
+        </div>
+        <p className="mt-1 text-sm text-muted">
+          What it includes, as the site says: {PLAN_BENEFITS.map((b) => b.charAt(0).toLowerCase() + b.slice(1)).join(" and ")}. Set a monthly price, a yearly
+          price or both. Leave one blank and it isn&rsquo;t offered. Members keep the price they joined at.
+        </p>
+        {params.planDone && <p className="mt-3 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">{params.planDone}</p>}
+        {params.planError && <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{params.planError}</p>}
+        <form action={savePlanPrices} className="mt-4 grid gap-3 sm:grid-cols-3" data-plan-prices>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted">Monthly £</span>
+            <input name="monthPrice" inputMode="decimal" defaultValue={pounds(plan.monthPence)} placeholder="Not offered" className={`${FIELD} text-right`} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted">Yearly £</span>
+            <input name="yearPrice" inputMode="decimal" defaultValue={pounds(plan.yearPence)} placeholder="Not offered" className={`${FIELD} text-right`} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted">Minimum term, months (optional)</span>
+            <input name="minMonths" inputMode="numeric" defaultValue={plan.minMonths || ""} placeholder="None" className={`${FIELD} text-right`} />
+          </label>
+          <p className="text-xs text-muted sm:col-span-3">
+            With a minimum term, someone who cancels early stays on (and paying) until it&rsquo;s up. Worth setting for monthly members, so the free service
+            isn&rsquo;t a one-month sign-up.
+          </p>
+          <button type="submit" className="min-h-11 rounded-full bg-foreground px-5 text-sm font-semibold text-background hover:opacity-90 sm:col-span-3 sm:justify-self-start">
+            Save plan prices
+          </button>
+        </form>
+        {!plan.monthPence && !plan.yearPence && (
+          <p className="mt-2 text-xs text-muted">No price yet: the plan&rsquo;s booking form still takes enquiries, but no one can join online.</p>
+        )}
+      </section>
 
       <section id="reviews" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="reviews-heading">
         <h2 id="reviews-heading" className="text-lg font-semibold">

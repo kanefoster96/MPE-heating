@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MAX_INSTALMENTS, MIN_INSTALMENTS, instalmentSchedule, scheduleSummary } from "@/lib/instalment-schedule";
 
 type Line = { description: string; pounds: string };
 
@@ -61,9 +62,13 @@ export function PaymentBuilder({
     ...(creditPence > 0 ? [{ description: "Call-out fee already paid", pounds: (-creditPence / 100).toString() }] : []),
   ]);
   const [inPerson, setInPerson] = useState(!online);
+  const [monthlyOn, setMonthlyOn] = useState(false);
+  const [months, setMonths] = useState(6);
+  const [deposit, setDeposit] = useState("");
   const parsed = lines.map((l) => ({ description: l.description.trim(), amountPence: toPence(l.pounds) })).filter((l) => l.description || l.amountPence);
   const total = parsed.reduce((sum, l) => sum + l.amountPence, 0);
   const ready = parsed.length > 0 && parsed.every((l) => l.description && l.amountPence !== 0) && total >= 100;
+  const monthly = monthlyOn && total >= 100 ? instalmentSchedule(total, months, toPence(deposit)) : null;
 
   function update(i: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -206,9 +211,46 @@ export function PaymentBuilder({
         </div>
       )}
 
+      {online && (
+        <div className="rounded-xl border border-border bg-background p-4" data-monthly-builder>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3">
+            <input type="checkbox" checked={monthlyOn} onChange={(e) => setMonthlyOn(e.target.checked)} className="h-5 w-5 accent-[var(--color-accent)]" />
+            <span className="text-sm font-semibold">Let them pay monthly</span>
+          </label>
+          {monthlyOn && (
+            <div className="mt-2 flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-muted">Payments</span>
+                  <select name="instalmentMonths" value={months} onChange={(e) => setMonths(Number(e.target.value))} className={FIELD}>
+                    {Array.from({ length: MAX_INSTALMENTS - MIN_INSTALMENTS + 1 }, (_, i) => i + MIN_INSTALMENTS).map((n) => (
+                      <option key={n} value={n}>
+                        {n} months
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-muted">Deposit £ (optional)</span>
+                  <input name="instalmentDeposit" value={deposit} onChange={(e) => setDeposit(e.target.value)} inputMode="decimal" placeholder="0" className={`${FIELD} text-right`} />
+                </label>
+              </div>
+              <p className={`text-sm ${monthly && !monthly.ok ? "text-danger" : "text-muted"}`} data-monthly-preview>
+                {!monthly
+                  ? "Add the lines first."
+                  : monthly.ok
+                    ? `They can choose: ${scheduleSummary(monthly.schedule, formatPence)}. Interest-free, taken from their card automatically.`
+                    : monthly.error}
+              </p>
+              <p className="text-xs text-muted">Offered on their pay page next to paying in full. Up to 12 months with nothing added keeps it outside consumer credit rules.</p>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         {online && (
-          <button type="submit" name="intent" value="send" disabled={!ready} className={`${BIG} bg-accent text-accent-foreground`}>
+          <button type="submit" name="intent" value="send" disabled={!ready || (monthly !== null && !monthly.ok)} className={`${BIG} bg-accent text-accent-foreground`}>
             Send {firstName} the invoice
           </button>
         )}

@@ -11,7 +11,9 @@ import { KIND_LABEL, KIND_STYLE, STATUS_LABEL, longDate, windowLabel } from "@/l
 import { londonNow, londonParts, formatLondonClock } from "@/lib/schedule-time";
 import { CustomerFields } from "@/components/customer-fields";
 import { PhoneIcon } from "@/components/icons";
-import { addNote, openCustomerChat, removeNote, saveCustomer } from "../actions";
+import { addNote, managePlan, openCustomerChat, removeNote, saveCustomer } from "../actions";
+import { BILLING_LABEL, earliestEnd, planDate, planFor, planOpen, planPrices } from "@/lib/maintenance-plan";
+import { instalmentProgress } from "@/lib/instalments";
 import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForCustomer } from "@/lib/payments";
 import { reviewsForCustomer, type JobReview } from "@/lib/job-completion";
 
@@ -61,10 +63,10 @@ export default async function CustomerPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; success?: string }>;
+  searchParams: Promise<{ error?: string; success?: string; planDone?: string }>;
 }) {
   const { id } = await params;
-  const { error, success } = await searchParams;
+  const { error, success, planDone } = await searchParams;
   const user = await requireStaff(`/staff/customers/${id}`);
   const customer = await getCustomer(id);
   if (!customer) notFound();
@@ -75,7 +77,8 @@ export default async function CustomerPage({
     enquiriesForCustomer(id),
     paymentsForCustomer(id),
   ]);
-  const reviews = await reviewsForCustomer(id);
+  const [reviews, plan, prices, progress] = await Promise.all([reviewsForCustomer(id), planFor(id), planPrices(), instalmentProgress(payments)]);
+  const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
   const today = londonNow().dateISO;
   const upcoming = visits.filter((v) => v.day >= today && v.status === "booked").reverse();
   const past = visits.filter((v) => !(v.day >= today && v.status === "booked"));
@@ -108,6 +111,11 @@ export default async function CustomerPage({
             {[customer.address, customer.postcode].filter(Boolean).join(", ") || "No address yet"}
             {customer.userId ? " · Has an account" : ""}
           </p>
+          {onPlan && (
+            <a href="#plan" className="mt-2 inline-flex rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success" data-plan-badge>
+              On the maintenance plan{onPlan.status === "past_due" ? " · payment failed" : onPlan.cancelAt ? ` · ends ${planDate(onPlan.cancelAt)}` : ""}
+            </a>
+          )}
         </div>
       </div>
 
@@ -140,6 +148,71 @@ export default async function CustomerPage({
         <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">{SUCCESS[success]}</p>
       )}
       {error && <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{error}</p>}
+
+      <section id="plan" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="plan-heading">
+        <h2 id="plan-heading" className="text-lg font-semibold">
+          Maintenance plan
+        </h2>
+        {planDone && <p className="mt-3 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">{planDone}</p>}
+        {onPlan ? (
+          <>
+            <p className="mt-1 text-sm">
+              {onPlan.pricePence && onPlan.billing ? `${formatPence(onPlan.pricePence)} ${BILLING_LABEL[onPlan.billing]}` : "On the plan"}
+              {onPlan.startedAt ? ` since ${planDate(onPlan.startedAt)}` : ""}.{" "}
+              {onPlan.status === "past_due" ? (
+                <span className="font-semibold text-danger">Last payment failed: they&rsquo;ve been sent a link to fix it.</span>
+              ) : onPlan.cancelAt ? (
+                `Cancelled: ends ${planDate(onPlan.cancelAt)}.`
+              ) : onPlan.currentPeriodEnd ? (
+                `Next payment ${planDate(onPlan.currentPeriodEnd)}.`
+              ) : null}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              No call-out fee, and their yearly service is included. {onPlan.lastServiceOn ? `Last service ${longDate(onPlan.lastServiceOn)}.` : "No service on the plan yet."}
+            </p>
+            <form action={managePlan.bind(null, customer.id)} className="mt-3 flex flex-wrap gap-2">
+              {onPlan.cancelAt ? (
+                <button type="submit" name="intent" value="keep" className={button}>
+                  Keep it going
+                </button>
+              ) : (
+                <button type="submit" name="intent" value="cancel" className={button}>
+                  Cancel{(() => {
+                    const end = earliestEnd(onPlan);
+                    return end ? ` (ends ${planDate(end.toISOString())})` : "";
+                  })()}
+                </button>
+              )}
+            </form>
+            <details className="mt-2 text-sm">
+              <summary className="flex min-h-11 cursor-pointer items-center font-medium text-danger">End it today instead</summary>
+              <form action={managePlan.bind(null, customer.id)} className="flex flex-wrap items-center gap-3 pb-2">
+                <span className="text-muted">It stops today. What they&rsquo;ve paid isn&rsquo;t refunded automatically: refund in Stripe if it should be.</span>
+                <button type="submit" name="intent" value="end_now" className="min-h-11 rounded-full border border-danger/40 px-4 font-semibold text-danger hover:bg-danger/10">
+                  End the plan now
+                </button>
+              </form>
+            </details>
+          </>
+        ) : planOpen(prices) ? (
+          <form action={managePlan.bind(null, customer.id)} className="mt-2 flex flex-wrap items-center gap-3">
+            <p className="w-full text-sm text-muted">
+              {plan?.status === "pending" ? "They've been sent the link but haven't joined yet." : plan?.status === "ended" ? "Their plan has ended." : "Not on the plan."}
+            </p>
+            <button type="submit" name="intent" value="send" className="min-h-11 rounded-full bg-foreground px-5 text-sm font-semibold text-background hover:opacity-90">
+              {plan?.status === "pending" ? "Send the plan link again" : "Send them the plan"}
+            </button>
+          </form>
+        ) : (
+          <p className="mt-1 text-sm text-muted">
+            Not on the plan. Set the plan&rsquo;s price in{" "}
+            <Link href="/staff/settings#plan" className="underline underline-offset-4">
+              Settings
+            </Link>{" "}
+            to send them a link to join.
+          </p>
+        )}
+      </section>
 
       <section className="mt-8" aria-labelledby="upcoming">
         <h2 id="upcoming" className="text-lg font-semibold">
@@ -248,8 +321,16 @@ export default async function CustomerPage({
                 </span>
                 <span className="text-right">
                   <span className="block font-bold">{formatPence(pay.amountPence)}</span>
-                  <span className={`text-xs ${pay.status === "paid" ? "font-medium text-success" : "text-muted"}`}>
-                    {pay.status === "paid" ? `Paid${pay.paidVia ? ` · ${PAID_VIA_LABEL[pay.paidVia]}` : ""}` : pay.status === "cancelled" ? "Cancelled" : "Waiting"}
+                  <span className={`text-xs ${pay.status === "paid" ? "font-medium text-success" : pay.planStatus === "past_due" ? "font-medium text-danger" : "text-muted"}`}>
+                    {pay.status === "paid"
+                      ? `Paid${pay.paidVia ? ` · ${PAID_VIA_LABEL[pay.paidVia]}` : ""}`
+                      : pay.status === "cancelled"
+                        ? "Cancelled"
+                        : pay.instalments && (pay.planStatus === "active" || pay.planStatus === "past_due")
+                          ? `Monthly · ${progress.get(pay.id)?.paidCount ?? 0} of ${pay.instalments.months} paid`
+                          : pay.planStatus === "stopped"
+                            ? "Monthly payments stopped"
+                            : "Waiting"}
                   </span>
                 </span>
               </li>

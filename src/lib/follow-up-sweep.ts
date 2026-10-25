@@ -247,6 +247,8 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
       .from("payment_requests")
       .select("id, number, kind, amount_pence, reminder_count, created_at, reminded_at")
       .eq("status", "open")
+      // Being paid monthly: Stripe takes it, and chases a missed one itself.
+      .is("plan_status", null)
       .lt("reminder_count", 3)
       .lte("created_at", new Date(Date.now() - UNPAID_FIRST_DAYS * 86_400_000).toISOString());
     for (const row of data ?? []) {

@@ -554,6 +554,68 @@ alter table public.chat_messages add column if not exists payment_request_id uui
 -- The customer in Stripe, once they've saved a card with MPE.
 alter table public.customers add column if not exists stripe_customer_id text;
 
+-- Paying an invoice monthly (lib/instalments.ts): Fergal can let them
+-- spread an invoice over up to 12 monthly payments, interest-free (no more
+-- than 12, all within a year, and nothing added: that keeps it outside
+-- consumer credit rules). Any deposit is taken with the first payment.
+-- It's a Stripe subscription that ends itself after the last payment.
+alter table public.payment_requests add column if not exists instalments integer check (instalments is null or instalments between 2 and 12);
+alter table public.payment_requests add column if not exists instalment_deposit_pence integer not null default 0;
+-- Once they've chosen it: 'active', 'past_due' (a payment failed),
+-- 'completed' (all paid) or 'stopped' (ended before it was all paid).
+alter table public.payment_requests add column if not exists plan_status text check (plan_status in ('active', 'past_due', 'completed', 'stopped'));
+alter table public.payment_requests add column if not exists plan_subscription_id text;
+alter table public.payment_requests add column if not exists plan_started_at timestamptz;
+alter table public.payment_requests drop constraint if exists payment_requests_paid_via_check;
+alter table public.payment_requests add constraint payment_requests_paid_via_check
+  check (paid_via in ('link', 'app', 'saved_card', 'tap_to_pay', 'in_person', 'cash', 'bank_transfer', 'instalments'));
+create unique index if not exists payment_requests_plan_sub_idx on public.payment_requests (plan_subscription_id) where plan_subscription_id is not null;
+
+-- Each monthly payment that came in, once (Stripe resends webhooks).
+create table if not exists public.instalment_payments (
+  id uuid primary key default gen_random_uuid(),
+  payment_request_id uuid not null references public.payment_requests (id) on delete cascade,
+  stripe_invoice_id text not null unique,
+  amount_pence integer not null,
+  paid_at timestamptz not null default now()
+);
+create index if not exists instalment_payments_request_idx on public.instalment_payments (payment_request_id, paid_at);
+alter table public.instalment_payments enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- The maintenance plan (lib/maintenance-plan.ts): free call-outs all year
+-- round and a free yearly service, paid monthly or yearly by Stripe
+-- subscription (Kanvas Academy's memberships). The prices, and any minimum
+-- term, are set in Settings. A row starts 'pending' when the customer is
+-- sent the link (or opens it from their account), and is 'active' once
+-- they've paid; 'past_due' when a payment fails, 'ended' when it's over.
+-- cancel_at is set while it's due to end. Service-role only.
+create table if not exists public.plan_members (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid not null references public.customers (id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'active', 'past_due', 'ended')),
+  billing text check (billing in ('month', 'year')),
+  price_pence integer,
+  -- The minimum term when they joined, in months (0: none).
+  min_months integer not null default 0,
+  stripe_subscription_id text unique,
+  current_period_end timestamptz,
+  cancel_at timestamptz,
+  started_at timestamptz,
+  ended_at timestamptz,
+  -- Their free yearly service: the last one done while on the plan.
+  last_service_on date,
+  payment_failed_at timestamptz,
+  public_token text not null default replace(gen_random_uuid()::text, '-', ''),
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists plan_members_token_idx on public.plan_members (public_token);
+create index if not exists plan_members_customer_idx on public.plan_members (customer_id, created_at desc);
+create unique index if not exists plan_members_one_live_idx on public.plan_members (customer_id) where status in ('active', 'past_due');
+alter table public.plan_members enable row level security;
+
 -- ---------------------------------------------------------------------------
 -- App push notifications (the MPE app, next stage).
 

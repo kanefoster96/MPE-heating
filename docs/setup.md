@@ -213,6 +213,57 @@ a native app, so it arrives with the MPE app. The server side is ready:
 `/api/payment-requests/<id>/tap-to-pay`. Until then, use **They've paid me
 in person** for any card machine Fergal already has.
 
+**Paying monthly.** On an invoice, tick **Let them pay monthly** and pick
+how many payments (2 to 12) and any deposit. The preview shows exactly
+what they'll be offered, e.g. "£700 today (including a £500 deposit), then
+£200 a month for 9 months". Their pay page then offers that next to paying
+in full. If they choose it, today's payment is taken and the rest come from
+their card automatically each month. Once the last one is in, the invoice
+is marked paid and they get a receipt. If a payment fails, they're sent a
+link to pay it or change card, and the team gets a push. Stripe tries again
+over the next few days. The invoice shows "Paying monthly: 3 of 10 paid"
+for the team and the customer, and **Stop monthly payments** ends it early.
+
+Keep it to 12 payments or fewer, all within a year, with nothing added:
+interest-free credit like that doesn't need FCA consumer credit
+authorisation. Longer terms, or charging interest, need a finance provider.
+The site won't offer more than 12. Remember the work is usually done before
+it's all paid, so it's Fergal's risk if someone stops paying.
+
+### Maintenance plan
+
+The plan includes what the site already says: free call-outs all year
+round and a free yearly service. Set its price under **Settings →
+Maintenance plan**: monthly, yearly or both. A minimum term is optional.
+With no price set, the plan's booking form still takes enquiries, but no
+one can join online. Members keep the price they joined at.
+
+**Joining.** On a customer's page, **Send them the plan** sends their own
+link by message, text, email and the app. They choose monthly or yearly
+and pay by Apple Pay, Google Pay or card. Customers can also join from
+their account. The team gets a push when someone joins, and the customer
+gets a welcome message.
+
+**Day to day.**
+- A member's visits show a green **Plan** chip on the schedule, and their
+  page says "On the maintenance plan".
+- The Take payment page doesn't offer a member the call-out fee. On a
+  service, it notes the service is included.
+- Finishing a service with "Serviced on this visit" ticked records it as
+  their yearly service.
+- **Customers → Plan members** lists everyone, roughly what the plan brings
+  in a month, failed payments, and who's leaving.
+
+**Changes.** Members manage it from their account:
+- **Update card and see payments** opens Stripe's billing page.
+- **Cancel my plan** runs it to the end of what they've paid for, or to
+  the end of the minimum term if that's later.
+- **Keep my plan** undoes a cancellation.
+
+The team can do the same from the customer's page, and can also end a plan
+today. A failed payment sends them Stripe's link to pay it or update their
+card, and the team gets a push.
+
 ### Finishing a job and reviews
 
 Tapping **Done** on a visit opens a short finish screen:
@@ -337,9 +388,12 @@ twice.
 1. In Stripe, turn on Apple Pay and Google Pay under **Settings →
    Payment methods**. Checkout shows them automatically.
 2. Copy the secret key into `STRIPE_SECRET_KEY`.
-3. Add a webhook to `https://<site>/api/webhooks/stripe` for the
-   `payment_intent.succeeded` event. Copy its signing secret into
-   `STRIPE_WEBHOOK_SECRET`.
+3. Add a webhook to `https://<site>/api/webhooks/stripe` for these events:
+   `payment_intent.succeeded`, `checkout.session.completed`,
+   `invoice.paid`, `invoice.payment_failed`,
+   `customer.subscription.updated` and `customer.subscription.deleted`.
+   The last five are for the maintenance plan and monthly payments. Copy
+   its signing secret into `STRIPE_WEBHOOK_SECRET`.
 4. For Tap to Pay (with the app), create a location under **Terminal →
    Locations** and set its id as `STRIPE_TERMINAL_LOCATION`.
 

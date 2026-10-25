@@ -7,6 +7,7 @@ import { renderEmailLayout } from "@/lib/emails/layout";
 import { business } from "@/lib/content";
 import { KIND_LABEL, longDate } from "@/lib/day-plan";
 import { londonNow } from "@/lib/schedule-time";
+import { recordPlanService } from "@/lib/maintenance-plan";
 
 /**
  * Finishing a job. Fergal says what he did (the customer sees it on their
@@ -102,6 +103,8 @@ export async function completeJob(params: {
     fields.lastService = `${MONTHS[m - 1]} ${y}`;
   }
   if (Object.keys(fields).length) await updateCustomer(customer.id, fields);
+  // On the plan: their free yearly service is done, for the team's record.
+  if (params.servicedToday) await recordPlanService(customer.id, visit.day);
 
   if (!params.sendSummary) return { ok: true, sentVia: [] };
   const first = customer.name ? customer.name.split(" ")[0] : null;

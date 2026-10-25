@@ -13,6 +13,8 @@ import {
   getCustomer,
   updateCustomer,
 } from "@/lib/customers";
+import { cancelPlan, keepPlan, planDate, planFor, sendPlanInvite } from "@/lib/maintenance-plan";
+import { viaPhrase } from "@/lib/visit-notify";
 
 const page = (id: string, params: Record<string, string> = {}) =>
   `/staff/customers/${id}${Object.keys(params).length ? `?${new URLSearchParams(params).toString()}` : ""}`;
@@ -70,4 +72,30 @@ export async function openCustomerChat(id: string) {
   if (!conversation) redirect(page(id, { error: "Add a mobile number to start a conversation." }));
   await createAdminClient().from("customers").update({ conversation_id: conversation.id }).eq("id", id);
   redirect(`/staff/messages/${conversation.id}`);
+}
+
+/** The maintenance plan, from the customer's page: send them the link, cancel (at the end, or now), or keep it. */
+export async function managePlan(id: string, formData: FormData) {
+  const user = await requireStaff(`/staff/customers/${id}`);
+  const intent = String(formData.get("intent") ?? "");
+  const back = (params: Record<string, string>) => `${page(id, params)}#plan`;
+  if (intent === "send") {
+    const result = await sendPlanInvite(id, user.id);
+    if (!result.ok) redirect(back({ error: result.error }));
+    redirect(back({ planDone: result.sentVia.length ? `Plan link sent by ${viaPhrase(result.sentVia)}.` : "Saved, but we couldn't reach them: add an email or mobile." }));
+  }
+  const member = await planFor(id);
+  if (!member) redirect(back({ error: "They're not on the plan." }));
+  let flash = "Done.";
+  if (intent === "cancel" || intent === "end_now") {
+    const result = await cancelPlan(member.id, { now: intent === "end_now" });
+    if (!result.ok) redirect(back({ error: result.error }));
+    flash = result.endsOn ? `Cancelled. It ends on ${planDate(result.endsOn)}.` : "Plan ended.";
+  } else if (intent === "keep") {
+    const result = await keepPlan(member.id);
+    if (!result.ok) redirect(back({ error: result.error }));
+    flash = "It carries on.";
+  }
+  revalidatePath(`/staff/customers/${id}`);
+  redirect(back({ planDone: flash }));
 }

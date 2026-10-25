@@ -8,6 +8,7 @@ import { pushToUsers } from "@/lib/push";
 import { getCustomer, type Customer } from "@/lib/customers";
 import { deliverToCustomer } from "@/lib/visit-notify";
 import { invoiceEmailHtml } from "@/lib/emails/invoice";
+import { instalmentSchedule, scheduleSummary } from "@/lib/instalment-schedule";
 
 /**
  * Taking payment for a job: Kanvas Academy's payment requests
@@ -43,7 +44,9 @@ const MAX_TOTAL_PENCE = 2_000_000;
 
 export type PaymentKind = "callout_fee" | "invoice" | "other";
 export type PaymentStatus = "open" | "paid" | "cancelled";
-export type PaidVia = "link" | "app" | "saved_card" | "tap_to_pay" | "in_person" | "cash" | "bank_transfer";
+export type PaidVia = "link" | "app" | "saved_card" | "tap_to_pay" | "in_person" | "cash" | "bank_transfer" | "instalments";
+/** Paying an invoice monthly (lib/instalments.ts). */
+export type PlanStatus = "active" | "past_due" | "completed" | "stopped";
 export type PaymentLine = { description: string; amountPence: number };
 
 export const PAID_VIA_LABEL: Record<PaidVia, string> = {
@@ -54,6 +57,7 @@ export const PAID_VIA_LABEL: Record<PaidVia, string> = {
   in_person: "card machine",
   cash: "cash",
   bank_transfer: "bank transfer",
+  instalments: "monthly payments",
 };
 
 export type PaymentRequest = {
@@ -75,6 +79,11 @@ export type PaymentRequest = {
   createdAt: string;
   /** The add-on they can tick on the pay page (a discounted service), and whether they took it. */
   offers: PaymentOffer[];
+  /** Fergal let them pay it monthly: over this many payments, any deposit taken with the first. */
+  instalments: { months: number; depositPence: number } | null;
+  /** Once they chose to pay monthly. */
+  planStatus: PlanStatus | null;
+  planStartedAt: string | null;
 };
 
 type Row = {
@@ -97,6 +106,11 @@ type Row = {
   reminded_at: string | null;
   created_at: string;
   offers: { product_id: string | null; label: string; pence: number; usual_pence: number | null; taken: boolean }[] | null;
+  instalments: number | null;
+  instalment_deposit_pence: number | null;
+  plan_status: PlanStatus | null;
+  plan_subscription_id: string | null;
+  plan_started_at: string | null;
 };
 
 function mapRow(r: Row): PaymentRequest {
@@ -118,6 +132,9 @@ function mapRow(r: Row): PaymentRequest {
     remindedAt: r.reminded_at ?? null,
     createdAt: r.created_at,
     offers: (r.offers ?? []).map((o) => ({ productId: o.product_id ?? null, label: o.label, pence: o.pence, usualPence: o.usual_pence ?? null, taken: !!o.taken })),
+    instalments: r.instalments ? { months: r.instalments, depositPence: r.instalment_deposit_pence ?? 0 } : null,
+    planStatus: r.plan_status ?? null,
+    planStartedAt: r.plan_started_at ?? null,
   };
 }
 
@@ -237,7 +254,7 @@ export async function savedCardFor(customer: Pick<Customer, "id">): Promise<Save
 }
 
 /** The customer in Stripe, made the first time they save a card. */
-async function stripeCustomerFor(customer: Customer): Promise<string> {
+export async function stripeCustomerFor(customer: Customer): Promise<string> {
   const admin = createAdminClient();
   const { data } = await admin.from("customers").select("stripe_customer_id").eq("id", customer.id).maybeSingle();
   if (data?.stripe_customer_id) return data.stripe_customer_id as string;
@@ -292,7 +309,21 @@ function lowerFirst(text: string): string {
 function requestMessage(p: PaymentRequest, customer: Customer): string {
   const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, ";
   const what = p.kind === "callout_fee" ? `here's the link for your ${formatPence(p.amountPence)} call-out fee` : `here's invoice ${invoiceNumber(p.number)} for ${p.description.charAt(0).toLowerCase()}${p.description.slice(1)}: ${formatPence(p.amountPence)}`;
-  return `${hi}${what}.${offerLine(p)} Pay by Apple Pay, Google Pay or card: ${payLink(p)}`;
+  return `${hi}${what}.${offerLine(p)}${monthlyLine(p)} Pay by Apple Pay, Google Pay or card: ${payLink(p)}`;
+}
+
+/** " Or spread the cost, interest-free: £250 today, then £200 a month for 9 months." */
+export function monthlyLine(p: Pick<PaymentRequest, "instalments" | "planStatus" | "status" | "amountPence">): string {
+  if (!p.instalments || p.planStatus || p.status !== "open") return "";
+  const plan = instalmentSchedule(p.amountPence, p.instalments.months, p.instalments.depositPence);
+  return plan.ok ? ` Or spread the cost, interest-free: ${scheduleSummary(plan.schedule, formatPence)}.` : "";
+}
+
+const partPaidMonthly = "Some of this was paid monthly: take the rest in person, or send a new invoice for what's left.";
+
+/** Being paid monthly: nothing else may take the money for it, or cancel it, until that stops. */
+function onMonthly(row: Pick<Row, "plan_status">): string | null {
+  return row.plan_status === "active" || row.plan_status === "past_due" ? "They're paying this monthly. Stop the monthly payments first." : null;
 }
 
 /**
@@ -312,12 +343,18 @@ export async function createPaymentRequest(params: {
   chargeNow?: boolean;
   /** Up to two add-ons to offer on their pay page. */
   offers?: Omit<PaymentOffer, "taken">[];
+  /** Let them pay it monthly instead: over this many payments, with any deposit taken first. */
+  instalments?: { months: number; depositPence: number } | null;
 }): Promise<{ ok: true; request: PaymentRequest; sentVia: string[]; charge?: ChargeResult } | { ok: false; error: string }> {
   const customer = await getCustomer(params.customerId);
   if (!customer) return { ok: false, error: "Customer not found." };
   const description = params.description.trim().replace(/\s+/g, " ").slice(0, 120) || "Your job";
   const amountPence = params.lines.reduce((sum, l) => sum + l.amountPence, 0);
   if (amountPence < MIN_TOTAL_PENCE || amountPence > MAX_TOTAL_PENCE) return { ok: false, error: "Check the amounts." };
+  if (params.instalments) {
+    const plan = instalmentSchedule(amountPence, params.instalments.months, params.instalments.depositPence);
+    if (!plan.ok) return { ok: false, error: plan.error };
+  }
 
   const { data, error } = await createAdminClient()
     .from("payment_requests")
@@ -334,6 +371,9 @@ export async function createPaymentRequest(params: {
         .filter((o) => o.pence > 0 && o.label.trim())
         .slice(0, MAX_OFFERS)
         .map((o) => ({ product_id: o.productId, label: o.label.trim().slice(0, 80), pence: o.pence, usual_pence: o.usualPence, taken: false })),
+      ...(params.instalments && params.kind === "invoice"
+        ? { instalments: params.instalments.months, instalment_deposit_pence: Math.max(0, Math.round(params.instalments.depositPence)) }
+        : {}),
     })
     .select("*")
     .single();
@@ -370,6 +410,7 @@ export async function checkoutUrl(id: string, opts: { saveCard: boolean; addOffe
   const row = await getRow(id);
   if (!row) return { error: "Payment not found." };
   if (row.status !== "open") return { error: row.status === "paid" ? "That's already paid. Thank you!" : "That payment was cancelled." };
+  if (row.plan_status) return { error: row.plan_status === "stopped" ? "Please call us about what's left to pay." : "You're paying this monthly, so there's nothing to pay here now." };
   const customer = row.customer_id ? await getCustomer(row.customer_id) : null;
   const stripeCustomer = opts.saveCard && customer ? await stripeCustomerFor(customer) : null;
   const link = payLink(mapRow(row));
@@ -415,6 +456,7 @@ export async function chargeSavedCard(id: string): Promise<ChargeResult> {
   const row = await getRow(id);
   if (!row) return { ok: false, error: "Payment not found." };
   if (row.status !== "open") return { ok: false, error: row.status === "paid" ? "That's already paid." : "That payment was cancelled." };
+  if (row.plan_status) return { ok: false, error: onMonthly(row) ?? partPaidMonthly };
   const card = row.customer_id ? await savedCardFor({ id: row.customer_id }) : null;
   if (!card) return { ok: false, error: "They haven't saved a card with MPE. They can pay from the link instead." };
 
@@ -474,6 +516,7 @@ export async function tapToPayIntent(id: string): Promise<{ clientSecret: string
   const row = await getRow(id);
   if (!row) return { error: "Payment not found." };
   if (row.status !== "open") return { error: row.status === "paid" ? "That's already paid." : "That payment was cancelled." };
+  if (row.plan_status) return { error: onMonthly(row) ?? partPaidMonthly };
   const intent = await stripe.paymentIntents.create({
     amount: row.amount_pence,
     currency: "gbp",
@@ -501,10 +544,11 @@ export async function markPaidInPerson(id: string, via: "in_person" | "cash" | "
     .update({ status: "paid", paid_at: new Date().toISOString(), paid_via: via, charging_at: null })
     .eq("id", id)
     .eq("status", "open")
+    .or("plan_status.is.null,plan_status.in.(completed,stopped)")
     .select("id");
   if (data?.length) return { ok: true };
   const row = await getRow(id);
-  return { ok: false, error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid." : "That payment was cancelled." };
+  return { ok: false, error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid." : (onMonthly(row) ?? "That payment was cancelled.") };
 }
 
 /**
@@ -574,13 +618,17 @@ export async function cancelPaymentRequest(id: string): Promise<{ ok: true } | {
     .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
     .eq("id", id)
     .eq("status", "open")
+    .or("plan_status.is.null,plan_status.in.(completed,stopped)")
     .select("id");
   if (data?.length) return { ok: true };
   const row = await getRow(id);
-  return { ok: false, error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid: refund it in Stripe instead." : "It's already cancelled." };
+  return {
+    ok: false,
+    error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid: refund it in Stripe instead." : (onMonthly(row) ?? "It's already cancelled."),
+  };
 }
 
-async function alertTeam(title: string, body: string): Promise<void> {
+export async function alertTeam(title: string, body: string): Promise<void> {
   try {
     await pushToUsers(await chatRecipientIds(), { title, body, data: { kind: "link", href: "/staff/schedule" } });
   } catch (err) {
@@ -623,7 +671,7 @@ export async function sendReceipt(id: string, staffId: string | null): Promise<s
 export async function resendPaymentLink(id: string, staffId: string): Promise<string[]> {
   const p = await getPaymentRequest(id);
   const customer = p?.customerId ? await getCustomer(p.customerId) : null;
-  if (!p || !customer || p.status !== "open") return [];
+  if (!p || !customer || p.status !== "open" || p.planStatus) return [];
   return deliverToCustomer(customer, {
     body: requestMessage(p, customer),
     headline: p.kind === "callout_fee" ? "Your call-out fee" : `Invoice ${invoiceNumber(p.number)}`,
@@ -638,7 +686,7 @@ export async function resendPaymentLink(id: string, staffId: string): Promise<st
 export async function sendUnpaidReminder(id: string): Promise<string[]> {
   const p = await getPaymentRequest(id);
   const customer = p?.customerId ? await getCustomer(p.customerId) : null;
-  if (!p || !customer || p.status !== "open") return [];
+  if (!p || !customer || p.status !== "open" || p.planStatus) return [];
   const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, ";
   const what = p.kind === "callout_fee" ? `your ${formatPence(p.amountPence)} call-out fee` : `invoice ${invoiceNumber(p.number)} (${formatPence(p.amountPence)})`;
   return deliverToCustomer(customer, {

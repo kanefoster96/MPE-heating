@@ -1,27 +1,22 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Funnel } from "@/components/Funnel";
+import { StepFlow } from "@/components/StepFlow";
 import { SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Same-Day Boiler Call-Out | £50, Refunded When Fixed",
+  title: "Boiler Call-Out | £50, Taken Off Your Repair",
   description:
-    "Boiler broken down? Book a same-day call-out in Whitley Bay and across the North East. £50 call-out refunded in full when we do the repair, price agreed before any work starts.",
+    "Boiler broken down? Book a call-out in Whitley Bay and across the North East in four quick steps. £50 call-out, taken off your repair bill if you go ahead, price agreed before any work starts.",
   alternates: { canonical: `${SITE_URL}/emergency` },
   openGraph: { url: `${SITE_URL}/emergency` },
 };
 
-// The emergency call-out form: the funnel opened straight at boiler repair.
+// The call-out form: what's wrong, a sentence about it, postcode, then
+// email and mobile.
 export default function EmergencyPage() {
   return (
     <Suspense fallback={null}>
-      <Funnel
-        initialPath={["boilers", "repair"]}
-        locked
-        eyebrow="Boiler repair"
-        title={{ lead: "Same-day call-out.", em: "£50, refunded when fixed." }}
-        subtitle="Two minutes. We ring you back to confirm a time, come out for £50, and agree the repair price before any work starts."
-      />
+      <StepFlow flowKey="callout" />
     </Suspense>
   );
 }

@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { homeExtras } from "@/lib/content";
-import { ArrowRightIcon, CheckIcon, NewBoilerIcon, ServiceIcon } from "./icons";
+import { ArrowRightIcon, CalendarIcon, CheckIcon, NewBoilerIcon, ServiceIcon } from "./icons";
 
-// Lower on the homepage: new boilers (free quote) and servicing (from
-// £79), each its own small card with three points and one button.
+// Lower on the homepage: new boilers (free quote), servicing (from £79)
+// and the maintenance plan, each a small card with three points and a
+// button into its own booking form.
 export function BoilerExtras() {
   const [line1, line2] = homeExtras.heading;
   const cards = [
     { ...homeExtras.newBoiler, Icon: NewBoilerIcon },
     { ...homeExtras.servicing, Icon: ServiceIcon },
+    { ...homeExtras.plan, Icon: CalendarIcon },
   ];
   return (
     <section className="bg-cream py-12 lg:py-24">
@@ -18,7 +20,7 @@ export function BoilerExtras() {
           <br />
           {line2}
         </h2>
-        <div className="mt-6 grid gap-4 lg:mt-8 lg:grid-cols-2 lg:gap-6">
+        <div className="mt-6 grid gap-4 lg:mt-8 lg:grid-cols-3 lg:gap-6">
           {cards.map(({ Icon, ...card }) => (
             <article key={card.tag} className="flex flex-col rounded-3xl bg-white p-6 shadow-[0_18px_40px_-28px_rgba(31,42,58,0.35)] sm:p-8">
               <div className="flex items-center gap-3">
@@ -36,7 +38,7 @@ export function BoilerExtras() {
                   </li>
                 ))}
               </ul>
-              <div className="mt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-5">
+              <div className="mt-6 flex flex-col gap-1">
                 <Link
                   href={card.href}
                   className="flex h-12 items-center justify-center gap-2 rounded-full bg-terracotta-deep px-6 text-base font-semibold text-white transition-colors hover:bg-ticket-stub"

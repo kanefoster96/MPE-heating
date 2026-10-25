@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormLayout } from "./FormLayout";
@@ -11,6 +11,7 @@ import { business, sameDay as sameDayCopy, type TwoTone } from "@/lib/content";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
 import { funnel, resolvePath, type FunnelNode } from "@/lib/funnel";
 import { funnelIconMap } from "@/lib/funnelIcons";
+import { fillMsSince } from "./BotCheck";
 
 type Errors = Partial<{ name: string; phone: string; email: string; message: string }>;
 
@@ -51,6 +52,13 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
 
   const nodes = useMemo(() => resolvePath(path) ?? [], [path]);
   const current = nodes[nodes.length - 1];
+
+  // An old deep link (?path=boilers.service) to an option that now has its
+  // own form goes straight there.
+  const redirect = current?.href;
+  useEffect(() => {
+    if (redirect) router.replace(redirect);
+  }, [redirect, router]);
   const choices = current ? current.children : funnel;
   const leaf = current?.leaf;
 
@@ -60,12 +68,19 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
   const [message, setMessage] = useState("");
   const [sameDay, setSameDay] = useState(() => searchParams.get("sameDay") === "1");
   const [company, setCompany] = useState(""); // honeypot
+  // When the form was shown, for the bot check's fill time.
+  const [openedAt] = useState(() => Date.now());
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<"unavailable" | "failed" | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const choose = (node: FunnelNode) => {
+    // Boiler repair, service, new boiler and plan have their own forms.
+    if (node.href) {
+      router.push(node.href);
+      return;
+    }
     setPath((p) => [...p, node.id]);
     setNotice(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -105,6 +120,7 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
           path: nodes.map((n) => n.label),
           sameDayRequested: leaf.sameDay ? sameDay : false,
           company,
+          fillMs: fillMsSince(openedAt),
         }),
       });
       if (res.ok) setSubmitted(true);

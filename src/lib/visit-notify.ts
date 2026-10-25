@@ -64,6 +64,8 @@ export type Delivery = {
   email?: "always" | "if-no-text";
   /** Adds "Reply STOP to opt out." to the text: for anything not about a booked visit. */
   smsOptOut?: boolean;
+  /** A payment request: the chat shows it as a Pay card (lib/payments.ts). */
+  paymentRequestId?: string;
 };
 
 /**
@@ -86,6 +88,7 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
         sender_id: d.staffId,
         sender_is_coach: true,
         body: d.body,
+        ...(d.paymentRequestId ? { payment_request_id: d.paymentRequestId } : {}),
       });
       if (!error) {
         via.push("chat");

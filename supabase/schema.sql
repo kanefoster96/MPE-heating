@@ -447,6 +447,53 @@ create index if not exists appointments_customer_idx on public.appointments (cus
 alter table public.appointments enable row level security;
 
 -- ---------------------------------------------------------------------------
+-- Payments (lib/payments.ts): a call-out fee or an invoice for a visit,
+-- sent into the customer's conversation with a Pay link (Kanvas Academy's
+-- payment_requests). Paid by Stripe Checkout (Apple Pay, Google Pay, card),
+-- the card they saved with MPE, Tap to Pay in the MPE app, or marked paid
+-- in person (another card machine, cash, bank transfer). Service-role only.
+create sequence if not exists public.invoice_number_seq start 1001;
+
+create table if not exists public.payment_requests (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references public.customers (id) on delete set null,
+  conversation_id uuid references public.chat_conversations (id) on delete set null,
+  appointment_id uuid references public.appointments (id) on delete set null,
+  kind text not null default 'invoice' check (kind in ('callout_fee', 'invoice', 'other')),
+  -- MPE-1001, MPE-1002…: on the invoice and the receipt.
+  number integer not null default nextval('public.invoice_number_seq'),
+  description text not null,
+  -- Each line: {"description": "Diverter valve", "amount_pence": 8500}.
+  -- A negative line is a credit (the call-out fee taken off the repair).
+  lines jsonb not null default '[]'::jsonb,
+  amount_pence integer not null check (amount_pence > 0),
+  status text not null default 'open' check (status in ('open', 'paid', 'cancelled')),
+  paid_at timestamptz,
+  paid_via text check (paid_via in ('link', 'app', 'saved_card', 'tap_to_pay', 'in_person', 'cash', 'bank_transfer')),
+  stripe_payment_intent_id text,
+  -- Set while the saved card is being charged, so two taps can't both charge.
+  charging_at timestamptz,
+  -- Unpaid reminders (lib/follow-up-sweep.ts).
+  reminder_count integer not null default 0,
+  reminded_at timestamptz,
+  public_token text not null default replace(gen_random_uuid()::text, '-', ''),
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  cancelled_at timestamptz
+);
+create unique index if not exists payment_requests_number_idx on public.payment_requests (number);
+create unique index if not exists payment_requests_token_idx on public.payment_requests (public_token);
+create index if not exists payment_requests_customer_idx on public.payment_requests (customer_id, created_at desc);
+create index if not exists payment_requests_appointment_idx on public.payment_requests (appointment_id);
+create index if not exists payment_requests_open_idx on public.payment_requests (status, created_at) where status = 'open';
+alter table public.payment_requests enable row level security;
+
+-- The chat message a payment request was sent as, so the chat shows a Pay card.
+alter table public.chat_messages add column if not exists payment_request_id uuid references public.payment_requests (id) on delete set null;
+-- The customer in Stripe, once they've saved a card with MPE.
+alter table public.customers add column if not exists stripe_customer_id text;
+
+-- ---------------------------------------------------------------------------
 -- App push notifications (the MPE app, next stage).
 
 -- One Expo push token per signed-in device. Service-role only.

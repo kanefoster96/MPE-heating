@@ -14,6 +14,7 @@ import { KIND_LABEL, longDate } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { askForAnotherTime } from "./actions";
+import { formatPence, invoiceNumber, paymentsForAppointments } from "@/lib/payments";
 
 export const metadata: Metadata = {
   title: "Your visit",
@@ -49,6 +50,7 @@ export default async function VisitPage({
     .filter(Boolean)
     .join(", ");
   const first = customer?.name?.split(" ")[0];
+  const payments = ((await paymentsForAppointments([visit.id])).get(visit.id) ?? []).filter((x) => x.status !== "cancelled");
 
   const heading =
     visit.status === "requested"
@@ -206,6 +208,31 @@ export default async function VisitPage({
                   </form>
                 </>
               )}
+            </section>
+          )}
+
+          {payments.length > 0 && (
+            <section className={`mt-6 ${CARD}`} aria-label="Payments" data-visit-payments>
+              <ul className="flex flex-col gap-2">
+                {payments.map((pay) => (
+                  <li key={pay.id}>
+                    <Link
+                      href={`/pay/${pay.publicToken}`}
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-cream px-4 py-3 hover:border-navy/40"
+                    >
+                      <span className="font-semibold text-navy">
+                        {pay.kind === "callout_fee" ? "Call-out fee" : `Invoice ${invoiceNumber(pay.number)}`}
+                      </span>
+                      <span className="text-right">
+                        <span className="block font-bold text-navy">{formatPence(pay.amountPence)}</span>
+                        <span className={`block text-xs font-semibold ${pay.status === "paid" ? "text-success" : "text-terracotta-deep"}`}>
+                          {pay.status === "paid" ? "Paid" : "Pay now"}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
 

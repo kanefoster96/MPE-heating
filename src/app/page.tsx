@@ -1,5 +1,4 @@
 import { Nav } from "@/components/Nav";
-import { PromoBar } from "@/components/PromoBar";
 import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
 import { ServiceTiles } from "@/components/ServiceTiles";
@@ -15,15 +14,14 @@ import { faqPageJsonLd } from "@/lib/seo";
 
 const HOME_FAQS = 4;
 
-// The "ticket" layout: navy strip, the £50 / £0 ticket hero, how it works
-// on one card, the real TrustATrader rating, the four trades, then the top questions and the towns we
-// cover (kept for search), and a navy card with the ask once more. Phones
-// get a fixed Call / Chat / Book bar.
+// The kanvas.one-style hero with the £50 / £0 ticket, how it works on one
+// card, the TrustATrader rating, the four trades, then the top questions
+// and the towns we cover (kept for search), and a navy card with the ask
+// once more. Phones get a fixed Call / Chat / Book bar.
 export default function Home() {
   return (
     <>
       <Nav />
-      <PromoBar />
       <main>
         <Hero />
         <HowItWorks />

@@ -1,41 +1,68 @@
 import Link from "next/link";
-import { business, hero, rating } from "@/lib/content";
+import { business, hero } from "@/lib/content";
 import { contactHref } from "@/lib/enquiry";
-import { ArrowRightIcon, CheckIcon, PhoneIcon, ShieldIcon, WhatsAppIcon } from "./icons";
+import { FlameIcon } from "./icons";
+import { HeroPromises } from "./HeroPromises";
 
-// The "ticket" hero: two chips, a left-aligned headline with a highlighter
-// on "today.", one paragraph, then the £50 / £0 tear-off ticket, one big
-// button, call and WhatsApp, three ticks. On a phone it is one column in
-// that order; on desktop the ticket moves to the right-hand column.
+// The hero in the kanvas.one layout. Left: a proof pill (who we are, and a
+// way to ask straight away), the two-tone headline with the orange clause
+// on its own line, one line of copy, one big button and a line of quiet
+// links. Right: the £50 / £0 ticket, its caption, and an orange card of
+// promises. Centred and stacked on a phone; two columns from 1024px.
 export function Hero() {
   const t = hero.ticket;
   return (
-    <section className="overflow-x-clip bg-page">
-      <div className="mx-auto grid max-w-2xl px-5 pt-7 pb-9 sm:px-6 lg:max-w-6xl lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-center lg:gap-x-16 lg:pt-16 lg:pb-20">
-        <div className="flex flex-col gap-[18px] lg:col-start-1 lg:row-start-1 lg:self-end">
-          <ul className="flex flex-wrap gap-2">
-            <li className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-2 text-[13px] font-semibold">
-              <Stars />
-              5-star rated on {rating.source}
-            </li>
-            <li className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-2 text-[13px] font-semibold">
-              <ShieldIcon className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden="true" />
-              {hero.chips.gasSafe}
-            </li>
-          </ul>
+    <section className="overflow-x-clip bg-page pt-10 pb-12 sm:pt-14 lg:pt-[72px] lg:pb-24">
+      <div className="mx-auto max-w-6xl px-5 text-center sm:px-6 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-center lg:gap-16 lg:text-left">
+        <div className="flex flex-col items-center lg:items-start">
+          <a
+            href={business.whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2.5 rounded-full bg-grey py-[5px] pr-4 pl-[5px] text-left text-sm leading-[1.3] text-text-2 transition-colors hover:bg-[#ebe8e3]"
+          >
+            <span aria-hidden="true" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-[image:var(--grad)] text-white">
+              <FlameIcon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+            </span>
+            <span>
+              <span className="block">{hero.proof.line1}</span>
+              <span className="block font-semibold text-terracotta-deep">{hero.proof.line2} &rsaquo;</span>
+            </span>
+          </a>
 
-          <h1 className="text-[46px] font-extrabold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-[72px]">
-            {hero.headline.line1}
-            <br />
-            {hero.headline.line2} <span className="highlight">{hero.headline.highlight}</span>
+          <h1 className="mt-5 max-w-[14ch] text-[44px] font-bold leading-[1.02] tracking-[-0.045em] [text-wrap:balance] sm:text-[64px] lg:max-w-[13ch] lg:text-[clamp(56px,5.2vw,74px)]">
+            {hero.headline.lead} <span className="em block">{hero.headline.em}</span>
           </h1>
 
-          <p className="text-[17px] leading-normal text-text-2 lg:max-w-lg lg:text-lg">{hero.subline}</p>
+          <p className="mt-5 max-w-[600px] text-lg leading-normal text-text-2 sm:text-xl">{hero.subline}</p>
+
+          <div className="mt-7 w-full max-w-[430px]">
+            <Link
+              href={contactHref("repair")}
+              className="flex min-h-14 w-full items-center justify-center rounded-full bg-[linear-gradient(100deg,var(--color-terracotta-deep),#c24e1c)] px-6 text-[17px] font-bold text-white shadow-[0_14px_28px_-14px_rgba(181,65,28,0.7)] transition-[filter] hover:brightness-95"
+            >
+              {hero.cta}
+            </Link>
+            <p className="mt-2.5 text-[15px] text-text-2">
+              <a href={business.phoneHref} className="inline-flex min-h-11 items-center font-semibold text-terracotta-deep">
+                Prefer to talk first? Call {business.phoneDisplay}
+              </a>
+              <span aria-hidden="true"> &middot; </span>
+              <a
+                href={business.whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center font-semibold text-navy"
+              >
+                WhatsApp
+              </a>
+            </p>
+          </div>
         </div>
 
-        <div className="mt-[18px] flex flex-col gap-[18px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0">
-          <div className="mx-1 mt-2 -rotate-2 [--stub:122px] [filter:drop-shadow(0_14px_14px_rgba(181,65,28,0.32))] sm:[--stub:150px] lg:mx-0 lg:mt-0">
-            <div className="ticket-notches relative flex rounded-[18px] bg-terracotta-deep text-white lg:rounded-3xl">
+        <div className="mx-auto mt-10 flex w-full max-w-[440px] flex-col items-center lg:mt-0">
+          <div className="w-full -rotate-2 [--stub:122px] [filter:drop-shadow(0_14px_14px_rgba(181,65,28,0.32))] sm:[--stub:140px]">
+            <div className="ticket-notches relative flex rounded-[18px] bg-terracotta-deep text-left text-white lg:rounded-3xl">
               <div className="flex flex-1 flex-col gap-0.5 py-[18px] pr-[18px] pl-5 sm:p-7">
                 <span className="text-xs font-bold uppercase tracking-[0.12em] text-ticket-ink">{t.label}</span>
                 <span className="text-[54px] font-extrabold leading-none tracking-[-0.03em] sm:text-7xl">{t.price}</span>
@@ -48,62 +75,11 @@ export function Hero() {
               </div>
             </div>
           </div>
-          <p className="mt-0.5 text-center text-sm text-text-2">{hero.underTicket}</p>
-        </div>
+          <p className="mt-5 text-[15px] font-semibold text-text-2">{hero.underTicket}</p>
 
-        <div className="mt-[18px] flex flex-col gap-[18px] lg:col-start-1 lg:row-start-2 lg:mt-8 lg:self-start">
-          <Link
-            href={contactHref("repair")}
-            className="flex h-[62px] items-center justify-center gap-2.5 rounded-full bg-terracotta-deep px-6 text-[19px] font-bold text-white shadow-[0_14px_28px_-14px_rgba(181,65,28,0.7)] transition-colors hover:bg-ticket-stub"
-          >
-            {hero.cta}
-            <ArrowRightIcon className="h-5 w-5" strokeWidth={2.4} aria-hidden="true" />
-          </Link>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <a
-              href={business.phoneHref}
-              className="flex h-[52px] items-center justify-center gap-2 rounded-full border-[1.5px] border-navy text-base font-semibold transition-colors hover:bg-navy hover:text-white"
-            >
-              <PhoneIcon className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden="true" />
-              Call now
-            </a>
-            <a
-              href={business.whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-[52px] items-center justify-center gap-2 rounded-full bg-whatsapp-dark text-base font-semibold text-white transition-[filter] hover:brightness-110"
-            >
-              <WhatsAppIcon className="h-[18px] w-[18px]" aria-hidden="true" />
-              WhatsApp
-            </a>
-          </div>
-
-          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm font-semibold lg:justify-start">
-            {hero.ticks.map((tick) => (
-              <li key={tick} className="inline-flex items-center gap-1.5">
-                <CheckIcon className="h-4 w-4 text-whatsapp-dark" strokeWidth={3} aria-hidden="true" />
-                {tick}
-              </li>
-            ))}
-          </ul>
+          <HeroPromises />
         </div>
       </div>
     </section>
-  );
-}
-
-// Five small orange stars for the rating chip. Decorative: the chip
-// text gives the real score.
-function Stars() {
-  const star = "7,0 9,5 14,5.3 10.2,8.5 11.4,13.5 7,10.8 2.6,13.5 3.8,8.5 0,5.3 5,5";
-  return (
-    <svg width="76" height="14" viewBox="0 0 76 14" aria-hidden="true" className="text-terracotta">
-      <g fill="currentColor">
-        {[0, 15.5, 31, 46.5, 62].map((x) => (
-          <polygon key={x} points={star} transform={`translate(${x} 0)`} />
-        ))}
-      </g>
-    </svg>
   );
 }

@@ -26,6 +26,7 @@ import {
 } from "../actions";
 import { TEAM_CHAT_AVATAR_URL, TEAM_CHAT_NAME, teamReadReceipts } from "@/lib/team-chat";
 import { CHAT_ON } from "@/lib/chat-on";
+import { customerForConversation } from "@/lib/customers";
 import { CATEGORY_LABEL, ENQUIRY_STATUSES, STATUS_LABEL, enquiriesForConversation, type EnquiryStatus } from "@/lib/enquiries";
 
 const MONTHS = [
@@ -86,9 +87,10 @@ export default async function CoachConversationPage({
     ? TEAM_CHAT_AVATAR_URL
     : ((memberData?.user?.user_metadata?.avatar_url as string | undefined) ?? null);
 
-  // Kanvas Academy links the name to the family's account or trial; MPE's
-  // customers have no account pages, so the name isn't a link.
-  const profileHref: string | null = null;
+  // Kanvas Academy links the name to the family's account or trial; MPE
+  // links it to the customer's page (details, boiler, notes, visits).
+  const customer = isTeam ? null : await customerForConversation(conversation.id);
+  const profileHref: string | null = customer ? `/staff/customers/${customer.id}` : null;
 
   const isCompleted = !!conversation.completedAt;
   let completedByLabel: string | null = null;

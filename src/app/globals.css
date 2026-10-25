@@ -43,7 +43,7 @@
   --color-accent: #b5411c;
   --color-accent-foreground: #ffffff;
   --color-danger: #c81e1e;
-  --color-success: #178245;
+  --color-success: #136b39; /* 4.5:1+ on its own 10% tint and on surface */
   /* Dark-to-light orange, the emphasised clause of a heading. The light
      end stays at terracotta (about 3.3:1 on white), which is past the 3:1
      large headings need. Don't take it lighter. */

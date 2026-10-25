@@ -1,4 +1,4 @@
-# Setting up live chat, texts, emails and the team inbox
+# Setting up live chat, texts, emails, the schedule and the team inbox
 
 The follow-up system is ported from Kanvas Academy's. It runs on three
 services. Each one is optional and switches on its own part, so you can set
@@ -7,7 +7,7 @@ did before.
 
 | Service  | What it switches on |
 | -------- | ------------------- |
-| Supabase | Live chat on the site (`/messages`), team login (`/login`), the team inbox (`/staff/messages`), and booking forms saved as jobs |
+| Supabase | Live chat on the site (`/messages`), team login (`/login`), the team inbox (`/staff/messages`), booking forms saved as jobs, the schedule (`/staff/schedule`), customer pages (`/staff/customers`) and customer accounts (`/account`) |
 | Resend   | Booking forms emailed to MPE; emails to customers when an engineer replies |
 | Twilio   | Missed-call text backs, texts in and out, voicemail in the inbox |
 
@@ -61,6 +61,49 @@ same customer conversation. Admins and engineers see every conversation,
 and each new message notifies all of them. There is also a pinned team
 chat for staff only.
 
+### Schedule
+
+`/staff/schedule` has two views, switched with the **Day / Month** toggle.
+
+- **Month** shows every day's visits as coloured dots by kind, with a bar
+  for how full the day is and a **Full** tag once less than an hour of the
+  working day (8am–5pm) is left. Tap a day to open it.
+- **Day** shows the visits on a timeline, with the free gaps in the
+  working day marked. Tap a gap to book a visit in that window. Each
+  visit's card below has the customer, address (opens in Maps), phone,
+  boiler, access notes and the team's notes, plus Booked, Done and
+  Cancelled buttons.
+
+Visits are a call-out, repair visit, service, boiler install, quote visit
+or other. Each kind starts with a usual window (call-outs and repairs 2
+hours, services and quote visits 1 hour, installs all day), which can be
+changed on any visit. Morning, Afternoon and All day buttons set common
+windows. A visit can be for an existing customer, a new one added in the
+same form, or nobody (e.g. "Van MOT").
+
+**Book it** on a job in the inbox opens the add-visit form filled in from
+that booking form, and marks the job booked once the visit is added.
+
+### Customers
+
+Every booking form and every customer who leaves their details in the chat
+gets a customer record. The team can also add one by hand. A customer's
+page at `/staff/customers` has:
+
+- their contact details and boiler (make, model, age, where it is, last
+  service) and access notes, all editable;
+- **private notes**, which only the team sees;
+- their upcoming and past visits, and every booking form they've sent;
+- buttons to book a visit, call them, or open their messages.
+
+### Customer accounts
+
+At `/account`, customers sign in with a link emailed to them, with no
+password. They see their upcoming visits and can update their own details
+and boiler. They never see the team's notes. If they were chatting as a
+website guest in the same browser, the conversation moves to their
+account.
+
 ## 1. Supabase
 
 1. Create a project at supabase.com (the London region is closest).
@@ -70,7 +113,10 @@ chat for staff only.
    anonymous sign-ins**. Website visitors chat as anonymous users until
    they leave their details.
 4. Under **Authentication → URL Configuration**, set the Site URL to the
-   live site.
+   live site, and add `https://<site>/auth/confirm` to **Redirect URLs**.
+   Customers' sign-in links come back there. Add
+   `https://*-kanvas1.vercel.app/auth/confirm` too if you want them to
+   work on preview deployments.
 5. Add the team, in the SQL editor. Use the role `admin` for admins and
    `coach` for engineers (`coach` is the Academy's name for staff):
    ```sql

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { business, footerLinks, accreditations } from "@/lib/content";
 import { PhoneIcon, WhatsAppIcon } from "./icons";
 import { FreeBand } from "./FreeBand";
+import { CHAT_ON } from "@/lib/chat-on";
 
 export function Footer() {
   return (
@@ -52,6 +53,11 @@ export function Footer() {
                   {l.label}
                 </span>
               )
+            )}
+            {CHAT_ON && (
+              <Link href="/account" className="inline-flex min-h-11 items-center text-text-2 hover:text-navy">
+                Your account
+              </Link>
             )}
           </div>
 

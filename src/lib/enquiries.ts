@@ -4,6 +4,7 @@ import type { Conversation } from "@/lib/chat";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { normalizePhone } from "@/lib/phone";
 import type { EnquiryType } from "@/lib/enquiry";
+import { findOrCreateCustomer } from "@/lib/customers";
 
 /**
  * Booking enquiries, filed as jobs. MPE's own addition to Kanvas Academy's
@@ -57,6 +58,7 @@ export function categoryFor(type: EnquiryType): EnquiryCategory {
 export type Enquiry = {
   id: string;
   conversationId: string | null;
+  customerId: string | null;
   category: EnquiryCategory;
   status: EnquiryStatus;
   name: string | null;
@@ -73,6 +75,7 @@ export type Enquiry = {
 type Row = {
   id: string;
   conversation_id: string | null;
+  customer_id: string | null;
   category: EnquiryCategory;
   status: EnquiryStatus;
   name: string | null;
@@ -90,6 +93,7 @@ function mapEnquiry(r: Row): Enquiry {
   return {
     id: r.id,
     conversationId: r.conversation_id,
+    customerId: r.customer_id ?? null,
     category: r.category,
     status: r.status,
     name: r.name,
@@ -201,8 +205,19 @@ export async function recordEnquiry(input: {
       });
     }
 
+    // Every booking has a customer record (lib/customers.ts) for the
+    // schedule and the customer pages.
+    const customerId = await findOrCreateCustomer(admin, {
+      name,
+      email: input.email,
+      phone: input.phone,
+      postcode: input.postcode,
+      conversationId: conversation?.id ?? null,
+    });
+
     const { error } = await admin.from("enquiries").insert({
       conversation_id: conversation?.id ?? null,
+      customer_id: customerId,
       category: categoryFor(input.type),
       name,
       email: input.email || null,
@@ -273,4 +288,35 @@ export async function setEnquiryStatus(id: string, status: EnquiryStatus, staffI
     .eq("id", id);
   if (error) console.error("setEnquiryStatus failed", error);
   return !error;
+}
+
+export async function getEnquiry(id: string): Promise<Enquiry | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const { data } = await createAdminClient().from("enquiries").select("*").eq("id", id).maybeSingle();
+  return data ? mapEnquiry(data as Row) : null;
+}
+
+/** A customer's bookings, newest first. */
+export async function enquiriesForCustomer(customerId: string): Promise<Enquiry[]> {
+  const { data } = await createAdminClient()
+    .from("enquiries")
+    .select("*")
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+  return ((data ?? []) as Row[]).map(mapEnquiry);
+}
+
+/** The schedule's usual visit for each kind of booking. */
+export function visitKindFor(category: EnquiryCategory): "callout" | "quote" | "service" | "other" {
+  switch (category) {
+    case "callout":
+      return "callout";
+    case "new_boiler":
+      return "quote";
+    case "service":
+    case "plan":
+      return "service";
+    default:
+      return "other";
+  }
 }

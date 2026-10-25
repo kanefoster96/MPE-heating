@@ -671,6 +671,9 @@ function PaymentLine({ appointment: a, payments }: { appointment: Appointment; p
               <span className={p.status === "paid" ? "font-medium text-success" : "text-muted"}>
                 {p.status === "paid" ? `Paid ✓${p.paidVia ? ` ${PAID_VIA_LABEL[p.paidVia]}` : ""}` : "Waiting"}
               </span>
+              {p.offers.some((o) => o.taken) && (
+                <span className="ml-1 font-semibold text-accent">+ {p.offers.filter((o) => o.taken).map((o) => o.label.toLowerCase()).join(", ")}</span>
+              )}
             </li>
           ))
         )}

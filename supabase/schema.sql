@@ -447,6 +447,26 @@ create index if not exists appointments_customer_idx on public.appointments (cus
 alter table public.appointments enable row level security;
 
 -- ---------------------------------------------------------------------------
+-- Products and prices (Settings, lib/products.ts): what MPE sells, for
+-- one-tap invoice lines. Up to two are offered at repairs ("upsell"), at an
+-- offer price, as tick boxes on the customer's pay page. Service-role only.
+create table if not exists public.products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  price_pence integer not null check (price_pence > 0),
+  upsell boolean not null default false,
+  -- The price when it's added at a repair (about 20% off: he's already there).
+  upsell_price_pence integer check (upsell_price_pence is null or upsell_price_pence > 0),
+  sort integer not null default 0,
+  archived boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists products_sort_idx on public.products (archived, sort, created_at);
+alter table public.products enable row level security;
+
+-- ---------------------------------------------------------------------------
 -- Payments (lib/payments.ts): a call-out fee or an invoice for a visit,
 -- sent into the customer's conversation with a Pay link (Kanvas Academy's
 -- payment_requests). Paid by Stripe Checkout (Apple Pay, Google Pay, card),
@@ -487,6 +507,13 @@ create index if not exists payment_requests_customer_idx on public.payment_reque
 create index if not exists payment_requests_appointment_idx on public.payment_requests (appointment_id);
 create index if not exists payment_requests_open_idx on public.payment_requests (status, created_at) where status = 'open';
 alter table public.payment_requests enable row level security;
+
+-- Up to two add-ons the customer can tick on the pay page (Fergal's
+-- repair upsells from Settings, e.g. a boiler service while he's already
+-- there at about 20% off). Each: {"product_id", "label", "pence",
+-- "usual_pence", "taken"}. Only added to the invoice once they pay with it
+-- ticked.
+alter table public.payment_requests add column if not exists offers jsonb not null default '[]'::jsonb;
 
 -- The chat message a payment request was sent as, so the chat shows a Pay card.
 alter table public.chat_messages add column if not exists payment_request_id uuid references public.payment_requests (id) on delete set null;

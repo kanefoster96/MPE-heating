@@ -8,6 +8,17 @@ import { StaffNav } from "@/components/staff/staff-nav";
 import { enquiriesOn } from "@/lib/enquiries";
 import { waitingOnTeamCount } from "@/lib/appointments";
 import { londonNow } from "@/lib/schedule-time";
+import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/coach";
+
+function GearIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+    </svg>
+  );
+}
 
 export const metadata: Metadata = {
   title: { default: "Team", template: "%s | MPE team" },
@@ -20,6 +31,14 @@ export const metadata: Metadata = {
 export default async function StaffLayout({ children }: { children: ReactNode }) {
   // Customers' requests and asks to move, badged on the Schedule tab.
   const waiting = enquiriesOn() ? await waitingOnTeamCount(londonNow().dateISO).catch(() => 0) : 0;
+  // Settings (products and prices) are for admins.
+  let admin = false;
+  if (CHAT_ON) {
+    const {
+      data: { user },
+    } = await (await createClient()).auth.getUser();
+    admin = !!user && (await isAdmin(user.id).catch(() => false));
+  }
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6">
@@ -30,6 +49,12 @@ export default async function StaffLayout({ children }: { children: ReactNode })
           <StaffNav waiting={waiting} />
         </div>
         {CHAT_ON && (
+          <div className="flex shrink-0 items-center">
+          {admin && (
+            <Link href="/staff/settings" aria-label="Settings" title="Settings" className="flex h-11 w-11 items-center justify-center rounded-full text-muted transition-colors hover:bg-foreground/5 hover:text-foreground">
+              <GearIcon className="h-5 w-5" />
+            </Link>
+          )}
           <form action={logout}>
             <button
               type="submit"
@@ -38,6 +63,7 @@ export default async function StaffLayout({ children }: { children: ReactNode })
               Log out
             </button>
           </form>
+          </div>
         )}
       </header>
       {children}

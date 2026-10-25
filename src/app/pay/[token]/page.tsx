@@ -10,6 +10,7 @@ import { getCustomer } from "@/lib/customers";
 import { enquiriesOn } from "@/lib/enquiries";
 import { PAID_VIA_LABEL, formatPence, getPaymentByToken, invoiceNumber, paymentsOn } from "@/lib/payments";
 import { payNow } from "./actions";
+import { PayForm } from "./pay-form";
 
 export const metadata: Metadata = {
   title: "Your invoice",
@@ -106,7 +107,7 @@ export default async function PayPage({
               </tbody>
               <tfoot>
                 <tr>
-                  <td className="pt-4 text-lg font-bold text-navy">{isPaid ? "Paid" : "Total to pay"}</td>
+                  <td className="pt-4 text-lg font-bold text-navy">{isPaid ? "Paid" : p.offers.some((o) => !o.taken) ? "Invoice total" : "Total to pay"}</td>
                   <td className="pt-4 text-right text-2xl font-extrabold text-navy" data-amount>
                     {formatPence(p.amountPence)}
                   </td>
@@ -126,22 +127,11 @@ export default async function PayPage({
 
             {p.status === "open" &&
               (paymentsOn() ? (
-                <form action={payNow.bind(null, token)} className="mt-8 flex flex-col gap-4 print:hidden" data-pay-form>
-                  <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-navy">
-                    <input type="checkbox" name="saveCard" className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-terracotta-deep)]" />
-                    <span>
-                      Save my card with MPE for future visits.{" "}
-                      <span className="text-text-2">We&rsquo;ll always ask you first before using it.</span>
-                    </span>
-                  </label>
-                  <button
-                    type="submit"
-                    className="inline-flex min-h-14 items-center justify-center rounded-full bg-terracotta-deep px-6 text-lg font-semibold text-white transition-opacity hover:opacity-90"
-                  >
-                    Pay {formatPence(p.amountPence)}
-                  </button>
-                  <p className="text-center text-xs text-text-2">Apple Pay, Google Pay or card, securely by Stripe.</p>
-                </form>
+                <PayForm
+                  action={payNow.bind(null, token)}
+                  amountPence={p.amountPence}
+                  offers={p.offers.map((o, index) => ({ index, label: o.label, pence: o.pence, usualPence: o.usualPence, taken: o.taken })).filter((o) => !o.taken)}
+                />
               ) : (
                 <p className="mt-8 rounded-2xl bg-cream px-4 py-3 text-text-2 print:hidden">
                   Online payment isn&rsquo;t switched on yet. Please call us on {business.phoneDisplay} to pay.

@@ -8,6 +8,7 @@ import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
 import {
   CALLOUT_FEE_PENCE,
   PAID_VIA_LABEL,
+
   calloutCreditFor,
   formatPence,
   invoiceNumber,
@@ -19,6 +20,7 @@ import {
   type PaymentRequest,
 } from "@/lib/payments";
 import { PaymentBuilder } from "@/components/staff/payment-builder";
+import { listProducts, upsellProducts } from "@/lib/products";
 import { managePayment, takePayment } from "./actions";
 
 export const metadata: Metadata = { title: "Take payment" };
@@ -54,6 +56,7 @@ export default async function TakePaymentPage({
   const back = visit ? `/staff/schedule?view=day&date=${visit.day}#visit-${visit.id}` : `/staff/customers/${customer.id}`;
   const ctx = { customerId: customer.id, appointmentId: visit?.id ?? null, back };
   const online = paymentsOn();
+  const [products, upsells] = await Promise.all([listProducts(), upsellProducts()]);
   const [existing, card, credit] = await Promise.all([
     visit ? paymentsForAppointments([visit.id]).then((m) => m.get(visit.id) ?? []) : paymentsForCustomer(customer.id).then((list) => list.filter((p) => p.status === "open")),
     online ? savedCardFor(customer) : Promise.resolve(null),
@@ -138,6 +141,9 @@ export default async function TakePaymentPage({
             savedCard={card ? { brand: card.brand, last4: card.last4 } : null}
             creditPence={credit}
             online={online}
+            offers={upsells.map((u) => ({ productId: u.id, label: u.name, usualPence: u.pricePence, offerPence: u.offerPence }))}
+            products={products.map((pr) => ({ id: pr.id, name: pr.name, pricePence: pr.pricePence }))}
+            repair={!visit || visit.kind === "callout" || visit.kind === "repair"}
           />
         </div>
       </section>
@@ -190,6 +196,18 @@ function ExistingPayment({
             ? "Cancelled"
             : `Waiting for them to pay${p.reminderCount ? ` · reminded ${p.reminderCount === 1 ? "once" : "twice"}` : ""}`}
       </p>
+      {p.offers.length > 0 && (
+        <p className="text-xs text-muted" data-offer-status>
+          {p.offers.some((o) => o.taken)
+            ? `Added ${p.offers
+                .filter((o) => o.taken)
+                .map((o) => `${o.label.toLowerCase()} (${formatPence(o.pence)})`)
+                .join(" and ")}. Do it while you're there.`
+            : p.status === "open"
+              ? `Offered: ${p.offers.map((o) => `${o.label.toLowerCase()} ${formatPence(o.pence)}`).join(", ")}`
+              : "Didn't add the extras"}
+        </p>
+      )}
       {p.status === "open" && (
         <form action={action} className="mt-2 flex flex-wrap gap-1.5">
           {card && (

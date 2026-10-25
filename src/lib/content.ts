@@ -51,8 +51,8 @@ export type TwoTone = { lead: string; em: string };
 
 // Hero copy is built on the value equation: dream outcome + likelihood it
 // works, minus time delay and effort. Every claim must be one MPE can keep.
-// The hero follows the kanvas.one layout: proof pill, two-tone headline,
-// one button, then the £50 / £0 ticket and an orange card of promises.
+// The hero follows the kanvas.one layout, without the phone: proof pill,
+// two-tone headline, one button, and an orange card of promises.
 export const hero = {
   // Proof pill above the headline, as on kanvas.one: who we are, then a
   // way to ask a question straight away.
@@ -61,18 +61,10 @@ export const hero = {
   subline:
     "A Gas Safe engineer at your door for a £50 call-out. Price agreed before any work starts, and most faults fixed on the spot with parts from the van.",
   cta: "Book a same-day call-out",
-  // The tear-off ticket: what you pay, and what you pay when we fix it.
-  ticket: {
-    label: "Same-day call-out",
-    price: "£50",
-    text: "We come out, find the fault and agree the price.",
-    stubLabel: "We fix it?",
-    stubPrice: "£0",
-    stubText: "call-out back in full",
-  },
-  underTicket: "Decide not to go ahead and £50 is all you pay.",
-  // The orange promise card under the ticket. `info` opens a note.
+  // The orange promise card on the right of the hero. `info` opens a note
+  // under the card.
   promises: [
+    { text: "£50 call-out, back in full when we fix it", info: "fee" },
     { text: "Price agreed before any work starts" },
     { text: "Every repair guaranteed for 3\u00a0months", info: "guarantee" },
     { text: "Local engineers, based in Whitley Bay" },

@@ -4,13 +4,12 @@ import { contactHref } from "@/lib/enquiry";
 import { FlameIcon } from "./icons";
 import { HeroPromises } from "./HeroPromises";
 
-// The hero in the kanvas.one layout. Left: a proof pill (who we are, and a
-// way to ask straight away), the two-tone headline with the orange clause
-// on its own line, one line of copy, one big button and a line of quiet
-// links. Right: the £50 / £0 ticket, its caption, and an orange card of
+// The hero in the kanvas.one layout, without the phone mockup. Left: a
+// proof pill (who we are, and a way to ask straight away), the two-tone
+// headline with the orange clause on its own line, one line of copy, one
+// big button and a line of quiet links. Right: the orange card of
 // promises. Centred and stacked on a phone; two columns from 1024px.
 export function Hero() {
-  const t = hero.ticket;
   return (
     <section className="overflow-x-clip bg-page pt-10 pb-12 sm:pt-14 lg:pt-[72px] lg:pb-24">
       <div className="mx-auto max-w-6xl px-5 text-center sm:px-6 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-center lg:gap-16 lg:text-left">
@@ -60,23 +59,7 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="mx-auto mt-10 flex w-full max-w-[440px] flex-col items-center lg:mt-0">
-          <div className="w-full -rotate-2 [--stub:122px] [filter:drop-shadow(0_14px_14px_rgba(181,65,28,0.32))] sm:[--stub:140px]">
-            <div className="ticket-notches relative flex rounded-[18px] bg-terracotta-deep text-left text-white lg:rounded-3xl">
-              <div className="flex flex-1 flex-col gap-0.5 py-[18px] pr-[18px] pl-5 sm:p-7">
-                <span className="text-xs font-bold uppercase tracking-[0.12em] text-ticket-ink">{t.label}</span>
-                <span className="text-[54px] font-extrabold leading-none tracking-[-0.03em] sm:text-7xl">{t.price}</span>
-                <span className="text-sm leading-[1.35] text-ticket-ink sm:mt-1 sm:text-base">{t.text}</span>
-              </div>
-              <div className="flex w-[var(--stub)] flex-none flex-col items-center justify-center gap-0.5 rounded-r-[18px] border-l-2 border-dashed border-white/60 bg-ticket-stub px-3 py-[18px] text-center lg:rounded-r-3xl">
-                <span className="text-xs font-bold uppercase tracking-[0.12em] text-ticket-ink">{t.stubLabel}</span>
-                <span className="text-[54px] font-extrabold leading-none tracking-[-0.03em] text-sun sm:text-7xl">{t.stubPrice}</span>
-                <span className="text-xs leading-[1.3] text-ticket-ink sm:mt-1 sm:text-sm">{t.stubText}</span>
-              </div>
-            </div>
-          </div>
-          <p className="mt-5 text-[15px] font-semibold text-text-2">{hero.underTicket}</p>
-
+        <div className="mx-auto mt-10 w-full max-w-[440px] lg:mt-0">
           <HeroPromises />
         </div>
       </div>

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { business, freeOffers } from "@/lib/content";
 import { FreeOfferLink, offerIcons } from "./FreeOfferLink";
+import { ChatButton } from "./ChatButton";
 import { MenuIcon, CloseIcon, WhatsAppIcon } from "./icons";
 
 // The logo on the left, call, chat and menu on the right, nothing else.
@@ -19,7 +20,8 @@ const links: { label: string; href: string }[] = [
   { label: "Help & advice", href: "/help" },
   { label: "Reviews", href: "/reviews" },
   { label: "About", href: "/about" },
-  { label: "Book a boiler service", href: "/book?path=boilers.service" },
+  { label: "Book a boiler service", href: "/book/service" },
+  { label: "Maintenance plan", href: "/book/plan" },
   { label: "Book a visit", href: "/book" },
   { label: "Contact", href: "/contact" },
 ];
@@ -58,6 +60,7 @@ export function Nav() {
           >
             <WhatsAppIcon className="h-6 w-6" />
           </a>
+          <ChatButton />
           <button
             type="button"
             aria-label={open ? "Close menu" : "Open menu"}

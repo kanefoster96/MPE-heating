@@ -37,6 +37,8 @@ export const metadata: Metadata = {
   },
 };
 
+const KANVAS_SITE_ID = process.env.NEXT_PUBLIC_KANVAS_SITE_ID;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -55,6 +57,23 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-page text-navy">
         {children}
         <JsonLd data={localBusinessJsonLd()} />
+        {/* Kanvas One: visitor counts for the app, and live chat that also
+            lands in the One app. Only once the site's One id is set in
+            NEXT_PUBLIC_KANVAS_SITE_ID (see NEW-SITE.md in the One repo). */}
+        {KANVAS_SITE_ID && (
+          <>
+            <script src="https://kanvas.one/beacon.js" data-site={KANVAS_SITE_ID} defer />
+            <script
+              src="https://kanvas.one/chat.js"
+              data-site={KANVAS_SITE_ID}
+              data-name="MPE"
+              data-color="#b5411c"
+              data-trigger="#chatButton"
+              data-full=""
+              defer
+            />
+          </>
+        )}
       </body>
     </html>
   );

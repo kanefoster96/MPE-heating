@@ -3,7 +3,8 @@
 // goes to the contact form.
 //
 // The booking funnel: a tree of choices. Each step shows cards; picking one
-// shows the next list, until a leaf, where the details form appears with
+// shows the next list, or opens a dedicated form (boiler repair, service,
+// new boiler, plan), until a leaf, where the details form appears with
 // the right prompt, button label and extras (the £50 fee note and the
 // same-day tick for repairs). The chosen path is sent with the enquiry.
 
@@ -47,9 +48,11 @@ export type FunnelNode = {
   label: string;
   text: string;
   icon: FunnelIcon;
-  // Either more choices, or a leaf that opens the details form.
+  // Either more choices, a leaf that opens the details form, or a link to
+  // a dedicated booking form (src/lib/flows.ts).
   children?: FunnelNode[];
   leaf?: FunnelLeaf;
+  href?: string;
 };
 
 const describe = (what: string) => `Tell us a bit about ${what}: what's happening, roughly where you are, and when suits.`;
@@ -66,35 +69,28 @@ export const funnel: FunnelNode[] = [
         label: "Repair",
         text: "Not working, losing pressure, noisy or showing a fault.",
         icon: "alert",
-        leaf: {
-          type: "repair",
-          prompt: "What's the boiler doing? Fault codes, noises, no heat or hot water…",
-          cta: "Book a same-day call-out",
-          fee: true,
-          sameDay: true,
-        },
+        href: "/emergency",
       },
       {
         id: "service",
         label: "Annual service",
         text: "From £79. Keeps your warranty valid.",
         icon: "service",
-        leaf: {
-          type: "service",
-          prompt: "Boiler make and model if you know it, and when it was last serviced.",
-          cta: "Book a service",
-        },
+        href: "/book/service",
       },
       {
         id: "new",
         label: "New boiler",
         text: "Free fixed-price quote, usually fitted in a day.",
         icon: "newboiler",
-        leaf: {
-          type: "quote",
-          prompt: "Current boiler, roughly how many bedrooms and bathrooms, and anything you'd like changed.",
-          cta: "Get a free quote",
-        },
+        href: "/book/new-boiler",
+      },
+      {
+        id: "plan",
+        label: "Maintenance plan",
+        text: "Free call-outs all year, and a free yearly service.",
+        icon: "calendar",
+        href: "/book/plan",
       },
       {
         id: "radiators",

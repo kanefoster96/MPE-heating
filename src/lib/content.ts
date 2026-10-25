@@ -75,8 +75,9 @@ export const hero = {
   },
 };
 
-// Lower on the homepage: the two other boiler jobs, each a small section
-// of its own. Only what the site already says; no plan prices.
+// Lower on the homepage: new boilers, servicing and the maintenance plan,
+// each a small card of its own with its own booking form. No plan price
+// until MPE sets one.
 export const homeExtras = {
   heading: ["Not broken down?", "We do the rest too."],
   newBoiler: {
@@ -84,7 +85,7 @@ export const homeExtras = {
     title: "Free fixed-price quote",
     points: ["No obligation, no pressure", "Usually fitted in a day", "All major brands, manufacturer's warranty"],
     cta: "Get a free quote",
-    href: "/book?path=boilers.new",
+    href: "/book/new-boiler",
     more: { label: "About new boilers", href: "/new-boilers" },
   },
   servicing: {
@@ -92,8 +93,16 @@ export const homeExtras = {
     title: "Annual service from £79",
     points: ["About 45 minutes", "Keeps your boiler warranty valid", "Written report, and a reminder when the next is due"],
     cta: "Book a service",
-    href: "/book?path=boilers.service",
-    more: { label: "Maintenance contracts for businesses", href: "/commercial" },
+    href: "/book/service",
+    more: { label: "About servicing", href: "/servicing" },
+  },
+  plan: {
+    tag: "Maintenance plan",
+    title: "Covered all year",
+    points: ["Free call-outs all year round", "A free yearly service", "For homes, landlords and businesses"],
+    cta: "Get the plan details",
+    href: "/book/plan",
+    more: { label: "Business maintenance contracts", href: "/commercial" },
   },
 };
 
@@ -116,7 +125,7 @@ export const freeOffers = {
       title: "Free boiler quote",
       note: "Fixed price, no obligation.",
       cta: "Get a quote",
-      href: "/book?path=boilers.new",
+      href: "/book/new-boiler",
       external: false,
     },
     {

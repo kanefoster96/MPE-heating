@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { business } from "@/lib/content";
-import { isValidEmail, isValidPhone } from "@/lib/validation";
+import { formatPostcode, isValidEmail, isValidPhone, isValidPostcode } from "@/lib/validation";
+import { isLikelyBotSubmission } from "@/lib/spamGuard";
 import { ENQUIRY_TYPES, type EnquiryType } from "@/lib/enquiry";
 
 // Delivers a booking/quote enquiry to the team's inbox via Resend's REST
@@ -19,8 +20,15 @@ type Payload = {
   sameDayRequested?: unknown;
   // The funnel choices that led here, e.g. ["Plumbing", "Leak or burst pipe"].
   path?: unknown;
-  // Honeypot: real visitors never see this field, bots fill it in.
+  // The step-by-step forms: postcode, and each question with its answer.
+  postcode?: unknown;
+  answers?: unknown;
+  // Bot checks (from Kanvas Academy): a honeypot real visitors never see
+  // (`website`, or `company` on older forms) and how long the form was
+  // open before sending, in milliseconds.
+  website?: unknown;
   company?: unknown;
+  fillMs?: unknown;
 };
 
 function str(value: unknown, max: number): string {
@@ -43,10 +51,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  // Bots that fill the hidden field get a quiet 200 and nothing is sent.
-  if (str(body.company, 200)) {
-    return NextResponse.json({ ok: true });
-  }
 
   const name = str(body.name, 120);
   const phone = str(body.phone, 40);
@@ -58,13 +62,31 @@ export async function POST(request: NextRequest) {
   const path = Array.isArray(body.path)
     ? body.path.map((p) => str(p, 60)).filter(Boolean).slice(0, 6)
     : [];
+  const postcodeRaw = str(body.postcode, 12);
+  const postcode = postcodeRaw && isValidPostcode(postcodeRaw) ? formatPostcode(postcodeRaw) : "";
+  const answers = Array.isArray(body.answers)
+    ? body.answers
+        .map((a) => (a && typeof a === "object" ? { q: str((a as { q?: unknown }).q, 120), a: str((a as { a?: unknown }).a, 600) } : null))
+        .filter((a): a is { q: string; a: string } => !!a && !!a.q && !!a.a)
+        .slice(0, 12)
+    : [];
+
+  // Bots get a quiet 200 and nothing is sent (Kanvas Academy's spam guard).
+  const honeypot = str(body.website, 200) || str(body.company, 200);
+  const fillMs = typeof body.fillMs === "number" ? body.fillMs : undefined;
+  if (isLikelyBotSubmission({ website: honeypot, fillMs }, [name, message].filter(Boolean))) {
+    return NextResponse.json({ ok: true });
+  }
 
   // The booking forms send a name and phone; the quick email fields send
   // an email and a request, with a phone only if they want a call. So a
-  // request needs a message and at least one valid way to reply.
+  // request needs something to act on and at least one way to reply.
   const hasPhone = isValidPhone(phone);
   const hasEmail = !!email && isValidEmail(email);
-  if (message.length < 10 || (!hasPhone && !hasEmail) || (name && name.length < 2)) {
+  // A request is a message of a sentence or more, or the answers from a
+  // step-by-step form.
+  const hasRequest = message.length >= 10 || answers.length > 0;
+  if (!hasRequest || (!hasPhone && !hasEmail) || (name && name.length < 2)) {
     return NextResponse.json({ error: "Check the details and try again." }, { status: 400 });
   }
   if (phone && !hasPhone) {
@@ -83,7 +105,7 @@ export async function POST(request: NextRequest) {
   const from = process.env.CONTACT_FROM_EMAIL || "MPE Website <onboarding@resend.dev>";
   const label = path.length ? path.join(" › ") : ENQUIRY_TYPES[type].label;
   const urgent = sameDayRequested ? " — SAME-DAY" : "";
-  const subject = `${label}${urgent}: ${name || email || phone}`;
+  const subject = `${label}${urgent}: ${name || email || phone}${postcode ? ` (${postcode})` : ""}`;
 
   const lines = [
     `Request: ${label}${sameDayRequested ? " (same-day requested)" : ""}`,
@@ -91,8 +113,9 @@ export async function POST(request: NextRequest) {
     `Name: ${name || "not given"}`,
     `Phone: ${phone || "not given"}`,
     `Email: ${email || "not given"}`,
-    "",
-    message,
+    ...(postcode ? [`Postcode: ${postcode}`] : []),
+    ...(answers.length ? ["", ...answers.map((a) => `${a.q}: ${a.a}`)] : []),
+    ...(message ? ["", message] : []),
   ];
 
   const html = `<p><strong>${escapeHtml(label)}</strong>${
@@ -100,8 +123,13 @@ export async function POST(request: NextRequest) {
   }</p>
 <p><strong>Name:</strong> ${name ? escapeHtml(name) : "not given"}<br/>
 <strong>Phone:</strong> ${phone ? `<a href="tel:${escapeHtml(phone.replace(/\s+/g, ""))}">${escapeHtml(phone)}</a>` : "not given"}<br/>
-<strong>Email:</strong> ${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : "not given"}</p>
-<p style="white-space:pre-wrap">${escapeHtml(message)}</p>`;
+<strong>Email:</strong> ${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : "not given"}${
+    postcode ? `<br/><strong>Postcode:</strong> ${escapeHtml(postcode)}` : ""
+  }</p>${
+    answers.length
+      ? `<ul>${answers.map((a) => `<li>${escapeHtml(a.q)}: <strong>${escapeHtml(a.a)}</strong></li>`).join("")}</ul>`
+      : ""
+  }${message ? `<p style="white-space:pre-wrap">${escapeHtml(message)}</p>` : ""}`;
 
   try {
     const response = await fetch(RESEND_URL, {

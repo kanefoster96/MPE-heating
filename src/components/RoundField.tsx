@@ -5,6 +5,7 @@ import { business, sameDay as sameDayCopy } from "@/lib/content";
 import { ENQUIRY_TYPES, type EnquiryType } from "@/lib/enquiry";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
 import { PhoneIcon, WhatsAppIcon } from "./icons";
+import { fillMsSince } from "./BotCheck";
 
 type Status = "idle" | "sending" | "sent" | "unavailable" | "failed";
 
@@ -53,6 +54,8 @@ export function RoundField({
   const [sameDay, setSameDay] = useState(false);
   const [phone, setPhone] = useState("");
   const [company, setCompany] = useState("");
+  // When the field was shown, for the bot check's fill time.
+  const [openedAt] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const messageRef = useRef<HTMLTextAreaElement>(null);
@@ -99,6 +102,7 @@ export function RoundField({
           sameDayRequested: offersSameDay && sameDay,
           path: [ENQUIRY_TYPES[type].label],
           company,
+          fillMs: fillMsSince(openedAt),
         }),
       });
       setStatus(res.ok ? "sent" : res.status === 503 ? "unavailable" : "failed");

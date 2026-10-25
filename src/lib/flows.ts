@@ -10,8 +10,9 @@ import type { FunnelIcon } from "./funnel";
 export type FlowChoice = { id: string; label: string; text?: string; icon?: FunnelIcon };
 
 export type FlowStep =
-  | { kind: "choice"; id: string; question: string; help?: string; choices: FlowChoice[] }
-  | { kind: "text"; id: string; question: string; help?: string; placeholder: string; minLength: number }
+  // `recap` is the short label in the summary and the enquiry email.
+  | { kind: "choice"; id: string; recap: string; question: string; help?: string; choices: FlowChoice[] }
+  | { kind: "text"; id: string; recap: string; question: string; help?: string; placeholder: string; minLength: number }
   | { kind: "postcode"; id: "postcode"; question: string; help?: string }
   | {
       kind: "contact";
@@ -49,6 +50,7 @@ const postcode: FlowStep = {
 const boilerMake: FlowStep = {
   kind: "choice",
   id: "make",
+  recap: "Boiler make",
   question: "What make is your boiler?",
   help: "It's usually on the front panel.",
   choices: [
@@ -74,6 +76,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "issue",
+        recap: "Problem",
         question: "What's the boiler doing?",
         choices: [
           { id: "nothing", label: "No heating or hot water", icon: "alert" },
@@ -87,6 +90,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "text",
         id: "description",
+        recap: "Details",
         question: "Describe it in a sentence",
         help: "Fault codes, noises, when it started. Whatever you've noticed.",
         placeholder: "E.g. error code F28, no heating since this morning.",
@@ -120,6 +124,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "need",
+        recap: "Need",
         question: "What do you need?",
         choices: [
           { id: "replace", label: "Replace my boiler", icon: "newboiler" },
@@ -131,6 +136,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "current",
+        recap: "Current boiler",
         question: "What boiler do you have now?",
         choices: [
           { id: "combi", label: "Combi", text: "No hot water tank", icon: "boiler" },
@@ -142,6 +148,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "fuel",
+        recap: "Gas supply",
         question: "What's your current gas supply?",
         choices: [
           { id: "mains", label: "Mains gas" },
@@ -154,6 +161,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "bedrooms",
+        recap: "Bedrooms",
         question: "How many bedrooms?",
         help: "It helps us size the boiler.",
         choices: [
@@ -166,6 +174,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "budget",
+        recap: "Budget",
         question: "What's your budget?",
         help: "Just a guide, so the quote fits.",
         choices: [
@@ -179,6 +188,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "when",
+        recap: "Timing",
         question: "When do you need it?",
         choices: [
           { id: "asap", label: "As soon as possible" },
@@ -215,6 +225,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "last",
+        recap: "Last service",
         question: "When was it last serviced?",
         choices: [
           { id: "year", label: "In the last year", icon: "calendar" },
@@ -225,6 +236,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "time",
+        recap: "Time of day",
         question: "What time of day suits you?",
         help: "We'll confirm the exact day and time with you.",
         choices: [
@@ -259,6 +271,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "who",
+        recap: "For",
         question: "Who's the plan for?",
         choices: [
           { id: "home", label: "My home", icon: "boiler" },
@@ -269,6 +282,7 @@ export const flows: Record<FlowKey, Flow> = {
       {
         kind: "choice",
         id: "age",
+        recap: "Boiler age",
         question: "How old is your boiler?",
         choices: [
           { id: "under-5", label: "Under 5 years" },

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 // The team's login for the inbox (Kanvas Academy's login page, for MPE's
-// admins and engineers; customers never need an account).
+// admins and engineers). Customers sign in at /account with an emailed link.
 export default async function LoginPage({
   searchParams,
 }: {

@@ -321,6 +321,93 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
+-- Customers: one record per household, with their address and boiler.
+--
+-- Made from a booking form, from the details someone leaves in the chat, or
+-- by the team by hand (lib/customers.ts). The customer can edit their own
+-- contact and boiler details from /account once they've signed in with
+-- their email (user_id is then their login); the team can edit everything.
+-- Service-role only: every read and write goes through the server, which
+-- checks who's asking, so the team's private notes (below) can never leak.
+create table if not exists public.customers (
+  id uuid primary key default gen_random_uuid(),
+  -- Their login, once they've signed in at /account.
+  user_id uuid unique references auth.users (id) on delete set null,
+  -- Their conversation in the team inbox (texts, chat, calls, emails).
+  conversation_id uuid references public.chat_conversations (id) on delete set null,
+  name text,
+  -- Stored lowercased.
+  email text,
+  -- As typed, and in E.164 for texting and matching.
+  phone text,
+  phone_e164 text,
+  address text,
+  postcode text,
+  -- The boiler, as far as anyone knows it.
+  boiler_make text,
+  boiler_model text,
+  boiler_age text,
+  boiler_location text,
+  last_service text,
+  -- From the customer: parking, key safe, pets, anything for the visit.
+  access_notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists customers_email_idx on public.customers (email) where email is not null;
+create unique index if not exists customers_phone_idx on public.customers (phone_e164) where phone_e164 is not null;
+create index if not exists customers_conversation_idx on public.customers (conversation_id);
+alter table public.customers enable row level security;
+
+-- The team's private notes about a customer or their boiler. Never shown to
+-- the customer. Service-role only.
+create table if not exists public.customer_notes (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid not null references public.customers (id) on delete cascade,
+  body text not null,
+  author_id uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists customer_notes_customer_idx on public.customer_notes (customer_id, created_at desc);
+alter table public.customer_notes enable row level security;
+
+-- Each booking form's customer.
+alter table public.enquiries add column if not exists customer_id uuid references public.customers (id) on delete set null;
+create index if not exists enquiries_customer_idx on public.enquiries (customer_id);
+
+-- ---------------------------------------------------------------------------
+-- The schedule: every visit, with a rough time window (lib/appointments.ts).
+--
+-- A day and a window in minutes after midnight, London time (480 = 8am), so
+-- "8am–12pm" means the same thing all year round. The team's notes on a
+-- visit are internal; the customer sees the kind, day, window and address.
+-- Service-role only.
+create table if not exists public.appointments (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references public.customers (id) on delete set null,
+  -- The booking form it came from, if any.
+  enquiry_id uuid references public.enquiries (id) on delete set null,
+  kind text not null check (kind in ('callout', 'repair', 'service', 'install', 'quote', 'other')),
+  day date not null,
+  start_minute integer not null check (start_minute >= 0 and start_minute < 1440),
+  end_minute integer not null check (end_minute > start_minute and end_minute <= 1440),
+  status text not null default 'booked' check (status in ('booked', 'done', 'cancelled')),
+  -- Short label for anything without a customer, e.g. "Van MOT".
+  title text,
+  address text,
+  postcode text,
+  notes text,
+  -- Which engineer, once there's more than one.
+  engineer_id uuid references auth.users (id) on delete set null,
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists appointments_day_idx on public.appointments (day, start_minute);
+create index if not exists appointments_customer_idx on public.appointments (customer_id, day desc);
+alter table public.appointments enable row level security;
+
+-- ---------------------------------------------------------------------------
 -- App push notifications (the MPE app, next stage).
 
 -- One Expo push token per signed-in device. Service-role only.

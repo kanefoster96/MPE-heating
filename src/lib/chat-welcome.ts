@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { findOrCreateCustomer } from "@/lib/customers";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { normalizePhone } from "@/lib/phone";
 import { isValidEmail } from "@/lib/validation";
@@ -145,6 +146,10 @@ export async function saveCustomerDetails(
     console.error("saveCustomerDetails: update failed", error);
     return { success: false, error: "Couldn't save your details. Please try again." };
   }
+
+  // Their customer record, for the schedule and the team's customer pages.
+  const { data: convo } = await admin.from("chat_conversations").select("guest_name").eq("id", conversationId).maybeSingle();
+  await findOrCreateCustomer(admin, { name: (convo?.guest_name as string | null) ?? null, email: email || null, phone: mobile ? mobileTyped : null, conversationId });
 
   await notifyStaffOfFamilyMessage({
     conversationId,

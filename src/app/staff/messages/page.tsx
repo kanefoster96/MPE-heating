@@ -25,7 +25,7 @@ import {
 } from "@/lib/enquiries";
 import { CHAT_ON } from "@/lib/chat-on";
 import type { ConversationWithMember } from "@/lib/chat";
-import { formatLondonClock, londonParts } from "@/lib/schedule-time";
+import { formatLondonClock, londonNow, londonParts } from "@/lib/schedule-time";
 import { PaperPlaneIcon } from "@/components/coach/icons";
 import { withTeamChat } from "@/lib/team-chat";
 
@@ -229,14 +229,32 @@ function JobCard({ job }: { job: Enquiry }) {
             {job.path.length ? ` · ${job.path.join(" › ")}` : ""}
           </p>
         </div>
-        {job.conversationId && (
-          <Link
-            href={`/staff/messages/${job.conversationId}`}
-            className="inline-flex min-h-9 items-center rounded-full border border-border px-3 text-xs font-semibold transition-colors hover:border-foreground/40"
-          >
-            Open chat
-          </Link>
-        )}
+        <div className="flex flex-wrap gap-1.5">
+          {(job.status === "new" || job.status === "contacted") && (
+            <Link
+              href={`/staff/schedule?view=day&date=${londonNow().dateISO}&enquiry=${job.id}#add`}
+              className="inline-flex min-h-9 items-center rounded-full bg-accent px-3 text-xs font-semibold text-accent-foreground transition-opacity hover:opacity-90"
+            >
+              Book it
+            </Link>
+          )}
+          {job.customerId && (
+            <Link
+              href={`/staff/customers/${job.customerId}`}
+              className="inline-flex min-h-9 items-center rounded-full border border-border px-3 text-xs font-semibold transition-colors hover:border-foreground/40"
+            >
+              Customer
+            </Link>
+          )}
+          {job.conversationId && (
+            <Link
+              href={`/staff/messages/${job.conversationId}`}
+              className="inline-flex min-h-9 items-center rounded-full border border-border px-3 text-xs font-semibold transition-colors hover:border-foreground/40"
+            >
+              Open chat
+            </Link>
+          )}
+        </div>
       </div>
       {(details.length > 0 || job.message) && (
         <p className="mt-2 line-clamp-3 text-sm text-foreground">{[...details, job.message].filter(Boolean).join(" · ")}</p>

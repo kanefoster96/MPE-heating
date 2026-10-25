@@ -11,9 +11,11 @@ import { createClient } from "@/lib/supabase/server";
 import { isCoach } from "@/lib/coach";
 import { customerForUser } from "@/lib/customers";
 import { appointmentsForCustomer } from "@/lib/appointments";
-import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
+import { KIND_LABEL, REQUESTABLE_KINDS, STATUS_LABEL } from "@/lib/day-plan";
+import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
-import { sendSignInLink, signOut, updateMyDetails } from "./actions";
+import { DayPartFields } from "@/components/DayPartPicker";
+import { requestVisit, sendSignInLink, signOut, updateMyDetails } from "./actions";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -48,9 +50,9 @@ function Shell({ children }: { children: React.ReactNode }) {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; error?: string; saved?: string }>;
+  searchParams: Promise<{ sent?: string; error?: string; saved?: string; requested?: string; requestError?: string }>;
 }) {
-  const { sent, error, saved } = await searchParams;
+  const { sent, error, saved, requested, requestError } = await searchParams;
 
   if (!CHAT_ON) {
     return (
@@ -110,7 +112,7 @@ export default async function AccountPage({
   const customer = await customerForUser(user.id, user.email);
   const today = londonNow().dateISO;
   const visits = customer ? await appointmentsForCustomer(customer.id) : [];
-  const upcoming = visits.filter((v) => v.day >= today && v.status === "booked").reverse();
+  const upcoming = visits.filter((v) => v.day >= today && (v.status === "booked" || v.status === "requested")).reverse();
 
   return (
     <Shell>
@@ -131,17 +133,37 @@ export default async function AccountPage({
         <h2 id="visits" className="text-xl font-semibold text-navy">
           Your visits
         </h2>
+        {requested && (
+          <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">
+            Thanks, your request is in. We&rsquo;ll be in touch to confirm the time.
+          </p>
+        )}
         {upcoming.length === 0 ? (
           <p className="mt-2 text-text-2">Nothing booked at the moment.</p>
         ) : (
           <ul className="mt-4 flex flex-col gap-3" data-my-visits>
             {upcoming.map((v) => (
-              <li key={v.id} className="rounded-2xl border border-line bg-cream px-4 py-3">
-                <p className="font-semibold text-navy">{KIND_LABEL[v.kind]}</p>
-                <p className="text-text-2">
-                  {longDate(v.day)}, between {windowLabel(v.start, v.end).replace("–", " and ")}
-                </p>
-                {(v.address || v.postcode) && <p className="text-sm text-text-2">{[v.address, v.postcode].filter(Boolean).join(", ")}</p>}
+              <li key={v.id}>
+                <Link
+                  href={`/visit/${v.publicToken}`}
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl border border-line bg-cream px-4 py-3 transition-colors hover:border-navy/40"
+                  data-my-visit={v.status}
+                >
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-navy">{KIND_LABEL[v.kind]}</span>
+                    <span className="block text-text-2">
+                      {v.status === "requested"
+                        ? `You asked for ${requestedWhen(v.day, v.part)}${v.part === "any" || !v.part ? ", any time" : ""}`
+                        : whenLine(v)}
+                    </span>
+                    {v.change && <span className="block text-sm text-text-2">You asked to move it. We&rsquo;ll be in touch.</span>}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${v.status === "requested" ? "bg-navy/10 text-navy" : "bg-success/10 text-success"}`}
+                  >
+                    {v.status === "requested" ? "Waiting to confirm" : STATUS_LABEL[v.status]}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
@@ -151,12 +173,41 @@ export default async function AccountPage({
             Message us
           </Link>
           <Link href="/emergency" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40">
-            Book a call-out
-          </Link>
-          <Link href="/book/service" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40">
-            Book a service
+            Boiler broken down?
           </Link>
         </div>
+      </section>
+
+      <section id="request" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="request-heading">
+        <h2 id="request-heading" className="text-xl font-semibold text-navy">
+          Request a visit
+        </h2>
+        <p className="mt-1 text-text-2">Pick a day and time that suits you. We&rsquo;ll confirm it, or suggest the nearest time we have.</p>
+        {requestError && <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{requestError}</p>}
+        <form action={requestVisit} className="mt-5 flex flex-col gap-5">
+          <fieldset>
+            <legend className="mb-2 text-sm font-semibold text-navy">What do you need?</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {REQUESTABLE_KINDS.map((k, i) => (
+                <label
+                  key={k}
+                  className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-line bg-white px-3 text-center text-sm font-semibold text-navy transition-colors hover:border-navy/40 has-[:checked]:border-terracotta-deep has-[:checked]:bg-terracotta-deep has-[:checked]:text-white has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-navy/40"
+                >
+                  <input type="radio" name="kind" value={k} defaultChecked={i === 0} className="sr-only" />
+                  {KIND_LABEL[k]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <DayPartFields submitLabel="Send request">
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-navy">
+                What&rsquo;s it about? <span className="font-normal text-text-2">(optional)</span>
+              </span>
+              <textarea name="note" rows={2} maxLength={500} className="w-full rounded-lg border border-line bg-white px-4 py-3 text-base outline-none focus:border-navy/40" />
+            </label>
+          </DayPartFields>
+        </form>
       </section>
 
       <section id="details" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="details-heading">

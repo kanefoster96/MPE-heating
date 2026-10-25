@@ -14,6 +14,9 @@ export type FlowStep =
   | { kind: "choice"; id: string; recap: string; question: string; help?: string; choices: FlowChoice[] }
   | { kind: "text"; id: string; recap: string; question: string; help?: string; placeholder: string; minLength: number }
   | { kind: "postcode"; id: "postcode"; question: string; help?: string }
+  // A day in the next two weeks, then morning, afternoon or any time
+  // (components/DayPartPicker.tsx). Saved as a request on the team's schedule.
+  | { kind: "when"; id: "when"; recap: string; question: string; help?: string; fromToday?: boolean }
   | {
       kind: "contact";
       id: "contact";
@@ -70,7 +73,7 @@ export const flows: Record<FlowKey, Flow> = {
     label: "Boiler call-out",
     eyebrow: "Boiler call-out",
     title: { lead: "Boiler broken down?", em: "Book a call-out." },
-    subtitle: "Four quick steps. £50 call-out, taken off your repair bill if you go ahead.",
+    subtitle: "Five quick steps. £50 call-out, taken off your repair bill if you go ahead.",
     fee: true,
     steps: [
       {
@@ -97,6 +100,14 @@ export const flows: Record<FlowKey, Flow> = {
         minLength: 10,
       },
       postcode,
+      {
+        kind: "when",
+        id: "when",
+        recap: "Best time",
+        question: "When suits you?",
+        help: "We'll confirm a time with you before anyone sets off.",
+        fromToday: true,
+      },
       {
         kind: "contact",
         id: "contact",
@@ -234,16 +245,11 @@ export const flows: Record<FlowKey, Flow> = {
         ],
       },
       {
-        kind: "choice",
-        id: "time",
-        recap: "Time of day",
-        question: "What time of day suits you?",
+        kind: "when",
+        id: "when",
+        recap: "Best time",
+        question: "When suits you?",
         help: "We'll confirm the exact day and time with you.",
-        choices: [
-          { id: "morning", label: "Mornings" },
-          { id: "afternoon", label: "Afternoons" },
-          { id: "any", label: "Any time" },
-        ],
       },
       postcode,
       {

@@ -5,6 +5,9 @@ import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { normalizePhone } from "@/lib/phone";
 import type { EnquiryType } from "@/lib/enquiry";
 import { findOrCreateCustomer } from "@/lib/customers";
+import { createRequest } from "@/lib/appointments";
+import { sendVisitNotice } from "@/lib/visit-notify";
+import type { Part } from "@/lib/day-plan";
 
 /**
  * Booking enquiries, filed as jobs. MPE's own addition to Kanvas Academy's
@@ -175,6 +178,8 @@ export async function recordEnquiry(input: {
   path: string[];
   answers: { q: string; a: string }[];
   message: string;
+  /** From the "when suits you" step: becomes a request on the team's schedule. */
+  preferred?: { day: string; part: Part } | null;
 }): Promise<boolean> {
   if (!enquiriesOn()) return false;
   try {
@@ -215,7 +220,7 @@ export async function recordEnquiry(input: {
       conversationId: conversation?.id ?? null,
     });
 
-    const { error } = await admin.from("enquiries").insert({
+    const { data: inserted, error } = await admin.from("enquiries").insert({
       conversation_id: conversation?.id ?? null,
       customer_id: customerId,
       category: categoryFor(input.type),
@@ -228,10 +233,25 @@ export async function recordEnquiry(input: {
       path: input.path,
       answers: input.answers,
       message: input.message || null,
-    });
+    }).select("id").single();
     if (error) {
       console.error("recordEnquiry: insert failed", error);
       return false;
+    }
+
+    // The day they picked goes on the schedule as a request, and they get
+    // a message back with the link to it.
+    if (input.preferred && customerId && inserted) {
+      const visit = await createRequest({
+        customerId,
+        enquiryId: inserted.id as string,
+        kind: visitKindFor(categoryFor(input.type)),
+        day: input.preferred.day,
+        part: input.preferred.part,
+        postcode: input.postcode || null,
+        source: "website",
+      });
+      if (visit) await sendVisitNotice(visit.id, "requested", null);
     }
 
     if (conversation) {

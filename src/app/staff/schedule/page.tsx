@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireStaff } from "@/lib/staff-auth";
 import { londonNow } from "@/lib/schedule-time";
-import { appointmentsBetween, getAppointment, type Appointment } from "@/lib/appointments";
+import { appointmentsBetween, getAppointment, waitingOnTeam, type Appointment } from "@/lib/appointments";
+import { business } from "@/lib/content";
+import { viaPhrase } from "@/lib/visit-notify";
+import { requestedWhen } from "@/lib/visit-copy";
 import { customerLabel, getCustomer, getCustomers, type Customer } from "@/lib/customers";
 import { getEnquiry, visitKindFor, CATEGORY_LABEL } from "@/lib/enquiries";
 import {
@@ -11,7 +14,10 @@ import {
   KIND_DEFAULT_MINUTES,
   KIND_LABEL,
   KIND_STYLE,
+  PART_LABEL,
+  PART_WINDOW,
   STATUS_LABEL,
+  isPart,
   WORKDAY,
   addDays,
   addMonths,
@@ -26,19 +32,37 @@ import {
   monthLabel,
   windowLabel,
   type AppointmentKind,
-  type AppointmentStatus,
 } from "@/lib/day-plan";
 import { ChevronLeftIcon, ChevronRightIcon, MapPinIcon, PhoneIcon } from "@/components/icons";
 import { AppointmentForm, type AppointmentFormValues } from "@/components/staff/appointment-form";
-import { addAppointment, changeAppointmentStatus, editAppointment, removeAppointment } from "./actions";
+import {
+  acceptVisitRequest,
+  addAppointment,
+  changeAppointmentStatus,
+  editAppointment,
+  keepVisitTime,
+  removeAppointment,
+  sendVisitDetails,
+} from "./actions";
+import { openCustomerChat } from "../customers/actions";
 
 export const metadata: Metadata = { title: "Schedule" };
 
 const SUCCESS: Record<string, string> = {
   added: "Visit added.",
   saved: "Visit saved.",
+  accepted: "Booked.",
+  sent: "Sent.",
   removed: "Visit removed.",
 };
+
+/** "Visit added. Sent to them by message, email and text." */
+function successLine(success: string, sent: string | undefined): string {
+  const base = SUCCESS[success] ?? "Done.";
+  if (!sent) return base;
+  if (sent === "none") return `${base} We couldn't send them the details: add an email or mobile to their customer page.`;
+  return `${base} They've been sent the details by ${viaPhrase(sent.split(","))}.`;
+}
 
 /** Pixels per hour on the day view's timeline. */
 const HOUR_PX = 56;
@@ -53,8 +77,12 @@ type SearchParams = {
   end?: string;
   customer?: string;
   enquiry?: string;
+  /** Move a visit to the time its customer asked for. */
+  to?: string;
+  part?: string;
   error?: string;
   success?: string;
+  sent?: string;
 };
 
 function scheduleHref(params: Record<string, string | undefined>) {
@@ -62,7 +90,10 @@ function scheduleHref(params: Record<string, string | undefined>) {
   return `/staff/schedule?${new URLSearchParams(clean).toString()}`;
 }
 
+/** On the schedule: everything but cancelled visits. */
 const live = (a: Appointment) => a.status !== "cancelled";
+/** Taking up time: booked or done. A request doesn't until it's accepted. */
+const counts = (a: Appointment) => a.status === "booked" || a.status === "done";
 
 /**
  * The schedule: a month calendar showing how full each day is, and a day
@@ -104,9 +135,13 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
       </div>
 
       {params.success && SUCCESS[params.success] && (
-        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">{SUCCESS[params.success]}</p>
+        <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success" data-flash>
+          {successLine(params.success, params.sent)}
+        </p>
       )}
       {params.error && <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{params.error}</p>}
+
+      <Waiting today={today} />
 
       {view === "month" ? (
         <MonthView month={isMonth(params.month) ? params.month : today.slice(0, 7)} today={today} />
@@ -129,8 +164,8 @@ async function MonthView({ month, today }: { month: string; today: string }) {
   const byDay = new Map<string, Appointment[]>();
   for (const a of appointments) byDay.set(a.day, [...(byDay.get(a.day) ?? []), a]);
 
-  const monthVisits = appointments.filter((a) => a.day.startsWith(month) && live(a));
-  const fullDays = weeks.flat().filter((d) => d.startsWith(month) && dayLoad((byDay.get(d) ?? []).filter(live)).full).length;
+  const monthVisits = appointments.filter((a) => a.day.startsWith(month) && counts(a));
+  const fullDays = weeks.flat().filter((d) => d.startsWith(month) && dayLoad((byDay.get(d) ?? []).filter(counts)).full).length;
 
   return (
     <section className="mt-6" aria-label={monthLabel(month)}>
@@ -167,7 +202,8 @@ async function MonthView({ month, today }: { month: string; today: string }) {
         <div className="grid grid-cols-7">
           {weeks.flat().map((day, i) => {
             const items = (byDay.get(day) ?? []).filter(live);
-            const load = dayLoad(items);
+            const load = dayLoad(items.filter(counts));
+            const asks = items.filter((a) => a.status === "requested").length;
             const inMonth = day.startsWith(month);
             const isToday = day === today;
             const past = day < today;
@@ -178,7 +214,7 @@ async function MonthView({ month, today }: { month: string; today: string }) {
                 href={scheduleHref({ view: "day", date: day })}
                 data-day={day}
                 data-full={load.full ? "1" : undefined}
-                aria-label={`${longDate(day)}: ${items.length ? `${items.length} visit${items.length === 1 ? "" : "s"}${load.full ? ", full" : `, ${formatDuration(freeMinutes)} free`}` : "nothing booked"}`}
+                aria-label={`${longDate(day)}: ${items.length - asks ? `${items.length - asks} visit${items.length - asks === 1 ? "" : "s"}${load.full ? ", full" : `, ${formatDuration(freeMinutes)} free`}` : "nothing booked"}${asks ? `, ${asks} request${asks === 1 ? "" : "s"}` : ""}`}
                 className={`group relative flex min-h-16 flex-col gap-1 border-border p-1.5 transition-colors hover:bg-surface sm:min-h-28 sm:p-2 ${i % 7 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""} ${inMonth ? "" : "bg-surface/60"} ${past ? "opacity-70" : ""}`}
               >
                 <div className="flex items-center justify-between gap-1">
@@ -200,15 +236,15 @@ async function MonthView({ month, today }: { month: string; today: string }) {
                     </div>
                     <div className="flex flex-wrap gap-1 sm:hidden" aria-hidden="true">
                       {items.slice(0, 4).map((a) => (
-                        <span key={a.id} className={`h-1.5 w-1.5 rounded-full ${KIND_STYLE[a.kind].dot}`} />
+                        <span key={a.id} className={`h-1.5 w-1.5 rounded-full ${a.status === "requested" ? REQUEST_DOT : KIND_STYLE[a.kind].dot}`} />
                       ))}
                     </div>
                     <ul className="hidden flex-col gap-0.5 sm:flex">
                       {items.slice(0, 3).map((a) => (
                         <li key={a.id} className="flex items-center gap-1 truncate text-[11px] leading-tight">
-                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${KIND_STYLE[a.kind].dot}`} aria-hidden="true" />
-                          <span className="truncate">
-                            {clock(a.start)} {visitName(a, customers)}
+                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${a.status === "requested" ? REQUEST_DOT : KIND_STYLE[a.kind].dot}`} aria-hidden="true" />
+                          <span className={`truncate ${a.status === "requested" ? "italic text-muted" : ""}`}>
+                            {a.status === "requested" ? (a.part ? PART_LABEL[a.part] : "Asked") : clock(a.start)} {visitName(a, customers)}
                           </span>
                         </li>
                       ))}
@@ -226,6 +262,9 @@ async function MonthView({ month, today }: { month: string; today: string }) {
   );
 }
 
+/** A customer's request: a hollow dot, until it's accepted. */
+const REQUEST_DOT = "bg-background ring-[1.5px] ring-inset ring-foreground/60";
+
 function KindKey() {
   return (
     <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-label="Key">
@@ -235,7 +274,75 @@ function KindKey() {
           {KIND_LABEL[k]}
         </li>
       ))}
+      <li className="flex items-center gap-1.5">
+        <span className={`h-2 w-2 rounded-full ${REQUEST_DOT}`} aria-hidden="true" />
+        Requested
+      </li>
     </ul>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Waiting on the team: customers' requests and asks to move, on top of both
+// views so nothing sits unanswered.
+
+async function Waiting({ today }: { today: string }) {
+  const waiting = await waitingOnTeam(today);
+  if (waiting.length === 0) return null;
+  const customers = await getCustomers(waiting.map((a) => a.customerId).filter((id): id is string => !!id));
+  return (
+    <section className="mt-6 rounded-2xl border border-accent/40 bg-accent/5 p-4 sm:p-5" aria-labelledby="waiting" data-waiting>
+      <h2 id="waiting" className="font-semibold">
+        {waiting.length} waiting for you
+      </h2>
+      <ul className="mt-3 flex flex-col gap-2">
+        {waiting.map((a) => {
+          const name = visitName(a, customers);
+          const asked = a.status === "requested";
+          return (
+            <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3" data-waiting-item={asked ? "request" : "move"}>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">
+                  {name} · {KIND_LABEL[a.kind]}
+                </p>
+                <p className="text-sm text-muted">
+                  {asked
+                    ? `Asked for ${requestedWhen(a.day, a.part)}${a.part === "any" ? ", any time" : ""}`
+                    : `Can't make ${longDate(a.day)}. Asked for ${requestedWhen(a.change!.day, a.change!.part)}`}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {asked && (
+                  <form action={acceptVisitRequest.bind(null, a.id, a.day)}>
+                    <button type="submit" className="min-h-11 rounded-full bg-accent px-4 text-sm font-semibold text-accent-foreground hover:opacity-90">
+                      Accept
+                    </button>
+                  </form>
+                )}
+                <Link
+                  href={
+                    scheduleHref(
+                      asked
+                        ? { view: "day", date: a.day, edit: a.id }
+                        : { view: "day", date: a.change!.day, edit: a.id, to: a.change!.day, part: a.change!.part ?? "any" },
+                    ) + "#add"
+                  }
+                  className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold hover:border-foreground/40"
+                >
+                  {asked ? "Change time" : "Move it"}
+                </Link>
+                <Link
+                  href={scheduleHref({ view: "day", date: asked ? a.day : a.change!.day }) + `#visit-${a.id}`}
+                  className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-muted underline underline-offset-4 hover:text-foreground"
+                >
+                  See the day
+                </Link>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -251,9 +358,19 @@ async function DayView({ day, today, params }: { day: string; today: string; par
   const appointments = await appointmentsBetween(day, day);
   const customers = await getCustomers(appointments.map((a) => a.customerId).filter((id): id is string => !!id));
   const active = appointments.filter(live);
-  const load = dayLoad(active);
+  const booked = active.filter(counts);
+  const asks = active.length - booked.length;
+  const load = dayLoad(booked);
+  // The timeline marks free time around requests too, so a request sits in
+  // its window rather than on top of a "Free" label.
+  const timelineGaps = dayLoad(active).gaps;
   const editing = params.edit ? appointments.find((a) => a.id === params.edit) ?? (await getAppointment(params.edit)) : null;
   const adding = !editing && (params.add === "1" || !!params.customer || !!params.enquiry);
+  // "Move it": start the form at the day and part of the day the customer asked for.
+  const moveTo =
+    editing && isISODate(params.to) && isPart(params.part)
+      ? { day: params.to, start: PART_WINDOW[params.part].start, end: Math.min(PART_WINDOW[params.part].start + (editing.end - editing.start), PART_WINDOW[params.part].end) }
+      : null;
   const addInitial = adding ? await addFormValues(day, params) : null;
 
   const viewStart = Math.min(DAY_VIEW.start, ...active.map((a) => Math.floor(a.start / 60) * 60));
@@ -293,22 +410,28 @@ async function DayView({ day, today, params }: { day: string; today: string; par
       </div>
 
       <p className="mt-2 text-sm text-muted" data-day-summary>
-        {active.length === 0
+        {booked.length === 0
           ? "Nothing booked. The whole day is free."
-          : `${active.length} visit${active.length === 1 ? "" : "s"} · ${formatDuration(load.bookedMinutes)} booked of ${formatDuration(WORKDAY.end - WORKDAY.start)}`}
-        {active.length > 0 &&
+          : `${booked.length} visit${booked.length === 1 ? "" : "s"} · ${formatDuration(load.bookedMinutes)} booked of ${formatDuration(WORKDAY.end - WORKDAY.start)}`}
+        {booked.length > 0 &&
           (load.full ? " · Full" : load.gaps.length ? ` · Free ${load.gaps.map((g) => windowLabel(g.start, g.end)).join(", ")}` : "")}
+        {asks > 0 && ` · ${asks} request${asks === 1 ? "" : "s"} to answer`}
       </p>
 
       {(adding || editing) && (
         <div id="add" className="mt-4 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6">
-          <h3 className="mb-4 text-lg font-semibold">{editing ? "Edit visit" : "Add a visit"}</h3>
+          <h3 className="mb-4 text-lg font-semibold">
+            {editing ? (editing.status === "requested" ? "Book this request" : moveTo ? "Move to the time they asked for" : "Edit visit") : "Add a visit"}
+          </h3>
           {editing ? (
             <AppointmentForm
-              key={editing.id}
+              key={[editing.id, params.to, params.part].join("|")}
               action={editAppointment.bind(null, editing.id)}
               initial={await editFormValues(editing)}
-              submitLabel="Save visit"
+              startAt={moveTo ?? undefined}
+              mode={editing.status === "requested" ? "request" : "edit"}
+              phone={business.phoneDisplay}
+              submitLabel={editing.status === "requested" ? "Book it" : "Save visit"}
               onCancelHref={scheduleHref({ view: "day", date: day })}
             />
           ) : (
@@ -316,7 +439,11 @@ async function DayView({ day, today, params }: { day: string; today: string; par
               <AppointmentForm
                 key={[day, params.start, params.end, params.customer, params.enquiry].join("|")}
                 action={addAppointment}
-                initial={addInitial} submitLabel="Add visit" onCancelHref={scheduleHref({ view: "day", date: day })} />
+                initial={addInitial}
+                phone={business.phoneDisplay}
+                submitLabel="Add visit"
+                onCancelHref={scheduleHref({ view: "day", date: day })}
+              />
             )
           )}
         </div>
@@ -336,7 +463,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
             </div>
           ))}
           <div className="absolute inset-y-0 left-14 right-2">
-            {load.gaps.map((g) => (
+            {timelineGaps.map((g) => (
               <Link
                 key={g.start}
                 href={scheduleHref({ view: "day", date: day, add: "1", start: String(g.start), end: String(g.end) }) + "#add"}
@@ -351,7 +478,9 @@ async function DayView({ day, today, params }: { day: string; today: string; par
               <a
                 key={a.id}
                 href={`#visit-${a.id}`}
-                className={`absolute overflow-hidden rounded-lg border px-2 py-1 text-xs leading-tight shadow-sm transition-shadow hover:shadow-md ${KIND_STYLE[a.kind].block} ${a.status === "done" ? "opacity-60" : ""}`}
+                className={`absolute overflow-hidden rounded-lg border px-2 py-1 text-xs leading-tight shadow-sm transition-shadow hover:shadow-md ${
+                  a.status === "requested" ? "border-dashed border-foreground/50 bg-background/90" : KIND_STYLE[a.kind].block
+                } ${a.status === "done" ? "opacity-60" : ""}`}
                 style={{
                   top: top(a.start) + 1,
                   height: Math.max(28, ((a.end - a.start) / 60) * HOUR_PX - 2),
@@ -362,8 +491,9 @@ async function DayView({ day, today, params }: { day: string; today: string; par
               >
                 <span className="block truncate font-semibold">{visitName(a, customers)}</span>
                 <span className="block truncate text-muted">
-                  {KIND_LABEL[a.kind]} · {windowLabel(a.start, a.end)}
+                  {a.status === "requested" ? `Requested · ${KIND_LABEL[a.kind]}` : `${KIND_LABEL[a.kind]} · ${windowLabel(a.start, a.end)}`}
                   {a.status === "done" ? " · Done" : ""}
+                  {a.change ? " · Wants to move" : ""}
                 </span>
               </a>
             ))}
@@ -385,15 +515,26 @@ async function DayView({ day, today, params }: { day: string; today: string; par
   );
 }
 
+const SENT_TIME = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+const PILL = "inline-flex min-h-9 items-center rounded-full border border-border px-3 text-xs font-semibold transition-colors hover:border-foreground/40";
+
 function VisitCard({ appointment: a, customer }: { appointment: Appointment; customer: Customer | undefined }) {
   const place = [a.address, a.postcode].filter(Boolean).join(", ");
+  const requested = a.status === "requested";
+  const firstName = customer?.name?.split(" ")[0] ?? "them";
   return (
-    <article id={`visit-${a.id}`} className={`scroll-mt-20 rounded-2xl border bg-surface p-4 ${a.status === "cancelled" ? "border-border opacity-60" : "border-border"}`} data-visit={a.status}>
+    <article
+      id={`visit-${a.id}`}
+      className={`scroll-mt-20 rounded-2xl border p-4 ${requested ? "border-dashed border-foreground/40 bg-background" : "border-border bg-surface"} ${a.status === "cancelled" ? "opacity-60" : ""}`}
+      data-visit={a.status}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-sm">
             <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[a.kind].block}`}>{KIND_LABEL[a.kind]}</span>
-            <span className="font-semibold">{windowLabel(a.start, a.end)}</span>
+            <span className="font-semibold">{requested ? `Asked for ${a.part ? PART_LABEL[a.part].toLowerCase() : windowLabel(a.start, a.end)}` : windowLabel(a.start, a.end)}</span>
+            {requested && <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-semibold">Request</span>}
           </p>
           <p className={`mt-1 truncate font-semibold ${a.status === "cancelled" ? "line-through" : ""}`}>
             {customer ? (
@@ -406,13 +547,33 @@ function VisitCard({ appointment: a, customer }: { appointment: Appointment; cus
           </p>
           {customer && a.title && <p className="text-sm text-muted">{a.title}</p>}
         </div>
-        <Link
-          href={scheduleHref({ view: "day", date: a.day, edit: a.id }) + "#add"}
-          className="inline-flex min-h-9 items-center rounded-full border border-border px-3 text-xs font-semibold hover:border-foreground/40"
-        >
-          Edit
+        <Link href={scheduleHref({ view: "day", date: a.day, edit: a.id }) + "#add"} className={PILL}>
+          {requested ? "Change time" : "Edit"}
         </Link>
       </div>
+
+      {a.change && (
+        <div className="mt-3 rounded-xl border border-accent/40 bg-accent/5 px-3 py-2.5 text-sm" data-change-request>
+          <p className="font-semibold">
+            {firstName === "them" ? "They" : firstName} can&rsquo;t make this. Asked for {requestedWhen(a.change.day, a.change.part)}
+            {a.change.part === "any" ? ", any time" : ""}.
+          </p>
+          {a.change.note && <p className="mt-1 text-muted">&ldquo;{a.change.note}&rdquo;</p>}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <Link
+              href={scheduleHref({ view: "day", date: a.change.day, edit: a.id, to: a.change.day, part: a.change.part ?? "any" }) + "#add"}
+              className="inline-flex min-h-9 items-center rounded-full bg-accent px-3 text-xs font-semibold text-accent-foreground hover:opacity-90"
+            >
+              Move it
+            </Link>
+            <form action={keepVisitTime.bind(null, a.id, a.day)}>
+              <button type="submit" className={PILL}>
+                Keep this time
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="mt-2 flex flex-col gap-1 text-sm">
         {place && (
@@ -439,29 +600,83 @@ function VisitCard({ appointment: a, customer }: { appointment: Appointment; cus
         {a.notes && <p className="whitespace-pre-wrap rounded-lg bg-background px-3 py-2 text-foreground">{a.notes}</p>}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-1">
-        {APPOINTMENT_STATUSES.map((status: AppointmentStatus) => (
-          <form key={status} action={changeAppointmentStatus.bind(null, a.id, status, a.day)}>
-            <button
-              type="submit"
-              aria-pressed={a.status === status}
-              className={`min-h-9 rounded-full border px-3 text-xs font-medium transition-colors ${
-                a.status === status ? "border-accent bg-accent text-accent-foreground" : "border-border text-muted hover:border-foreground/40"
-              }`}
-            >
-              {STATUS_LABEL[status]}
+      {requested ? (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <form action={acceptVisitRequest.bind(null, a.id, a.day)}>
+            <button type="submit" className="min-h-11 rounded-full bg-accent px-4 text-sm font-semibold text-accent-foreground hover:opacity-90">
+              Accept and let {firstName} know
             </button>
           </form>
-        ))}
-        {a.status === "cancelled" && (
-          <form action={removeAppointment.bind(null, a.id, a.day)} className="ml-auto">
-            <button type="submit" className="min-h-9 rounded-full px-3 text-xs font-medium text-danger hover:bg-danger/10">
-              Remove
+          {customer && (
+            <form action={openCustomerChat.bind(null, customer.id)}>
+              <button type="submit" className="min-h-11 rounded-full border border-border px-4 text-sm font-semibold hover:border-foreground/40">
+                Message
+              </button>
+            </form>
+          )}
+          <form action={changeAppointmentStatus.bind(null, a.id, "cancelled", a.day)}>
+            <button type="submit" className="min-h-11 rounded-full px-3 text-sm font-medium text-muted hover:text-foreground">
+              Decline
             </button>
           </form>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-1">
+          {APPOINTMENT_STATUSES.map((status) => (
+            <form key={status} action={changeAppointmentStatus.bind(null, a.id, status, a.day)}>
+              <button
+                type="submit"
+                aria-pressed={a.status === status}
+                className={`min-h-9 rounded-full border px-3 text-xs font-medium transition-colors ${
+                  a.status === status ? "border-accent bg-accent text-accent-foreground" : "border-border text-muted hover:border-foreground/40"
+                }`}
+              >
+                {STATUS_LABEL[status]}
+              </button>
+            </form>
+          ))}
+          {a.status === "cancelled" && (
+            <form action={removeAppointment.bind(null, a.id, a.day)} className="ml-auto">
+              <button type="submit" className="min-h-9 rounded-full px-3 text-xs font-medium text-danger hover:bg-danger/10">
+                Remove
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {customer && !requested && <NoticeLine appointment={a} firstName={firstName} />}
     </article>
+  );
+}
+
+/** What the customer's been told, and the button to tell them (again). */
+function NoticeLine({ appointment: a, firstName }: { appointment: Appointment; firstName: string }) {
+  const told =
+    a.notifiedAt && a.lastNotice
+      ? `${a.lastNotice === "cancelled" ? "Told it's cancelled" : a.lastNotice === "moved" ? "Sent the new time" : "Sent the details"}${a.notifiedVia.length ? ` by ${viaPhrase(a.notifiedVia)}` : ""} · ${SENT_TIME.format(new Date(a.notifiedAt))}`
+      : null;
+  const button =
+    a.status === "cancelled"
+      ? a.notifiedAt && a.lastNotice !== "cancelled"
+        ? `Tell ${firstName} it's cancelled`
+        : null
+      : a.status === "booked"
+        ? told
+          ? "Send again"
+          : `Send ${firstName} the details`
+        : null;
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted" data-notice-line>
+      <span>{told ?? (a.status === "booked" ? `${firstName === "them" ? "They haven't" : `${firstName} hasn't`} been sent the details yet.` : "")}</span>
+      {button && (
+        <form action={sendVisitDetails.bind(null, a.id, a.day)}>
+          <button type="submit" className={PILL}>
+            {button}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
 

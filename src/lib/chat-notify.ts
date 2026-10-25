@@ -52,6 +52,23 @@ function mintReplyToken(): string {
  * started by phone) is treated as web, since that's the case where an
  * email is the only way they'd ever know.
  */
+/**
+ * The Reply-To for an email about this conversation, so the customer's reply
+ * lands back in it (api/webhooks/resend); null until CHAT_REPLY_DOMAIN is set.
+ */
+export async function replyToForConversation(conversationId: string): Promise<string | null> {
+  if (!CHAT_REPLY_DOMAIN) return null;
+  const admin = createAdminClient();
+  const { data: row } = await admin.from("chat_conversations").select("reply_token").eq("id", conversationId).maybeSingle();
+  let replyToken: string | null = (row?.reply_token as string | null) ?? null;
+  if (!replyToken) {
+    replyToken = mintReplyToken();
+    const { error } = await admin.from("chat_conversations").update({ reply_token: replyToken }).eq("id", conversationId);
+    if (error) replyToken = null;
+  }
+  return replyToken ? replyAddressFor(replyToken) : null;
+}
+
 export async function notifyMemberOfReply(params: {
   conversation: Conversation;
   coachName: string;
@@ -73,25 +90,7 @@ export async function notifyMemberOfReply(params: {
 
   const admin = createAdminClient();
 
-  let replyToken: string | null = null;
-  if (CHAT_REPLY_DOMAIN) {
-    const { data: row } = await admin
-      .from("chat_conversations")
-      .select("reply_token")
-      .eq("id", conversation.id)
-      .maybeSingle();
-    replyToken = row?.reply_token ?? null;
-    if (!replyToken) {
-      replyToken = mintReplyToken();
-      const { error } = await admin
-        .from("chat_conversations")
-        .update({ reply_token: replyToken })
-        .eq("id", conversation.id);
-      if (error) replyToken = null;
-    }
-  }
-
-  const replyTo = replyToken ? replyAddressFor(replyToken) : null;
+  const replyTo = await replyToForConversation(conversation.id);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
   await resend.emails.send({

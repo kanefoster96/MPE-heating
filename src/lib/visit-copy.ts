@@ -6,7 +6,17 @@ import { KIND_LABEL, PART_LABEL, longDate, windowLabel, type AppointmentKind, ty
  * shows the same words as a preview. No DB or server imports.
  */
 
-export type NoticeType = "booked" | "moved" | "cancelled" | "reminder" | "requested";
+export type NoticeType =
+  | "booked"
+  | "moved"
+  | "cancelled"
+  | "requested"
+  // Automatic (lib/follow-up-sweep.ts): the evening before, an hour before
+  // the window, the day after a "Not in", and a year after a service.
+  | "reminder"
+  | "hour"
+  | "missed"
+  | "service_due";
 
 export type VisitFacts = {
   kind: AppointmentKind;
@@ -38,6 +48,9 @@ const HEADLINE: Record<NoticeType, (v: VisitFacts) => string> = {
   cancelled: (v) => `Your ${kindName(v.kind)} is cancelled`,
   reminder: (v) => `See you tomorrow for your ${kindName(v.kind)}`,
   requested: (v) => `We've got your ${kindName(v.kind)} request`,
+  hour: () => `We're on our way soon`,
+  missed: () => `Sorry we missed you`,
+  service_due: () => `Your boiler service is due`,
 };
 
 /** The email subject and the first line everywhere. */
@@ -49,7 +62,11 @@ export function noticeHeadline(type: NoticeType, v: VisitFacts): string {
  * The message itself. `link` is the customer's page for this visit, where
  * they can see it, add it to their calendar or ask for another time.
  */
-export function noticeBody(type: NoticeType, v: VisitFacts, opts: { link?: string; phone: string; name?: string | null }): string {
+export function noticeBody(
+  type: NoticeType,
+  v: VisitFacts,
+  opts: { link?: string; phone: string; name?: string | null; engineer?: string | null; bookLink?: string },
+): string {
   const hi = opts.name ? `Hi ${opts.name.split(" ")[0]}, ` : "";
   const where = [v.address, v.postcode].filter(Boolean).join(", ");
   const cantMake = `If you can't make it, let us know${opts.link ? `: ${opts.link}` : ` on ${opts.phone}`}`;
@@ -62,7 +79,31 @@ export function noticeBody(type: NoticeType, v: VisitFacts, opts: { link?: strin
       return `${hi}your ${kindName(v.kind)} on ${longDate(v.day)} is cancelled. If you'd still like a visit, just reply or call us on ${opts.phone}.`;
     case "reminder":
       return `${hi}a reminder that we're with you tomorrow for your ${kindName(v.kind)}, ${whenLine(v).replace(/^[^,]+, /, "")}. ${cantMake}`;
+    case "hour":
+      // The Academy's hour-before text: a named person expected at the
+      // door, and nothing to do. No way out offered, just the number.
+      return `${hi}${opts.engineer ? `${opts.engineer} from MPE` : "our engineer"} will be with you today between ${windowLabel(v.start, v.end).replace("–", " and ")} for your ${kindName(v.kind)}. If anything's changed, call ${opts.phone}.`;
+    case "missed":
+      return `${hi}we called round for your ${kindName(v.kind)} on ${longDate(v.day)} but couldn't get in. No problem, pick another time that suits${opts.link ? `: ${opts.link}` : ` and call us on ${opts.phone}`}`;
+    case "service_due":
+      return `${hi}it's nearly a year since your boiler ${v.kind === "install" ? "was fitted" : "was last serviced"}, so its annual service is due. A yearly service keeps it safe and its warranty valid. Book a time that suits${opts.bookLink ? `: ${opts.bookLink}` : ` by calling ${opts.phone}`}`;
     case "requested":
       return `${hi}thanks, we've got your request for a ${kindName(v.kind)} on ${requestedWhen(v.day, v.part)}. We'll be in touch to confirm the time${opts.link ? `: ${opts.link}` : "."}`;
   }
+}
+
+/**
+ * The same as a text: plain characters only (a curly quote, en dash or emoji
+ * turns a text into 70-character segments and roughly triples its cost, as
+ * Kanvas Academy found), and the business name first so it's clear who
+ * it's from.
+ */
+export function smsText(body: string, businessName: string, optOut = false): string {
+  const plain = body
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/[^\x0A\x20-\x7E£]/g, "");
+  return `${businessName}: ${plain}${optOut ? " Reply STOP to opt out." : ""}`;
 }

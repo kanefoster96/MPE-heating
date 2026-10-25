@@ -73,6 +73,12 @@ export type Enquiry = {
   answers: { q: string; a: string }[];
   message: string | null;
   createdAt: string;
+  /** Their link to pick a time (/request/<token>). */
+  publicToken: string;
+  /** How many follow-ups they've had (lib/follow-up-sweep.ts), and when the last went. */
+  followupCount: number;
+  followedUpAt: string | null;
+  staffNudgedAt: string | null;
 };
 
 type Row = {
@@ -90,6 +96,10 @@ type Row = {
   answers: { q: string; a: string }[] | null;
   message: string | null;
   created_at: string;
+  public_token: string;
+  followup_count: number | null;
+  followed_up_at: string | null;
+  staff_nudged_at: string | null;
 };
 
 function mapEnquiry(r: Row): Enquiry {
@@ -108,6 +118,10 @@ function mapEnquiry(r: Row): Enquiry {
     answers: Array.isArray(r.answers) ? r.answers : [],
     message: r.message,
     createdAt: r.created_at,
+    publicToken: r.public_token,
+    followupCount: r.followup_count ?? 0,
+    followedUpAt: r.followed_up_at ?? null,
+    staffNudgedAt: r.staff_nudged_at ?? null,
   };
 }
 
@@ -339,4 +353,32 @@ export function visitKindFor(category: EnquiryCategory): "callout" | "quote" | "
     default:
       return "other";
   }
+}
+
+/** A booking form by its private link, for the customer's pick-a-time page. */
+export async function getEnquiryByToken(token: string): Promise<Enquiry | null> {
+  if (!/^[0-9a-f]{32}$/.test(token)) return null;
+  const { data } = await createAdminClient().from("enquiries").select("*").eq("public_token", token).maybeSingle();
+  return data ? mapEnquiry(data as Row) : null;
+}
+
+/** Open booking forms (new or contacted) from the last `days` days, oldest first. */
+export async function openEnquiriesSince(days: number): Promise<Enquiry[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const { data } = await createAdminClient()
+    .from("enquiries")
+    .select("*")
+    .in("status", ["new", "contacted"])
+    .gte("created_at", since)
+    .order("created_at")
+    .limit(500);
+  return ((data ?? []) as Row[]).map(mapEnquiry);
+}
+
+/** What they told us, in a few words: "No heating or hot water". */
+export function issueLine(e: Pick<Enquiry, "answers" | "message">, max = 70): string | null {
+  const first = e.answers.find((a) => a.q !== "Postcode" && a.q !== "Best time")?.a ?? e.message ?? "";
+  const one = first.replace(/\s+/g, " ").trim();
+  if (!one) return null;
+  return one.length > max ? `${one.slice(0, max - 3).trimEnd()}...` : one;
 }

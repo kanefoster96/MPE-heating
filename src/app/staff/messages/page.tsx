@@ -260,6 +260,11 @@ function JobCard({ job }: { job: Enquiry }) {
         <p className="mt-2 line-clamp-3 text-sm text-foreground">{[...details, job.message].filter(Boolean).join(" · ")}</p>
       )}
       <p className="mt-2 text-xs text-muted">{[job.email, job.phone].filter(Boolean).join(" · ")}</p>
+      {job.followupCount > 0 && job.followedUpAt && (
+        <p className="mt-1 text-xs text-muted" data-followed-up>
+          {job.followupCount === 1 ? "Followed up automatically" : "Followed up twice (the last one)"} · {formatJobDate(job.followedUpAt)}
+        </p>
+      )}
       <div className="mt-3 flex flex-wrap gap-1">
         {ENQUIRY_STATUSES.map((status: EnquiryStatus) => (
           <form key={status} action={updateEnquiryStatus.bind(null, job.id, status)}>

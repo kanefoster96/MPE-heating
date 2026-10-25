@@ -5,6 +5,7 @@ import { londonNow } from "@/lib/schedule-time";
 import { appointmentsBetween, getAppointment, waitingOnTeam, type Appointment } from "@/lib/appointments";
 import { business } from "@/lib/content";
 import { viaPhrase } from "@/lib/visit-notify";
+import { remindersSent } from "@/lib/follow-up-sweep";
 import { requestedWhen } from "@/lib/visit-copy";
 import { customerLabel, getCustomer, getCustomers, type Customer } from "@/lib/customers";
 import { getEnquiry, visitKindFor, CATEGORY_LABEL } from "@/lib/enquiries";
@@ -308,7 +309,7 @@ async function Waiting({ today }: { today: string }) {
                 <p className="text-sm text-muted">
                   {asked
                     ? `Asked for ${requestedWhen(a.day, a.part)}${a.part === "any" ? ", any time" : ""}`
-                    : `Can't make ${longDate(a.day)}. Asked for ${requestedWhen(a.change!.day, a.change!.part)}`}
+                    : `${a.status === "no_access" ? `Missed on ${longDate(a.day)}` : `Can't make ${longDate(a.day)}`}. Asked for ${requestedWhen(a.change!.day, a.change!.part)}`}
                 </p>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -480,7 +481,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
                 href={`#visit-${a.id}`}
                 className={`absolute overflow-hidden rounded-lg border px-2 py-1 text-xs leading-tight shadow-sm transition-shadow hover:shadow-md ${
                   a.status === "requested" ? "border-dashed border-foreground/50 bg-background/90" : KIND_STYLE[a.kind].block
-                } ${a.status === "done" ? "opacity-60" : ""}`}
+                } ${a.status === "done" || a.status === "no_access" ? "opacity-60" : ""}`}
                 style={{
                   top: top(a.start) + 1,
                   height: Math.max(28, ((a.end - a.start) / 60) * HOUR_PX - 2),
@@ -492,7 +493,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
                 <span className="block truncate font-semibold">{visitName(a, customers)}</span>
                 <span className="block truncate text-muted">
                   {a.status === "requested" ? `Requested · ${KIND_LABEL[a.kind]}` : `${KIND_LABEL[a.kind]} · ${windowLabel(a.start, a.end)}`}
-                  {a.status === "done" ? " · Done" : ""}
+                  {a.status === "done" ? " · Done" : a.status === "no_access" ? " · Not in" : ""}
                   {a.change ? " · Wants to move" : ""}
                 </span>
               </a>
@@ -555,7 +556,7 @@ function VisitCard({ appointment: a, customer }: { appointment: Appointment; cus
       {a.change && (
         <div className="mt-3 rounded-xl border border-accent/40 bg-accent/5 px-3 py-2.5 text-sm" data-change-request>
           <p className="font-semibold">
-            {firstName === "them" ? "They" : firstName} can&rsquo;t make this. Asked for {requestedWhen(a.change.day, a.change.part)}
+            {firstName === "them" ? "They" : firstName} {a.status === "no_access" ? "asked us back on" : "can't make this. Asked for"} {requestedWhen(a.change.day, a.change.part)}
             {a.change.part === "any" ? ", any time" : ""}.
           </p>
           {a.change.note && <p className="mt-1 text-muted">&ldquo;{a.change.note}&rdquo;</p>}
@@ -650,31 +651,63 @@ function VisitCard({ appointment: a, customer }: { appointment: Appointment; cus
   );
 }
 
-/** What the customer's been told, and the button to tell them (again). */
+/**
+ * What the customer's been told and the automatic reminders they've had,
+ * and the button to tell them (again).
+ */
 function NoticeLine({ appointment: a, firstName }: { appointment: Appointment; firstName: string }) {
   const told =
     a.notifiedAt && a.lastNotice
       ? `${a.lastNotice === "cancelled" ? "Told it's cancelled" : a.lastNotice === "moved" ? "Sent the new time" : "Sent the details"}${a.notifiedVia.length ? ` by ${viaPhrase(a.notifiedVia)}` : ""} · ${SENT_TIME.format(new Date(a.notifiedAt))}`
       : null;
+  const reminders = remindersSent(a);
+  const upcoming = a.status === "booked" && !a.hourRemindedAt;
   const button =
     a.status === "cancelled"
       ? a.notifiedAt && a.lastNotice !== "cancelled"
         ? `Tell ${firstName} it's cancelled`
         : null
-      : a.status === "booked"
-        ? told
-          ? "Send again"
-          : `Send ${firstName} the details`
-        : null;
+      : a.status === "no_access"
+        ? a.missedFollowupAt || a.change
+          ? null
+          : "Offer another time now"
+        : a.status === "booked"
+          ? told
+            ? "Send again"
+            : `Send ${firstName} the details`
+          : null;
   return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted" data-notice-line>
-      <span>{told ?? (a.status === "booked" ? `${firstName === "them" ? "They haven't" : `${firstName} hasn't`} been sent the details yet.` : "")}</span>
-      {button && (
-        <form action={sendVisitDetails.bind(null, a.id, a.day)}>
-          <button type="submit" className={PILL}>
-            {button}
-          </button>
-        </form>
+    <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 text-xs text-muted" data-notice-line>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>
+          {told ??
+            (a.status === "booked"
+              ? `${firstName === "them" ? "They haven't" : `${firstName} hasn't`} been sent the details yet.`
+              : a.status === "no_access" && !a.missedFollowupAt && !a.change
+                ? "They'll be offered another time at midday tomorrow."
+                : "")}
+        </span>
+        {button && (
+          <form action={sendVisitDetails.bind(null, a.id, a.day)}>
+            <button type="submit" className={PILL}>
+              {button}
+            </button>
+          </form>
+        )}
+      </div>
+      {(reminders.length > 0 || upcoming) && (
+        <ul className="flex flex-wrap gap-x-3 gap-y-1" data-reminders>
+          {reminders.map((r) => (
+            <li key={r.label}>
+              ✓ {r.label} · {SENT_TIME.format(new Date(r.at))}
+            </li>
+          ))}
+          {upcoming && (
+            <li>
+              Automatic: {a.remindedAt ? "" : "reminder the evening before, "}message an hour before
+            </li>
+          )}
+        </ul>
       )}
     </div>
   );

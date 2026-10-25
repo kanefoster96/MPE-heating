@@ -53,6 +53,8 @@ export default async function VisitPage({
   const heading =
     visit.status === "requested"
       ? { lead: "Request received.", em: "We'll confirm the time." }
+      : visit.status === "no_access"
+        ? { lead: "Sorry we missed you.", em: "Pick another time." }
       : visit.status === "cancelled"
         ? { lead: "This visit is", em: "cancelled." }
         : visit.status === "done" || !upcoming
@@ -62,8 +64,10 @@ export default async function VisitPage({
               em: "See you then.",
             };
 
+  // A missed visit's day has gone, but they can still pick another.
   const canAsk =
-    upcoming && (visit.status === "booked" || visit.status === "requested");
+    (upcoming && (visit.status === "booked" || visit.status === "requested")) ||
+    visit.status === "no_access";
 
   return (
     <>
@@ -149,7 +153,7 @@ export default async function VisitPage({
                   </h2>
                   <p className="mt-2 text-text-2">
                     {visit.change
-                      ? `You asked for ${requestedWhen(visit.change.day, visit.change.part)}${visit.change.part === "any" ? ", any time" : ""}. We'll be in touch to confirm, and your visit stays as it is until then.`
+                      ? `You asked for ${requestedWhen(visit.change.day, visit.change.part)}${visit.change.part === "any" ? ", any time" : ""}. We'll be in touch to confirm${visit.status === "booked" ? ", and your visit stays as it is until then" : ""}.`
                       : "We'll be in touch to confirm the time."}
                   </p>
                 </div>
@@ -161,7 +165,9 @@ export default async function VisitPage({
                   >
                     {visit.status === "requested"
                       ? "Need a different time?"
-                      : "Can't make it?"}
+                      : visit.status === "no_access"
+                        ? "When suits you instead?"
+                        : "Can't make it?"}
                   </h2>
                   <p className="mt-1 text-text-2">
                     Pick a time that suits you better and we&rsquo;ll get back

@@ -19,7 +19,7 @@ import { KIND_LABEL, PART_WINDOW, addDays, isISODate, isPart, longDate, windowLa
  */
 export async function askForAnotherTime(token: string, formData: FormData) {
   const visit = await getAppointmentByToken(token);
-  if (!visit || !visit.customerId || (visit.status !== "booked" && visit.status !== "requested")) redirect(`/visit/${token}`);
+  if (!visit || !visit.customerId || !["booked", "requested", "no_access"].includes(visit.status)) redirect(`/visit/${token}`);
   const day = String(formData.get("day") ?? "");
   const part = String(formData.get("part") ?? "");
   const note = String(formData.get("note") ?? "").trim().slice(0, 500) || null;
@@ -40,6 +40,12 @@ export async function askForAnotherTime(token: string, formData: FormData) {
     await postCustomerVisitMessage(
       customer,
       `I've changed my ${KIND_LABEL[visit.kind].toLowerCase()} request to ${requestedWhen(day, part)}${part === "any" ? ", any time" : ""}.${note ? `\n${note}` : ""}`,
+    );
+  } else if (visit.status === "no_access") {
+    await setChangeRequest(visit.id, { day, part, note });
+    await postCustomerVisitMessage(
+      customer,
+      `Sorry I missed you on ${longDate(visit.day)}. Could you come back on ${requestedWhen(day, part)}${part === "any" ? ", any time" : ""}?${note ? `\n${note}` : ""}`,
     );
   } else {
     await setChangeRequest(visit.id, { day, part, note });

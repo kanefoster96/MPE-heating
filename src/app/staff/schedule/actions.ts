@@ -81,7 +81,8 @@ export async function editAppointment(id: string, formData: FormData) {
   if (!parsed.ok) redirect(dayHref(day, { error: parsed.error, edit: id }));
   const input = parsed.input;
   const timeChanged = input.day !== before.day || input.start !== before.start || input.end !== before.end;
-  const wasRequest = before.status === "requested";
+  // A request, or a missed visit given a new time, is booked on save.
+  const wasRequest = before.status === "requested" || (before.status === "no_access" && timeChanged);
   const ok = await updateAppointment(id, input, {
     status: wasRequest ? "booked" : undefined,
     clearChange: wasRequest || timeChanged,
@@ -127,7 +128,8 @@ export async function sendVisitDetails(id: string, day: string) {
   const user = await requireStaff("/staff/schedule");
   const visit = await getAppointment(id);
   if (!visit?.customerId) redirect(dayHref(day));
-  const type: NoticeType = visit.status === "cancelled" ? "cancelled" : visit.lastNotice === "moved" ? "moved" : "booked";
+  const type: NoticeType =
+    visit.status === "cancelled" ? "cancelled" : visit.status === "no_access" ? "missed" : visit.lastNotice === "moved" ? "moved" : "booked";
   const sent = await sendVisitNotice(id, type, user.id);
   revalidatePath("/staff/schedule");
   redirect(dayHref(day, { success: "sent", ...sentParam(sent) }) + `#visit-${id}`);

@@ -375,6 +375,15 @@ alter table public.customer_notes enable row level security;
 alter table public.enquiries add column if not exists customer_id uuid references public.customers (id) on delete set null;
 create index if not exists enquiries_customer_idx on public.enquiries (customer_id);
 
+-- A booking form that hasn't turned into a visit yet: the customer is
+-- followed up (twice at most) with a link to pick a time
+-- (/request/<public_token>), and the team is nudged if it sits untouched.
+alter table public.enquiries add column if not exists public_token text not null default replace(gen_random_uuid()::text, '-', '');
+alter table public.enquiries add column if not exists followup_count integer not null default 0;
+alter table public.enquiries add column if not exists followed_up_at timestamptz;
+alter table public.enquiries add column if not exists staff_nudged_at timestamptz;
+create unique index if not exists enquiries_public_token_idx on public.enquiries (public_token);
+
 -- ---------------------------------------------------------------------------
 -- The schedule: every visit, with a rough time window (lib/appointments.ts).
 --
@@ -422,9 +431,17 @@ alter table public.appointments add column if not exists change_day date;
 alter table public.appointments add column if not exists change_part text check (change_part in ('am', 'pm', 'any'));
 alter table public.appointments add column if not exists change_note text;
 alter table public.appointments add column if not exists change_requested_at timestamptz;
-alter table public.appointments drop constraint if exists appointments_status_check;
-alter table public.appointments add constraint appointments_status_check check (status in ('requested', 'booked', 'done', 'cancelled'));
 create unique index if not exists appointments_public_token_idx on public.appointments (public_token);
+
+-- The follow-up sweep (lib/follow-up-sweep.ts): each message goes once.
+-- 'no_access': the engineer called and couldn't get in; the customer is
+-- offered another time the next day.
+alter table public.appointments add column if not exists hour_reminded_at timestamptz;
+alter table public.appointments add column if not exists missed_followup_at timestamptz;
+alter table public.appointments add column if not exists service_due_sent_at timestamptz;
+alter table public.appointments add column if not exists staff_nudged_at timestamptz;
+alter table public.appointments drop constraint if exists appointments_status_check;
+alter table public.appointments add constraint appointments_status_check check (status in ('requested', 'booked', 'done', 'no_access', 'cancelled'));
 create index if not exists appointments_day_idx on public.appointments (day, start_minute);
 create index if not exists appointments_customer_idx on public.appointments (customer_id, day desc);
 alter table public.appointments enable row level security;

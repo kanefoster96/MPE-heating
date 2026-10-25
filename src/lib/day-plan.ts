@@ -42,13 +42,15 @@ export const KIND_STYLE: Record<AppointmentKind, { block: string; dot: string }>
 };
 
 /** The statuses the team sets with the buttons on a visit. */
-export const APPOINTMENT_STATUSES = ["booked", "done", "cancelled"] as const;
+export const APPOINTMENT_STATUSES = ["booked", "done", "no_access", "cancelled"] as const;
 /** Plus 'requested': a customer asked for it, and the team hasn't accepted it yet. */
 export type AppointmentStatus = "requested" | (typeof APPOINTMENT_STATUSES)[number];
 export const STATUS_LABEL: Record<AppointmentStatus, string> = {
   requested: "Requested",
   booked: "Booked",
   done: "Done",
+  // Called round and couldn't get in: they're offered another time.
+  no_access: "Not in",
   cancelled: "Cancelled",
 };
 

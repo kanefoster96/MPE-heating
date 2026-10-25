@@ -41,13 +41,32 @@ export const KIND_STYLE: Record<AppointmentKind, { block: string; dot: string }>
   other: { block: "border-foreground/30 bg-foreground/5", dot: "bg-foreground/50" },
 };
 
+/** The statuses the team sets with the buttons on a visit. */
 export const APPOINTMENT_STATUSES = ["booked", "done", "cancelled"] as const;
-export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
+/** Plus 'requested': a customer asked for it, and the team hasn't accepted it yet. */
+export type AppointmentStatus = "requested" | (typeof APPOINTMENT_STATUSES)[number];
 export const STATUS_LABEL: Record<AppointmentStatus, string> = {
+  requested: "Requested",
   booked: "Booked",
   done: "Done",
   cancelled: "Cancelled",
 };
+
+/** Morning, afternoon or any time: what a customer asks for, and its window. */
+export const PARTS = ["am", "pm", "any"] as const;
+export type Part = (typeof PARTS)[number];
+export const PART_LABEL: Record<Part, string> = { am: "Morning", pm: "Afternoon", any: "Any time" };
+export const PART_WINDOW: Record<Part, { start: number; end: number }> = {
+  am: { start: 8 * 60, end: 12 * 60 },
+  pm: { start: 12 * 60, end: 17 * 60 },
+  any: { start: 8 * 60, end: 17 * 60 },
+};
+export function isPart(value: unknown): value is Part {
+  return typeof value === "string" && (PARTS as readonly string[]).includes(value);
+}
+
+/** The kinds a customer can ask for themselves. */
+export const REQUESTABLE_KINDS = ["service", "callout", "repair"] as const;
 
 /** The working day the schedule measures gaps and full days against: 8am–5pm. */
 export const WORKDAY = { start: 8 * 60, end: 17 * 60 };

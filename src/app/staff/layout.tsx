@@ -5,6 +5,9 @@ import type { ReactNode } from "react";
 import { CHAT_ON } from "@/lib/chat-on";
 import { logout } from "../login/actions";
 import { StaffNav } from "@/components/staff/staff-nav";
+import { enquiriesOn } from "@/lib/enquiries";
+import { waitingOnTeamCount } from "@/lib/appointments";
+import { londonNow } from "@/lib/schedule-time";
 
 export const metadata: Metadata = {
   title: { default: "Team", template: "%s | MPE team" },
@@ -14,7 +17,9 @@ export const metadata: Metadata = {
 // The team's side of the site: a slim 4rem bar (the conversation page
 // sizes its thread to the rest of the screen) with the inbox, schedule,
 // customers and log out.
-export default function StaffLayout({ children }: { children: ReactNode }) {
+export default async function StaffLayout({ children }: { children: ReactNode }) {
+  // Customers' requests and asks to move, badged on the Schedule tab.
+  const waiting = enquiriesOn() ? await waitingOnTeamCount(londonNow().dateISO).catch(() => 0) : 0;
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6">
@@ -22,7 +27,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
           <Link href="/staff/messages" className="hidden min-h-11 shrink-0 items-center sm:flex">
             <Image src="/mpe-logo.png" alt="MPE team" width={1189} height={513} className="h-8 w-auto" />
           </Link>
-          <StaffNav />
+          <StaffNav waiting={waiting} />
         </div>
         {CHAT_ON && (
           <form action={logout}>

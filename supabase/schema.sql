@@ -391,7 +391,7 @@ create table if not exists public.appointments (
   day date not null,
   start_minute integer not null check (start_minute >= 0 and start_minute < 1440),
   end_minute integer not null check (end_minute > start_minute and end_minute <= 1440),
-  status text not null default 'booked' check (status in ('booked', 'done', 'cancelled')),
+  status text not null default 'booked',
   -- Short label for anything without a customer, e.g. "Van MOT".
   title text,
   address text,
@@ -403,6 +403,28 @@ create table if not exists public.appointments (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- Requests and letting the customer know (lib/visit-notify.ts).
+--
+-- A customer can ask for a visit (a booking form, or their account) on a
+-- day, in the morning, afternoon or any time: it's saved as 'requested' in
+-- that window until the team accepts it or moves it. Every visit has a
+-- private link (/visit/<public_token>) the customer is sent, to see it, add
+-- it to their calendar, or ask for another time (the change_* columns).
+alter table public.appointments add column if not exists part text check (part in ('am', 'pm', 'any'));
+alter table public.appointments add column if not exists source text not null default 'team' check (source in ('team', 'website', 'account'));
+alter table public.appointments add column if not exists public_token text not null default replace(gen_random_uuid()::text, '-', '');
+alter table public.appointments add column if not exists notified_at timestamptz;
+alter table public.appointments add column if not exists notified_via text[] not null default '{}';
+-- What they were last told: 'booked', 'moved', 'cancelled' or 'reminder'.
+alter table public.appointments add column if not exists last_notice text;
+alter table public.appointments add column if not exists reminded_at timestamptz;
+alter table public.appointments add column if not exists change_day date;
+alter table public.appointments add column if not exists change_part text check (change_part in ('am', 'pm', 'any'));
+alter table public.appointments add column if not exists change_note text;
+alter table public.appointments add column if not exists change_requested_at timestamptz;
+alter table public.appointments drop constraint if exists appointments_status_check;
+alter table public.appointments add constraint appointments_status_check check (status in ('requested', 'booked', 'done', 'cancelled'));
+create unique index if not exists appointments_public_token_idx on public.appointments (public_token);
 create index if not exists appointments_day_idx on public.appointments (day, start_minute);
 create index if not exists appointments_customer_idx on public.appointments (customer_id, day desc);
 alter table public.appointments enable row level security;

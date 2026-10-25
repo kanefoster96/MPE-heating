@@ -84,6 +84,50 @@ same form, or nobody (e.g. "Van MOT").
 **Book it** on a job in the inbox opens the add-visit form filled in from
 that booking form, and marks the job booked once the visit is added.
 
+### Letting customers know
+
+When you add a visit for a customer, **Send them the details** is ticked.
+The form shows the exact words they'll get. On save, it goes every way we
+can reach them:
+
+- a message in their conversation, so the inbox keeps the record and their
+  reply lands in the same thread;
+- an email, if we have their address;
+- a text, if we have a UK mobile and Twilio is set up;
+- a notification, if they have the MPE app.
+
+Moving a visit to another day or time tells them it's moved. Each visit's
+card shows what they were sent, how and when, with **Send again**. A
+cancelled visit has **Tell them it's cancelled**.
+
+The evening before, everyone with a visit booked tomorrow gets a reminder
+automatically.
+
+Every message links to the customer's own page for that visit
+(`/visit/...`). No sign-in is needed. From there they can see the visit,
+add it to their calendar, or ask for another time (a day, plus morning,
+afternoon or any time). That ask shows on your schedule as **Can't make
+this**, with **Move it** (opens the edit form at their time) and **Keep
+this time**.
+
+### Requests from customers
+
+Customers can ask for a visit:
+
+- on the call-out and service booking forms (**When suits you?**);
+- from their account (**Request a visit**).
+
+Requests sit on the schedule as dashed outlines on the day they asked for,
+in the morning (8am–12pm), afternoon (12pm–5pm) or all day. They don't
+count toward a full day until you accept them. Everything waiting is listed
+at the top of the schedule and badged on the Schedule tab. Each has:
+
+- **Accept**, which books it as asked and lets them know;
+- **Change time**, which opens it in the edit form, so you can pick a slot
+  you do have and let them know;
+- **Message**, to talk it over first;
+- **Decline**.
+
 ### Customers
 
 Every booking form and every customer who leaves their details in the chat
@@ -164,7 +208,13 @@ account.
 > Texts, calls and voicemail are recorded in the inbox. Customers can reply
 > STOP to opt out of texts; that is honoured on every send.
 
-## 4. The app (next stage)
+## 4. Day-before reminders
+
+Set `CRON_SECRET` in Vercel to any long random string. Vercel then runs
+`/api/cron/visit-reminders` once a day (`vercel.json`) and signs the call
+with it. Without it, no reminders are sent.
+
+## 5. The app (next stage)
 
 When the MPE app is in the stores, set `NEXT_PUBLIC_APP_STORE_URL` and
 `NEXT_PUBLIC_PLAY_STORE_URL`. The chat then shows the download buttons

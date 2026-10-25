@@ -4,6 +4,8 @@ import { formatPostcode, isValidEmail, isValidPhone, isValidPostcode } from "@/l
 import { isLikelyBotSubmission } from "@/lib/spamGuard";
 import { ENQUIRY_TYPES, type EnquiryType } from "@/lib/enquiry";
 import { CATEGORY_LABEL, categoryFor, recordEnquiry } from "@/lib/enquiries";
+import { addDays, isISODate, isPart } from "@/lib/day-plan";
+import { londonNow } from "@/lib/schedule-time";
 
 // Every booking form lands here. It's filed as a job in the team inbox
 // (lib/enquiries.ts: a categorised enquiry, plus the customer's
@@ -26,6 +28,8 @@ type Payload = {
   // The step-by-step forms: postcode, and each question with its answer.
   postcode?: unknown;
   answers?: unknown;
+  // The "when suits you" step: a day and morning, afternoon or any time.
+  preferred?: unknown;
   // Bot checks (from Kanvas Academy): a honeypot real visitors never see
   // (`website`, or `company` on older forms) and how long the form was
   // open before sending, in milliseconds.
@@ -74,6 +78,13 @@ export async function POST(request: NextRequest) {
         .slice(0, 12)
     : [];
 
+  const pref = body.preferred && typeof body.preferred === "object" ? (body.preferred as { day?: unknown; part?: unknown }) : null;
+  const today = londonNow().dateISO;
+  const preferred =
+    pref && typeof pref.day === "string" && isISODate(pref.day) && pref.day >= today && pref.day <= addDays(today, 60) && isPart(pref.part)
+      ? { day: pref.day, part: pref.part }
+      : null;
+
   // Bots get a quiet 200 and nothing is sent (Kanvas Academy's spam guard).
   const honeypot = str(body.website, 200) || str(body.company, 200);
   const fillMs = typeof body.fillMs === "number" ? body.fillMs : undefined;
@@ -111,6 +122,7 @@ export async function POST(request: NextRequest) {
     path,
     answers,
     message,
+    preferred,
   });
 
   const apiKey = process.env.RESEND_API_KEY;

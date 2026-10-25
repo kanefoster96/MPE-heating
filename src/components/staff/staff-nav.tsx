@@ -9,8 +9,8 @@ const TABS = [
   { href: "/staff/customers", label: "Customers" },
 ];
 
-/** The team's three places: the inbox, the schedule and the customers. */
-export function StaffNav() {
+/** The team's three places: the inbox, the schedule and the customers. `waiting` badges the schedule. */
+export function StaffNav({ waiting = 0 }: { waiting?: number }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Team" className="flex items-center gap-0.5">
@@ -26,6 +26,11 @@ export function StaffNav() {
             }`}
           >
             {tab.label}
+            {tab.href === "/staff/schedule" && waiting > 0 && (
+              <span className="ml-1.5 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground" aria-label={`${waiting} waiting`}>
+                {waiting > 99 ? "99+" : waiting}
+              </span>
+            )}
           </Link>
         );
       })}

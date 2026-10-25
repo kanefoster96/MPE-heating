@@ -9,6 +9,11 @@ import { CLUB_SITE_URL } from "@/lib/club";
 import { isValidEmail } from "@/lib/validation";
 import { PREVIOUS_GUEST_COOKIE } from "@/lib/account-claim";
 import { customerFieldsFromForm, customerForUser, updateCustomer } from "@/lib/customers";
+import { createRequest } from "@/lib/appointments";
+import { postCustomerVisitMessage, sendVisitNotice } from "@/lib/visit-notify";
+import { requestedWhen } from "@/lib/visit-copy";
+import { londonNow } from "@/lib/schedule-time";
+import { KIND_LABEL, REQUESTABLE_KINDS, addDays, isISODate, isPart, type AppointmentKind } from "@/lib/day-plan";
 
 /**
  * Emails the customer a sign-in link: no password to remember. Their
@@ -71,4 +76,40 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/account");
+}
+
+/**
+ * A signed-in customer asking for a visit: it goes on the team's schedule as
+ * a request on that day (morning, afternoon or any time), in their
+ * conversation as their message, and they get an "it's in" message back
+ * with the link to their visit.
+ */
+export async function requestVisit(formData: FormData) {
+  const customer = await requireCustomer();
+  const kind = String(formData.get("kind") ?? "") as AppointmentKind;
+  const day = String(formData.get("day") ?? "");
+  const part = String(formData.get("part") ?? "");
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500) || null;
+  const today = londonNow().dateISO;
+  if (!(REQUESTABLE_KINDS as readonly string[]).includes(kind) || !isISODate(day) || day < today || day > addDays(today, 60) || !isPart(part)) {
+    redirect(`/account?requestError=${encodeURIComponent("Pick what you need, a day and a time of day.")}#request`);
+  }
+  const visit = await createRequest({
+    customerId: customer.id,
+    kind,
+    day,
+    part,
+    note,
+    address: customer.address,
+    postcode: customer.postcode,
+    source: "account",
+  });
+  if (!visit) redirect(`/account?requestError=${encodeURIComponent("Couldn't send that just now. Please try again.")}#request`);
+  await postCustomerVisitMessage(
+    customer,
+    `I'd like to book a ${KIND_LABEL[kind].toLowerCase()} on ${requestedWhen(day, part)}${part === "any" ? ", any time" : ""}.${note ? `\n${note}` : ""}`,
+  );
+  await sendVisitNotice(visit.id, "requested", null);
+  revalidatePath("/account");
+  redirect("/account?requested=1#visits");
 }

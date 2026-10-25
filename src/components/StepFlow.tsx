@@ -17,6 +17,10 @@ import { ContactOptions, LIVE_CHAT_ON } from "./ContactOptions";
 import { ChatButton } from "./ChatButton";
 import { FeeNote } from "./FeeNote";
 import { PhoneIcon, WhatsAppIcon } from "./icons";
+import { DayPartPicker } from "./DayPartPicker";
+import { isISODate, isPart, PART_LABEL } from "@/lib/day-plan";
+import { requestedWhen } from "@/lib/visit-copy";
+import { londonNow } from "@/lib/schedule-time";
 
 // The dedicated booking forms (call-out, new boiler, service, plan), built
 // on Kanvas Academy's trial form: one step per panel under numbered
@@ -158,6 +162,14 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
     go(0);
   }
 
+  // The day and part of the day picked on a "when" step, once both are.
+  function preferred(): { day: string; part: "am" | "pm" | "any" } | null {
+    const day = choices["when-day"];
+    const part = choices["when-part"];
+    // A draft from yesterday can hold a day that's gone.
+    return isISODate(day) && day >= londonNow().dateISO && isPart(part) ? { day, part } : null;
+  }
+
   // The answers so far, as "question: answer", for the summary and email.
   function recap(): { q: string; a: string }[] {
     return steps.flatMap((s) => {
@@ -167,6 +179,10 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
       }
       if (s.kind === "text" && texts[s.id]?.trim()) return [{ q: s.recap, a: texts[s.id].trim() }];
       if (s.kind === "postcode" && isValidPostcode(postcode)) return [{ q: "Postcode", a: formatPostcode(postcode) }];
+      if (s.kind === "when" && preferred()) {
+        const p = preferred()!;
+        return [{ q: s.recap, a: `${requestedWhen(p.day, p.part)}${p.part === "any" ? `, ${PART_LABEL.any.toLowerCase()}` : ""}` }];
+      }
       return [];
     });
   }
@@ -199,6 +215,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
           postcode: formatPostcode(postcode),
           message: (texts.description ?? "").trim(),
           answers: recap(),
+          preferred: preferred(),
           path: [flow.label],
           sameDayRequested: !!step.sameDay && sameDay,
           website,
@@ -302,7 +319,9 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
         ? (texts[step.id] ?? "").trim().length >= step.minLength
         : step.kind === "postcode"
           ? isValidPostcode(postcode)
-          : true;
+          : step.kind === "when"
+            ? !!preferred()
+            : true;
 
   const backRow = (next?: React.ReactNode) => (
     <div className="mt-2 flex justify-between gap-3">
@@ -428,6 +447,17 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
               }}
               placeholder="NE26 1AB"
               className={`${INPUT} border-line uppercase tracking-wide`}
+            />
+            {backRow(nextButton)}
+          </>
+        )}
+
+        {step.kind === "when" && (
+          <>
+            <DayPartPicker
+              fromToday={step.fromToday}
+              value={{ day: choices["when-day"] ?? "", part: isPart(choices["when-part"]) ? choices["when-part"] : "" }}
+              onChange={(next) => setChoices((prev) => ({ ...prev, "when-day": next.day, "when-part": next.part }))}
             />
             {backRow(nextButton)}
           </>

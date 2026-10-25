@@ -4,12 +4,18 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/staff-auth";
 import {
+  acceptRequest,
   appointmentFromForm,
+  clearChangeRequest,
   createAppointment,
   deleteAppointment,
+  getAppointment,
+  markEnquiryBooked,
   setAppointmentStatus,
   updateAppointment,
 } from "@/lib/appointments";
+import { sendVisitNotice } from "@/lib/visit-notify";
+import type { NoticeType } from "@/lib/visit-copy";
 import { createCustomer, customerFieldsFromForm, customerLabel, listCustomers } from "@/lib/customers";
 import type { AppointmentStatus } from "@/lib/day-plan";
 
@@ -54,20 +60,39 @@ export async function addAppointment(formData: FormData) {
   if (!parsed.ok) redirect(dayHref(day, { error: parsed.error, add: "1" }));
   const id = await createAppointment(parsed.input, user.id);
   if (!id) redirect(dayHref(day, { error: "Couldn't add that visit.", add: "1" }));
+  const sent = wantsNotice(formData) && parsed.input.customerId ? await sendVisitNotice(id, "booked", user.id) : null;
   revalidatePath("/staff/schedule");
-  redirect(dayHref(parsed.input.day, { success: "added" }) + `#visit-${id}`);
+  redirect(dayHref(parsed.input.day, { success: "added", ...sentParam(sent) }) + `#visit-${id}`);
 }
 
+/**
+ * Saves a visit. Saving a customer's request books it; changing the day or
+ * time of a booked one moves it (and answers any request to move it). With
+ * "let them know" ticked, the customer is told which.
+ */
 export async function editAppointment(id: string, formData: FormData) {
-  await requireStaff("/staff/schedule");
+  const user = await requireStaff("/staff/schedule");
   const day = back(formData);
+  const before = await getAppointment(id);
+  if (!before) redirect(dayHref(day, { error: "That visit's gone." }));
   const customerError = await newCustomerFromForm(formData);
   if (customerError) redirect(dayHref(day, { error: customerError, edit: id }));
   const parsed = appointmentFromForm(formData);
   if (!parsed.ok) redirect(dayHref(day, { error: parsed.error, edit: id }));
-  if (!(await updateAppointment(id, parsed.input))) redirect(dayHref(day, { error: "Couldn't save that visit.", edit: id }));
+  const input = parsed.input;
+  const timeChanged = input.day !== before.day || input.start !== before.start || input.end !== before.end;
+  const wasRequest = before.status === "requested";
+  const ok = await updateAppointment(id, input, {
+    status: wasRequest ? "booked" : undefined,
+    clearChange: wasRequest || timeChanged,
+  });
+  if (!ok) redirect(dayHref(day, { error: "Couldn't save that visit.", edit: id }));
+  if (wasRequest && before.enquiryId) await markEnquiryBooked(before.enquiryId, user.id);
+
+  const notice: NoticeType | null = wasRequest || before.customerId !== input.customerId ? "booked" : timeChanged && before.status === "booked" ? "moved" : null;
+  const sent = notice && wantsNotice(formData) && input.customerId ? await sendVisitNotice(id, notice, user.id) : null;
   revalidatePath("/staff/schedule");
-  redirect(dayHref(parsed.input.day, { success: "saved" }) + `#visit-${id}`);
+  redirect(dayHref(input.day, { success: wasRequest ? "accepted" : "saved", ...sentParam(sent) }) + `#visit-${id}`);
 }
 
 export async function changeAppointmentStatus(id: string, status: AppointmentStatus, day: string) {
@@ -76,6 +101,44 @@ export async function changeAppointmentStatus(id: string, status: AppointmentSta
   revalidatePath("/staff/schedule");
   revalidatePath("/staff/customers");
   redirect(dayHref(day) + `#visit-${id}`);
+}
+
+/** Accepts a customer's request in the window they asked for, and tells them. */
+export async function acceptVisitRequest(id: string, day: string) {
+  const user = await requireStaff("/staff/schedule");
+  await acceptRequest(id);
+  const visit = await getAppointment(id);
+  if (visit?.enquiryId) await markEnquiryBooked(visit.enquiryId, user.id);
+  const sent = await sendVisitNotice(id, "booked", user.id);
+  revalidatePath("/staff/schedule");
+  redirect(dayHref(day, { success: "accepted", ...sentParam(sent) }) + `#visit-${id}`);
+}
+
+/** The customer asked to move, and it's staying put (talked it over, say). */
+export async function keepVisitTime(id: string, day: string) {
+  await requireStaff("/staff/schedule");
+  await clearChangeRequest(id);
+  revalidatePath("/staff/schedule");
+  redirect(dayHref(day) + `#visit-${id}`);
+}
+
+/** Sends the customer the details again, or tells them it's cancelled. */
+export async function sendVisitDetails(id: string, day: string) {
+  const user = await requireStaff("/staff/schedule");
+  const visit = await getAppointment(id);
+  if (!visit?.customerId) redirect(dayHref(day));
+  const type: NoticeType = visit.status === "cancelled" ? "cancelled" : visit.lastNotice === "moved" ? "moved" : "booked";
+  const sent = await sendVisitNotice(id, type, user.id);
+  revalidatePath("/staff/schedule");
+  redirect(dayHref(day, { success: "sent", ...sentParam(sent) }) + `#visit-${id}`);
+}
+
+function wantsNotice(formData: FormData): boolean {
+  return formData.get("notify") === "on";
+}
+
+function sentParam(sent: string[] | null): Record<string, string> {
+  return sent === null ? {} : { sent: sent.length ? sent.join(",") : "none" };
 }
 
 export async function removeAppointment(id: string, day: string) {

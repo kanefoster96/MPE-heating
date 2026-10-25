@@ -5,7 +5,6 @@ import { ReviewCarousel } from "@/components/ReviewCarousel";
 import { Stars } from "@/components/Stars";
 import { ClosingCard } from "@/components/ClosingCard";
 import { Footer } from "@/components/Footer";
-import { MobileBar } from "@/components/MobileBar";
 import { JsonLd } from "@/components/JsonLd";
 import { business, rating, reviews } from "@/lib/content";
 import { SITE_URL, breadcrumbJsonLd } from "@/lib/seo";
@@ -63,7 +62,6 @@ export default function ReviewsPage() {
         </div>
       </main>
       <Footer />
-      <MobileBar />
       <JsonLd data={breadcrumbJsonLd([{ name: "Reviews", path: "/reviews" }])} />
     </>
   );

@@ -52,7 +52,7 @@ export type TwoTone = { lead: string; em: string };
 // Hero copy is built on the value equation: dream outcome + likelihood it
 // works, minus time delay and effort. Every claim must be one MPE can keep.
 // The hero follows the kanvas.one layout, without the phone: proof pill,
-// two-tone headline, one button, and an orange card of promises.
+// two-tone headline, one button, and an orange card of free ways to start.
 export const hero = {
   // Proof pill above the headline, as on kanvas.one: who we are, then a
   // way to ask a question straight away.
@@ -61,15 +61,40 @@ export const hero = {
   subline:
     "A Gas Safe engineer at your door for a £50 call-out. Price agreed before any work starts, and most faults fixed on the spot with parts from the van.",
   cta: "Book a same-day call-out",
-  // The orange promise card on the right of the hero. `info` opens a note
-  // under the card.
-  promises: [
-    { text: "£50 call-out, back in full when we fix it", info: "fee" },
-    { text: "Price agreed before any work starts" },
-    { text: "Every repair guaranteed for 3\u00a0months", info: "guarantee" },
-    { text: "Local engineers, based in Whitley Bay" },
-  ],
 }
+
+// Three free ways to start, shown all through the site (hero, menu,
+// footer, closing card), as One for trades leads with a free quote. The
+// call-out is only free with a repair, so it always says so.
+export const freeOffers = {
+  heading: "Start with something free",
+  items: [
+    {
+      key: "callout",
+      title: "Free call-out with your repair",
+      note: "£50 on the day, taken off your repair bill.",
+      cta: "Book a call-out",
+      href: "/emergency",
+      external: false,
+    },
+    {
+      key: "quote",
+      title: "Free boiler quote",
+      note: "Fixed price, no obligation.",
+      cta: "Get a quote",
+      href: "/book?path=boilers.new",
+      external: false,
+    },
+    {
+      key: "chat",
+      title: "Free advice from an engineer",
+      note: "Chat to us on WhatsApp.",
+      cta: "Start a chat",
+      href: business.whatsappHref,
+      external: true,
+    },
+  ],
+} as const;
 
 // The same-day tick on every form. Ticking it is a nudge to book, not a
 // promise of priority: it shows our number with this line.

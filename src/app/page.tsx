@@ -7,17 +7,16 @@ import { Faq } from "@/components/Faq";
 import { AreasCovered } from "@/components/AreasCovered";
 import { ClosingCard } from "@/components/ClosingCard";
 import { Footer } from "@/components/Footer";
-import { MobileBar } from "@/components/MobileBar";
 import { JsonLd } from "@/components/JsonLd";
 import { faqs } from "@/lib/content";
 import { faqPageJsonLd } from "@/lib/seo";
 
 const HOME_FAQS = 4;
 
-// The kanvas.one-style hero with the £50 / £0 ticket, how it works on one
-// card, the TrustATrader rating, the four trades, then the top questions
+// The kanvas.one-style hero with three free ways to start, how it works
+// on one card, the TrustATrader rating, the four trades, then the top questions
 // and the towns we cover (kept for search), and a navy card with the ask
-// once more. Phones get a fixed Call / Chat / Book bar.
+// once more. Every page ends with the free offers in the footer.
 export default function Home() {
   return (
     <>
@@ -32,7 +31,6 @@ export default function Home() {
         <ClosingCard />
       </main>
       <Footer />
-      <MobileBar />
       <JsonLd data={faqPageJsonLd(faqs.homes.slice(0, HOME_FAQS))} />
     </>
   );

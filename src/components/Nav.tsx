@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { business } from "@/lib/content";
+import { business, freeOffers } from "@/lib/content";
+import { FreeOfferLink, offerIcons } from "./FreeOfferLink";
 import { MenuIcon, CloseIcon, WhatsAppIcon } from "./icons";
 
 // The logo on the left, call, chat and menu on the right, nothing else.
@@ -81,6 +82,24 @@ export function Nav() {
               open ? "opacity-100 delay-100" : "opacity-0"
             }`}
           >
+            {/* The free ways to start come first in the menu. */}
+            <ul aria-label={freeOffers.heading} className="mx-auto grid max-w-6xl gap-2 px-4 pt-4 sm:grid-cols-3 sm:px-6">
+              {freeOffers.items.map((item) => {
+                const Icon = offerIcons[item.key];
+                return (
+                  <li key={item.key}>
+                    <FreeOfferLink
+                      item={item}
+                      onClick={() => setOpen(false)}
+                      className="flex min-h-12 items-center gap-2.5 rounded-2xl bg-[#fff0e6] px-3.5 py-2.5 text-[15px] font-semibold text-terracotta-deep"
+                    >
+                      <Icon className="h-5 w-5 flex-none" aria-hidden="true" />
+                      {item.title}
+                    </FreeOfferLink>
+                  </li>
+                );
+              })}
+            </ul>
             <ul className="mx-auto grid max-w-6xl gap-x-8 px-4 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
               {links.map((link) => (
                 <li key={link.href}>

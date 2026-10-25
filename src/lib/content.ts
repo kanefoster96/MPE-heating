@@ -51,25 +51,84 @@ export type TwoTone = { lead: string; em: string };
 
 // Hero copy is built on the value equation: dream outcome + likelihood it
 // works, minus time delay and effort. Every claim must be one MPE can keep.
-// The hero follows the kanvas.one layout, without the phone: proof pill,
-// two-tone headline, one button, and an orange card of promises.
+// The hero sells one thing: an emergency call-out for a broken-down
+// boiler, with the £50 explained up front. Layout as on kanvas.one.
 export const hero = {
-  // Proof pill above the headline, as on kanvas.one: who we are, then a
-  // way to ask a question straight away.
+  // Proof pill above the headline: who we are, then a way to ask.
   proof: { line1: "Family-run and Gas Safe registered", line2: "Got a question? WhatsApp us" },
-  headline: { lead: "Heating off?", em: "We'll be round today." },
+  // Dream outcome and time.
+  headline: { lead: "Boiler broken down?", em: "We'll be round today." },
+  // Likelihood (Gas Safe, parts on the van) and the £50, risk removed.
   subline:
-    "A Gas Safe engineer at your door for a £50 call-out. Price agreed before any work starts, and most faults fixed on the spot with parts from the van.",
+    "A Gas Safe engineer at your door for a £50 call-out. Go ahead with the repair and the £50 comes off your bill. Most faults fixed on the spot with parts from the van.",
   cta: "Book a same-day call-out",
-  // The orange promise card on the right of the hero. `info` opens a note
-  // under the card.
-  promises: [
-    { text: "£50 call-out, back in full when we fix it", info: "fee" },
-    { text: "Price agreed before any work starts" },
-    { text: "Every repair guaranteed for 3\u00a0months", info: "guarantee" },
-    { text: "Local engineers, based in Whitley Bay" },
+  // The orange card on the right: the £50 call-out, step by step.
+  callOut: {
+    heading: "Your £50 call-out",
+    rows: [
+      { title: "We find the fault", text: "A Gas Safe engineer, usually the same day if you book by midday." },
+      { title: "You hear the price first", text: "Nothing starts until you've said yes." },
+      { title: "Go ahead: the £50 comes off", text: "Taken off your repair bill, in full." },
+      { title: "Don't: £50 is all you pay", text: "No pressure, no extra charges." },
+    ],
+    foot: "Every repair guaranteed for 3\u00a0months.",
+  },
+};
+
+// Lower on the homepage: the two other boiler jobs, each a small section
+// of its own. Only what the site already says; no plan prices.
+export const homeExtras = {
+  heading: ["Not broken down?", "We do the rest too."],
+  newBoiler: {
+    tag: "New boilers",
+    title: "Free fixed-price quote",
+    points: ["No obligation, no pressure", "Usually fitted in a day", "All major brands, manufacturer's warranty"],
+    cta: "Get a free quote",
+    href: "/book?path=boilers.new",
+    more: { label: "About new boilers", href: "/new-boilers" },
+  },
+  servicing: {
+    tag: "Servicing",
+    title: "Annual service from £79",
+    points: ["About 45 minutes", "Keeps your boiler warranty valid", "Written report, and a reminder when the next is due"],
+    cta: "Book a service",
+    href: "/book?path=boilers.service",
+    more: { label: "Maintenance contracts for businesses", href: "/commercial" },
+  },
+};
+
+// Three free ways to start, shown all through the site (hero, menu,
+// footer, closing card), as One for trades leads with a free quote. The
+// call-out is only free with a repair, so it always says so.
+export const freeOffers = {
+  heading: "Start with something free",
+  items: [
+    {
+      key: "callout",
+      title: "Free call-out with your repair",
+      note: "£50 on the day, taken off your repair bill.",
+      cta: "Book a call-out",
+      href: "/emergency",
+      external: false,
+    },
+    {
+      key: "quote",
+      title: "Free boiler quote",
+      note: "Fixed price, no obligation.",
+      cta: "Get a quote",
+      href: "/book?path=boilers.new",
+      external: false,
+    },
+    {
+      key: "chat",
+      title: "Free advice from an engineer",
+      note: "Chat to us on WhatsApp.",
+      cta: "Start a chat",
+      href: business.whatsappHref,
+      external: true,
+    },
   ],
-}
+} as const;
 
 // The same-day tick on every form. Ticking it is a nudge to book, not a
 // promise of priority: it shows our number with this line.

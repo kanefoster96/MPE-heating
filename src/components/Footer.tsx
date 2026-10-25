@@ -2,12 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { business, footerLinks, accreditations } from "@/lib/content";
 import { PhoneIcon, WhatsAppIcon } from "./icons";
+import { FreeBand } from "./FreeBand";
 
 export function Footer() {
   return (
     <footer className="border-t border-line bg-cream py-12 text-navy">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex flex-col gap-10 sm:flex-row sm:justify-between">
+        <FreeBand />
+        <div className="mt-10 flex flex-col gap-10 sm:flex-row sm:justify-between">
           <div>
             <Image src="/mpe-logo.png" alt={business.fullName} width={1189} height={513} className="h-12 w-auto" />
             <div className="mt-5 flex flex-col gap-2 text-sm text-text-2">

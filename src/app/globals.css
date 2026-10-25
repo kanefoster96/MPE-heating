@@ -29,6 +29,21 @@
   --color-whatsapp-ink: #11602f;
   --color-edge: #ece8e3; /* tile and bar borders */
   --color-red: #dc2626;
+  /* Kanvas Academy's theme names, which its chat and inbox (ported here)
+     are written in, mapped to this site's light colours. The Academy is
+     dark (white "accent" on black); here the accent is the button orange,
+     so a customer's own chat bubbles are orange with white text (5.6:1). */
+  --color-background: #ffffff;
+  --color-surface: #f7f5f2;
+  --color-chip: #f1efeb;
+  --color-foreground: #1f2a3a;
+  --color-muted: #5b6573;
+  --color-quiet: #6b7380;
+  --color-border: rgba(31, 42, 58, 0.12);
+  --color-accent: #b5411c;
+  --color-accent-foreground: #ffffff;
+  --color-danger: #c81e1e;
+  --color-success: #178245;
   /* Dark-to-light orange, the emphasised clause of a heading. The light
      end stays at terracotta (about 3.3:1 on white), which is past the 3:1
      large headings need. Don't take it lighter. */
@@ -62,6 +77,17 @@
   --color-whatsapp-ink: var(--color-whatsapp-ink);
   --color-edge: var(--color-edge);
   --color-red: var(--color-red);
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-chip: var(--color-chip);
+  --color-foreground: var(--color-foreground);
+  --color-muted: var(--color-muted);
+  --color-quiet: var(--color-quiet);
+  --color-border: var(--color-border);
+  --color-accent: var(--color-accent);
+  --color-accent-foreground: var(--color-accent-foreground);
+  --color-danger: var(--color-danger);
+  --color-success: var(--color-success);
   --font-sans: var(--font-outfit);
 }
 
@@ -127,6 +153,20 @@ textarea {
   .js .reveal.is-in {
     opacity: 1;
     transform: none;
+  }
+
+  /* The "someone's here" dot in the chat (from Kanvas Academy). */
+  @keyframes flash {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
+  }
+  .animate-flash {
+    animation: flash 1.5s ease-in-out infinite;
   }
 
   /* Each booking step fades up as it swaps in (from Kanvas Academy). */
@@ -264,7 +304,8 @@ textarea {
   }
   .highlight,
   .fold-in,
-  .animate-fade-up {
+  .animate-fade-up,
+  .animate-flash {
     animation: none;
   }
   .js .pop-in,

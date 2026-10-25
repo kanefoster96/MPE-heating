@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { business } from "@/lib/content";
+import { CHAT_ON } from "@/lib/chat-on";
 import { MailIcon, PhoneIcon, WhatsAppIcon } from "./icons";
 
-// The live chat is Kanvas One's chat.js, loaded in the layout only when
-// the site's One id is set. Any element with data-chat-open opens it.
-export const LIVE_CHAT_ON = !!process.env.NEXT_PUBLIC_KANVAS_SITE_ID;
+// The live chat (/messages) shows once Supabase is set (lib/chat-on.ts).
+export const LIVE_CHAT_ON = CHAT_ON;
 
 // Every way to reach MPE, as a row of small pills: call, WhatsApp, email
 // and (once it's switched on) live chat. Sits under each booking form.
@@ -27,10 +28,10 @@ export function ContactOptions({ className = "" }: { className?: string }) {
           Email
         </a>
         {LIVE_CHAT_ON && (
-          <button type="button" data-chat-open="" className={pill}>
+          <Link href="/messages" className={pill}>
             <span aria-hidden="true" className="h-2 w-2 rounded-full bg-whatsapp-dark" />
             Live chat
-          </button>
+          </Link>
         )}
       </div>
     </div>

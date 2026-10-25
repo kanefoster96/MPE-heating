@@ -302,6 +302,9 @@ create index if not exists enquiries_category_idx on public.enquiries (category,
 create index if not exists enquiries_phone_idx on public.enquiries (phone_e164);
 
 alter table public.enquiries enable row level security;
+-- Live updates carry the old row too, so the staff badge can tell when an
+-- enquiry moves on from "new" (src/components/chat/chat-badge.tsx).
+alter table public.enquiries replica identity full;
 drop policy if exists "Staff read enquiries" on public.enquiries;
 create policy "Staff read enquiries"
   on public.enquiries for select

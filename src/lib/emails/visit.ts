@@ -44,7 +44,7 @@ export function visitEmailHtml(params: {
     cancelled: "This visit is cancelled. If you'd still like one, just reply or give us a call.",
     reminder: "A reminder that we're with you tomorrow.",
     requested: "Thanks, we've got your request. We'll be in touch to confirm the time.",
-    hour: `${params.engineer ? `${escapeHtml(params.engineer)} from MPE` : "Our engineer"} will be with you today between ${windowLabel(visit.start, visit.end).replace("–", " and ")}.`,
+    hour: `Just confirming ${params.engineer ? `${escapeHtml(params.engineer)} from MPE` : "our engineer"} will be with you today between ${windowLabel(visit.start, visit.end).replace("–", " and ")}.`,
     missed: "We called round but couldn't get in. No problem: pick another time that suits and we'll confirm it.",
     service_due: `It's nearly a year since your boiler ${visit.kind === "install" ? "was fitted" : "was last serviced"}, so its annual service is due. A yearly service keeps it safe and its warranty valid.`,
   };

@@ -139,7 +139,7 @@ don't cost extra.
 | ---- | ----------- | ------------ |
 | On booking | The customer | The details, with their visit link (sent from the schedule, as above) |
 | The evening before, from 6pm | Booked visits tomorrow | A reminder, and "if you can't make it, let us know". Skipped if they were only booked that afternoon. |
-| About an hour before the window | Booked visits today | "Fergal from MPE will be with you today between 10am and 12pm for your call-out. If anything's changed, call…" It names whoever booked the visit, and gives nothing to do except call if something's changed. |
+| About an hour before the window | Booked visits today | "Just confirming Fergal from MPE will be with you today between 10am and 12pm for your call-out. If anything's changed, call…" It names whoever booked the visit, and gives nothing to do except call if something's changed. |
 | Midday the day after **Not in** | Visits marked Not in | "Sorry we missed you", with their link to pick another time |
 | A day after a booking form, if there's no visit yet | The customer | What they asked about, in their own words, and a link to pick a day and time (`/request/...`) |
 | Three days after that | The customer | One last check-in that says we won't message about it again |

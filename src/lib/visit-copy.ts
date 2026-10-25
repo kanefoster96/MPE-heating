@@ -48,7 +48,7 @@ const HEADLINE: Record<NoticeType, (v: VisitFacts) => string> = {
   cancelled: (v) => `Your ${kindName(v.kind)} is cancelled`,
   reminder: (v) => `See you tomorrow for your ${kindName(v.kind)}`,
   requested: (v) => `We've got your ${kindName(v.kind)} request`,
-  hour: () => `We're on our way soon`,
+  hour: (v) => `Confirming today's ${kindName(v.kind)}`,
   missed: () => `Sorry we missed you`,
   service_due: () => `Your boiler service is due`,
 };
@@ -82,7 +82,7 @@ export function noticeBody(
     case "hour":
       // The Academy's hour-before text: a named person expected at the
       // door, and nothing to do. No way out offered, just the number.
-      return `${hi}${opts.engineer ? `${opts.engineer} from MPE` : "our engineer"} will be with you today between ${windowLabel(v.start, v.end).replace("–", " and ")} for your ${kindName(v.kind)}. If anything's changed, call ${opts.phone}.`;
+      return `${hi}just confirming ${opts.engineer ? `${opts.engineer} from MPE` : "our engineer"} will be with you today between ${windowLabel(v.start, v.end).replace("–", " and ")} for your ${kindName(v.kind)}. If anything's changed, call ${opts.phone}.`;
     case "missed":
       return `${hi}we called round for your ${kindName(v.kind)} on ${longDate(v.day)} but couldn't get in. No problem, pick another time that suits${opts.link ? `: ${opts.link}` : ` and call us on ${opts.phone}`}`;
     case "service_due":

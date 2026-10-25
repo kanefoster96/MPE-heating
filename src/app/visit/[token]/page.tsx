@@ -14,6 +14,7 @@ import { KIND_LABEL, longDate } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { askForAnotherTime } from "./actions";
+import { getJobReview } from "@/lib/job-completion";
 import { formatPence, invoiceNumber, paymentsForAppointments } from "@/lib/payments";
 
 export const metadata: Metadata = {
@@ -50,6 +51,7 @@ export default async function VisitPage({
     .filter(Boolean)
     .join(", ");
   const first = customer?.name?.split(" ")[0];
+  const review = visit.status === "done" ? await getJobReview(visit.id) : null;
   const payments = ((await paymentsForAppointments([visit.id])).get(visit.id) ?? []).filter((x) => x.status !== "cancelled");
 
   const heading =
@@ -118,6 +120,21 @@ export default async function VisitPage({
                 </>
               )}
             </dl>
+            {visit.status === "done" && visit.jobReport && (
+              <div className="mt-6 rounded-2xl bg-cream px-4 py-3" data-visit-report>
+                <p className="text-sm font-semibold text-navy">What we did</p>
+                <p className="mt-1 whitespace-pre-wrap text-text-2">{visit.jobReport}</p>
+              </div>
+            )}
+            {visit.status === "done" && !review && (
+              <Link
+                href={`/visit/${token}/review`}
+                className="mt-5 inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40"
+                data-rate-visit
+              >
+                ★ Rate your visit
+              </Link>
+            )}
             {visit.status === "requested" && (
               <p className="mt-5 rounded-2xl bg-cream px-4 py-3 text-text-2">
                 We&rsquo;ll be in touch to confirm the time. You&rsquo;ll get

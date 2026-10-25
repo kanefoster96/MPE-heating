@@ -56,6 +56,7 @@ const SUCCESS: Record<string, string> = {
   accepted: "Booked.",
   sent: "Sent.",
   removed: "Visit removed.",
+  finished: "Job done.",
 };
 
 /** "Visit added. Sent to them by message, email and text." */
@@ -85,6 +86,7 @@ type SearchParams = {
   error?: string;
   success?: string;
   sent?: string;
+  note?: string;
 };
 
 function scheduleHref(params: Record<string, string | undefined>) {
@@ -138,7 +140,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
 
       {params.success && SUCCESS[params.success] && (
         <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success" data-flash>
-          {successLine(params.success, params.sent)}
+          {params.success === "finished" && params.note ? params.note : successLine(params.success, params.sent)}
         </p>
       )}
       {params.error && <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{params.error}</p>}
@@ -603,6 +605,15 @@ function VisitCard({ appointment: a, customer, payments }: { appointment: Appoin
         )}
         {customer?.accessNotes && <p className="text-muted">Access: {customer.accessNotes}</p>}
         {a.notes && <p className="whitespace-pre-wrap rounded-lg bg-background px-3 py-2 text-foreground">{a.notes}</p>}
+        {a.status === "done" && customer && (
+          <div className="rounded-lg border border-success/30 bg-success/5 px-3 py-2" data-job-report>
+            <p className="text-xs font-semibold text-success">What we did</p>
+            <p className="whitespace-pre-wrap text-foreground">{a.jobReport || "Not written yet."}</p>
+            <Link href={`/staff/jobs/${a.id}/finish`} className="mt-1 inline-flex min-h-9 items-center text-xs font-semibold underline underline-offset-4">
+              {a.jobReport ? "Edit" : "Add what we did"}
+            </Link>
+          </div>
+        )}
       </div>
 
       {requested ? (
@@ -627,7 +638,17 @@ function VisitCard({ appointment: a, customer, payments }: { appointment: Appoin
         </div>
       ) : (
         <div className="mt-3 flex flex-wrap items-center gap-1">
-          {APPOINTMENT_STATUSES.map((status) => (
+          {APPOINTMENT_STATUSES.map((status) =>
+            // Done opens the finish screen (what was done, notes, summary, review).
+            status === "done" && a.status !== "done" && customer ? (
+              <Link
+                key={status}
+                href={`/staff/jobs/${a.id}/finish`}
+                className="inline-flex min-h-9 items-center rounded-full border border-border px-3 text-xs font-medium text-muted transition-colors hover:border-foreground/40"
+              >
+                {STATUS_LABEL[status]}
+              </Link>
+            ) : (
             <form key={status} action={changeAppointmentStatus.bind(null, a.id, status, a.day)}>
               <button
                 type="submit"
@@ -639,7 +660,8 @@ function VisitCard({ appointment: a, customer, payments }: { appointment: Appoin
                 {STATUS_LABEL[status]}
               </button>
             </form>
-          ))}
+            ),
+          )}
           {a.status === "cancelled" && (
             <form action={removeAppointment.bind(null, a.id, a.day)} className="ml-auto">
               <button type="submit" className="min-h-9 rounded-full px-3 text-xs font-medium text-danger hover:bg-danger/10">

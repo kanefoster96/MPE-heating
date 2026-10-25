@@ -433,6 +433,40 @@ alter table public.appointments add column if not exists change_note text;
 alter table public.appointments add column if not exists change_requested_at timestamptz;
 create unique index if not exists appointments_public_token_idx on public.appointments (public_token);
 
+-- Finishing a job (lib/job-completion.ts): what was done, in words the
+-- customer sees on their visit page and account; when, and by whom; and
+-- the review ask (sent a couple of hours later by the sweep, once, with one
+-- reminder).
+alter table public.appointments add column if not exists job_report text;
+alter table public.appointments add column if not exists completed_at timestamptz;
+alter table public.appointments add column if not exists completed_by uuid references auth.users (id) on delete set null;
+alter table public.appointments add column if not exists review_due_at timestamptz;
+alter table public.appointments add column if not exists review_asked_at timestamptz;
+alter table public.appointments add column if not exists review_reminded_at timestamptz;
+
+-- A customer's review of a job: their stars and words, for MPE. Everyone is
+-- also asked to post it publicly (the review link in Settings), whatever
+-- they rated: asking only happy customers is review gating. Service-role only.
+create table if not exists public.job_reviews (
+  id uuid primary key default gen_random_uuid(),
+  appointment_id uuid not null unique references public.appointments (id) on delete cascade,
+  customer_id uuid references public.customers (id) on delete set null,
+  rating integer not null check (rating between 1 and 5),
+  comment text,
+  public_clicked_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists job_reviews_customer_idx on public.job_reviews (customer_id, created_at desc);
+alter table public.job_reviews enable row level security;
+
+-- Simple settings the team changes from Settings: e.g. review_url. Service-role only.
+create table if not exists public.app_settings (
+  key text primary key,
+  value text,
+  updated_at timestamptz not null default now()
+);
+alter table public.app_settings enable row level security;
+
 -- The follow-up sweep (lib/follow-up-sweep.ts): each message goes once.
 -- 'no_access': the engineer called and couldn't get in; the customer is
 -- offered another time the next day.

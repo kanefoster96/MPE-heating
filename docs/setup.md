@@ -213,6 +213,37 @@ a native app, so it arrives with the MPE app. The server side is ready:
 `/api/payment-requests/<id>/tap-to-pay`. Until then, use **They've paid me
 in person** for any card machine Fergal already has.
 
+### Finishing a job and reviews
+
+Tapping **Done** on a visit opens a short finish screen:
+
+- **What we did:** the customer sees this on their visit page and in their
+  account. It starts from the invoice's lines.
+- **Their boiler:** make, model, age and where it is. **Serviced on this
+  visit** sets "last serviced", and their service-due reminder follows 11
+  months later.
+- **Note for next time:** the team only. It's added to the customer's
+  private notes.
+- **Send a summary:** what was done, with their invoice or receipt. On by
+  default.
+- **Ask for a review:** sent about two hours later, in the daytime, with one
+  reminder after three days. It's skipped if they've reviewed anything in
+  the last six months.
+
+The review page asks for stars and an optional comment. Both go to MPE:
+into the customer's conversation, with a push to the team. Then everyone
+gets a **Post a Google review** button, whatever they gave. Asking only
+happy customers is "review gating", which Google's rules don't allow. A
+low score also tells them Fergal will be in touch.
+
+Set the Google review link under **Settings → Google reviews**. On your
+Google Business Profile, tap **Ask for reviews** and copy the link. Until
+it's set, customers can still rate the job; they just aren't sent to
+Google.
+
+Reviews show on the customer's page against each visit, including whether
+they went on to Google.
+
 ### Customers
 
 Every booking form and every customer who leaves their details in the chat

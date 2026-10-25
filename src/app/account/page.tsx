@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isCoach } from "@/lib/coach";
 import { customerForUser } from "@/lib/customers";
 import { appointmentsForCustomer } from "@/lib/appointments";
-import { KIND_LABEL, REQUESTABLE_KINDS, STATUS_LABEL } from "@/lib/day-plan";
+import { KIND_LABEL, REQUESTABLE_KINDS, STATUS_LABEL, longDate } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { DayPartFields } from "@/components/DayPartPicker";
@@ -115,6 +115,7 @@ export default async function AccountPage({
   const visits = customer ? await appointmentsForCustomer(customer.id) : [];
   const payments = customer ? (await paymentsForCustomer(customer.id)).filter((x) => x.status !== "cancelled") : [];
   const upcoming = visits.filter((v) => v.day >= today && (v.status === "booked" || v.status === "requested")).reverse();
+  const past = visits.filter((v) => v.status === "done").slice(0, 10);
 
   return (
     <Shell>
@@ -179,6 +180,27 @@ export default async function AccountPage({
           </Link>
         </div>
       </section>
+
+      {past.length > 0 && (
+        <section id="past" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="past-heading">
+          <h2 id="past-heading" className="text-xl font-semibold text-navy">
+            Past visits
+          </h2>
+          <ul className="mt-4 flex flex-col gap-3" data-past-visits>
+            {past.map((v) => (
+              <li key={v.id}>
+                <Link href={`/visit/${v.publicToken}`} className="block rounded-2xl border border-line bg-cream px-4 py-3 transition-colors hover:border-navy/40">
+                  <span className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-semibold text-navy">{KIND_LABEL[v.kind]}</span>
+                    <span className="text-sm text-text-2">{longDate(v.day)}</span>
+                  </span>
+                  {v.jobReport && <span className="mt-1 line-clamp-2 block text-sm text-text-2">{v.jobReport}</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {payments.length > 0 && (
         <section id="payments" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="payments-heading">

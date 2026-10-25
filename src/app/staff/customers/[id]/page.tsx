@@ -13,6 +13,7 @@ import { CustomerFields } from "@/components/customer-fields";
 import { PhoneIcon } from "@/components/icons";
 import { addNote, openCustomerChat, removeNote, saveCustomer } from "../actions";
 import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForCustomer } from "@/lib/payments";
+import { reviewsForCustomer, type JobReview } from "@/lib/job-completion";
 
 export const metadata: Metadata = { title: "Customer" };
 
@@ -24,7 +25,7 @@ function when(iso: string): string {
   return `${day} ${MONTHS[month]} ${year}, ${formatLondonClock(iso)}`;
 }
 
-function VisitRow({ a }: { a: Appointment }) {
+function VisitRow({ a, review }: { a: Appointment; review?: JobReview & { appointmentId: string } }) {
   return (
     <li>
       <Link
@@ -38,7 +39,12 @@ function VisitRow({ a }: { a: Appointment }) {
             {longDate(a.day)}, {windowLabel(a.start, a.end)}
           </span>
         </span>
-        <span className="text-xs font-medium text-muted">{STATUS_LABEL[a.status]}</span>
+        <span className="text-xs font-medium text-muted">
+          {STATUS_LABEL[a.status]}
+          {review ? ` · ${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}` : ""}
+        </span>
+        {a.jobReport && <span className="w-full text-xs text-muted">What we did: {a.jobReport}</span>}
+        {review?.comment && <span className="w-full text-xs italic text-muted">“{review.comment}”{review.publicClickedAt ? " · went on to Google" : ""}</span>}
       </Link>
     </li>
   );
@@ -69,6 +75,7 @@ export default async function CustomerPage({
     enquiriesForCustomer(id),
     paymentsForCustomer(id),
   ]);
+  const reviews = await reviewsForCustomer(id);
   const today = londonNow().dateISO;
   const upcoming = visits.filter((v) => v.day >= today && v.status === "booked").reverse();
   const past = visits.filter((v) => !(v.day >= today && v.status === "booked"));
@@ -143,7 +150,7 @@ export default async function CustomerPage({
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {upcoming.map((a) => (
-              <VisitRow key={a.id} a={a} />
+              <VisitRow key={a.id} a={a} review={reviews.find((r) => r.appointmentId === a.id)} />
             ))}
           </ul>
         )}
@@ -214,7 +221,7 @@ export default async function CustomerPage({
           </h2>
           <ul className="mt-3 flex flex-col gap-2">
             {past.map((a) => (
-              <VisitRow key={a.id} a={a} />
+              <VisitRow key={a.id} a={a} review={reviews.find((r) => r.appointmentId === a.id)} />
             ))}
           </ul>
         </section>

@@ -34,6 +34,9 @@ export function PaymentBuilder({
   savedCard,
   creditPence,
   online,
+  offers: upsells,
+  products,
+  repair,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   defaultDescription: string;
@@ -43,7 +46,15 @@ export function PaymentBuilder({
   creditPence: number;
   /** Stripe is set up: the link can be sent. Without it, in person only. */
   online: boolean;
+  /** Fergal's repair upsells (Settings): offered on their pay page as tick boxes. */
+  offers: { productId: string; label: string; usualPence: number; offerPence: number }[];
+  /** His products, for one-tap lines. */
+  products: { id: string; name: string; pricePence: number }[];
+  /** A repair: the upsells start ticked. */
+  repair: boolean;
 }) {
+  const [offerState, setOfferState] = useState(upsells.map((o) => ({ ...o, on: repair, price: (o.offerPence / 100).toString() })));
+  const offered = offerState.filter((o) => o.on && toPence(o.price) >= 100);
   const [lines, setLines] = useState<Line[]>([
     { description: "Labour", pounds: "" },
     { description: "", pounds: "" },
@@ -101,13 +112,33 @@ export function PaymentBuilder({
             </button>
           </div>
         ))}
-        <button
-          type="button"
-          onClick={() => setLines((prev) => [...prev, { description: "", pounds: "" }])}
-          className="min-h-11 self-start text-sm font-medium text-accent underline underline-offset-4"
-        >
-          + Add a line
-        </button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setLines((prev) => [...prev, { description: "", pounds: "" }])}
+            className="min-h-11 text-sm font-medium text-accent underline underline-offset-4"
+          >
+            + Add a line
+          </button>
+          {products.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() =>
+                setLines((prev) => {
+                  // Fill the first empty line, else add one.
+                  const empty = prev.findIndex((l) => !l.description.trim() && !l.pounds.trim());
+                  const line = { description: p.name, pounds: (p.pricePence / 100).toString() };
+                  return empty >= 0 ? prev.map((l, j) => (j === empty ? line : l)) : [...prev, line];
+                })
+              }
+              className="min-h-9 rounded-full border border-border px-3 text-xs font-medium hover:border-foreground/40"
+              data-product-chip
+            >
+              + {p.name} {formatPence(p.pricePence)}
+            </button>
+          ))}
+        </div>
         {creditPence > 0 && <p className="text-xs text-muted">The {formatPence(creditPence)} call-out fee they paid comes off, as promised. Remove that line if it shouldn&rsquo;t.</p>}
       </div>
 
@@ -117,6 +148,63 @@ export function PaymentBuilder({
           {formatPence(total)}
         </span>
       </div>
+
+      {online && (
+        <div className="rounded-xl border border-border bg-background p-4" data-offer-builder>
+          <p className="text-sm font-semibold">Offer on their pay page</p>
+          <input
+            type="hidden"
+            name="offers"
+            value={JSON.stringify(offered.map((o) => ({ productId: o.productId, label: o.label, pence: toPence(o.price), usualPence: o.usualPence })))}
+          />
+          {offerState.length === 0 ? (
+            <p className="mt-1 text-xs text-muted">
+              Pick up to two extras to offer at repairs in{" "}
+              <a href="/staff/settings" className="underline underline-offset-4">
+                Settings
+              </a>
+              .
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 text-xs text-muted">They can tick these when they pay. You&rsquo;re already there, so they&rsquo;re about 20% off.</p>
+              <ul className="mt-2 flex flex-col gap-2">
+                {offerState.map((o, i) => {
+                  const pence = toPence(o.price);
+                  return (
+                    <li key={o.productId} className="flex flex-wrap items-center gap-3" data-offer-row>
+                      <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={o.on}
+                          onChange={(e) => setOfferState((prev) => prev.map((x, j) => (j === i ? { ...x, on: e.target.checked } : x)))}
+                          className="h-5 w-5 accent-[var(--color-accent)]"
+                        />
+                        <span className="text-sm">
+                          {o.label} <span className="text-muted line-through">{formatPence(o.usualPence)}</span>
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-muted">
+                        Offer £
+                        <input
+                          aria-label={`${o.label} offer price in pounds`}
+                          value={o.price}
+                          inputMode="decimal"
+                          onChange={(e) => setOfferState((prev) => prev.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))}
+                          className={`${FIELD} w-24 text-right`}
+                        />
+                      </label>
+                      {o.on && pence > 0 && pence < o.usualPence && (
+                        <span className="w-full text-xs text-muted">{Math.round((1 - pence / o.usualPence) * 100)}% off</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         {online && (

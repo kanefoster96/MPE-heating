@@ -32,6 +32,11 @@ import { invoiceEmailHtml } from "@/lib/emails/invoice";
 
 /** The call-out fee the site promises: £50, taken off the repair if they go ahead. */
 export const CALLOUT_FEE_PENCE = 5000;
+/** At most this many add-ons on a pay page: Fergal's repair upsells (lib/products.ts). */
+export const MAX_OFFERS = 2;
+
+/** An add-on the customer can tick on the pay page, at an offer price. */
+export type PaymentOffer = { productId: string | null; label: string; pence: number; usualPence: number | null; taken: boolean };
 export const MAX_LINES = 20;
 const MIN_TOTAL_PENCE = 100;
 const MAX_TOTAL_PENCE = 2_000_000;
@@ -68,6 +73,8 @@ export type PaymentRequest = {
   reminderCount: number;
   remindedAt: string | null;
   createdAt: string;
+  /** The add-on they can tick on the pay page (a discounted service), and whether they took it. */
+  offers: PaymentOffer[];
 };
 
 type Row = {
@@ -89,6 +96,7 @@ type Row = {
   reminder_count: number | null;
   reminded_at: string | null;
   created_at: string;
+  offers: { product_id: string | null; label: string; pence: number; usual_pence: number | null; taken: boolean }[] | null;
 };
 
 function mapRow(r: Row): PaymentRequest {
@@ -109,6 +117,7 @@ function mapRow(r: Row): PaymentRequest {
     reminderCount: r.reminder_count ?? 0,
     remindedAt: r.reminded_at ?? null,
     createdAt: r.created_at,
+    offers: (r.offers ?? []).map((o) => ({ productId: o.product_id ?? null, label: o.label, pence: o.pence, usualPence: o.usual_pence ?? null, taken: !!o.taken })),
   };
 }
 
@@ -266,11 +275,24 @@ export function parseLines(raw: unknown): { ok: true; lines: PaymentLine[] } | {
   return { ok: true, lines };
 }
 
+/** " You can also add a boiler service while we're here for £63 (usually £79)." */
+export function offerLine(p: Pick<PaymentRequest, "offers" | "status">): string {
+  const open = p.offers.filter((o) => !o.taken);
+  if (!open.length || p.status !== "open") return "";
+  const each = open.map((o) => `${lowerFirst(o.label)} for ${formatPence(o.pence)}${o.usualPence ? ` (usually ${formatPence(o.usualPence)})` : ""}`);
+  return ` While we're with you, you can also add ${each.join(" or ")}: just tick it when you pay.`;
+}
+
+function lowerFirst(text: string): string {
+  // "Boiler service" → "boiler service"; leaves "CO alarm" alone.
+  return /^[A-Z][a-z]/.test(text) ? text.charAt(0).toLowerCase() + text.slice(1) : text;
+}
+
 /** What the customer's told: "Invoice MPE-1002 for your boiler repair: £130. Pay here: …" */
 function requestMessage(p: PaymentRequest, customer: Customer): string {
   const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, ";
   const what = p.kind === "callout_fee" ? `here's the link for your ${formatPence(p.amountPence)} call-out fee` : `here's invoice ${invoiceNumber(p.number)} for ${p.description.charAt(0).toLowerCase()}${p.description.slice(1)}: ${formatPence(p.amountPence)}`;
-  return `${hi}${what}. Pay by Apple Pay, Google Pay or card: ${payLink(p)}`;
+  return `${hi}${what}.${offerLine(p)} Pay by Apple Pay, Google Pay or card: ${payLink(p)}`;
 }
 
 /**
@@ -288,6 +310,8 @@ export async function createPaymentRequest(params: {
   lines: PaymentLine[];
   send?: boolean;
   chargeNow?: boolean;
+  /** Up to two add-ons to offer on their pay page. */
+  offers?: Omit<PaymentOffer, "taken">[];
 }): Promise<{ ok: true; request: PaymentRequest; sentVia: string[]; charge?: ChargeResult } | { ok: false; error: string }> {
   const customer = await getCustomer(params.customerId);
   if (!customer) return { ok: false, error: "Customer not found." };
@@ -306,6 +330,10 @@ export async function createPaymentRequest(params: {
       lines: params.lines.map((l) => ({ description: l.description, amount_pence: l.amountPence })),
       amount_pence: amountPence,
       created_by: params.staffId,
+      offers: (params.offers ?? [])
+        .filter((o) => o.pence > 0 && o.label.trim())
+        .slice(0, MAX_OFFERS)
+        .map((o) => ({ product_id: o.productId, label: o.label.trim().slice(0, 80), pence: o.pence, usual_pence: o.usualPence, taken: false })),
     })
     .select("*")
     .single();
@@ -338,7 +366,7 @@ export async function createPaymentRequest(params: {
 // Paying.
 
 /** Stripe Checkout for the pay page: Apple Pay, Google Pay or card, and the tick to save the card. */
-export async function checkoutUrl(id: string, opts: { saveCard: boolean }): Promise<{ url: string } | { error: string }> {
+export async function checkoutUrl(id: string, opts: { saveCard: boolean; addOffers?: number[] }): Promise<{ url: string } | { error: string }> {
   const row = await getRow(id);
   if (!row) return { error: "Payment not found." };
   if (row.status !== "open") return { error: row.status === "paid" ? "That's already paid. Thank you!" : "That payment was cancelled." };
@@ -346,19 +374,26 @@ export async function checkoutUrl(id: string, opts: { saveCard: boolean }): Prom
   const stripeCustomer = opts.saveCard && customer ? await stripeCustomerFor(customer) : null;
   const link = payLink(mapRow(row));
   const name = row.kind === "callout_fee" ? `${business.name} call-out fee` : `${business.name} invoice ${invoiceNumber(row.number)}`;
+  // They ticked the add-on: it's a second line, and recorded once they've paid.
+  const picked = [...new Set(opts.addOffers ?? [])].filter((i) => Number.isInteger(i) && (row.offers ?? [])[i] && !(row.offers ?? [])[i].taken);
+  const offers = picked.map((i) => (row.offers ?? [])[i]);
+  const total = row.amount_pence + offers.reduce((sum, o) => sum + o.pence, 0);
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    line_items: [{ quantity: 1, price_data: { currency: "gbp", unit_amount: row.amount_pence, product_data: { name, description: row.description } } }],
+    line_items: [
+      { quantity: 1, price_data: { currency: "gbp", unit_amount: row.amount_pence, product_data: { name, description: row.description } } },
+      ...offers.map((o) => ({ quantity: 1, price_data: { currency: "gbp", unit_amount: o.pence, product_data: { name: o.label } } })),
+    ],
     ...(stripeCustomer ? { customer: stripeCustomer } : customer?.email ? { customer_email: customer.email } : {}),
     payment_intent_data: {
-      ...paymentFee(row.amount_pence),
-      description: `${name}: ${row.description}`,
+      ...paymentFee(total),
+      description: `${name}: ${row.description}${offers.map((o) => ` + ${o.label}`).join("")}`,
       ...(customer?.email ? { receipt_email: customer.email } : {}),
       // They ticked "save my card": kept for Fergal to charge at a future
       // visit, when they say so.
       ...(stripeCustomer ? { setup_future_usage: "off_session" as const } : {}),
-      metadata: { payment_request_id: row.id, via: "link" },
+      metadata: { payment_request_id: row.id, via: "link", ...(picked.length ? { add_offers: picked.join(",") } : {}) },
     },
     metadata: { kind: "payment_request", payment_request_id: row.id },
     success_url: `${link}?paid=1`,
@@ -477,11 +512,22 @@ export async function markPaidInPerson(id: string, via: "in_person" | "cash" | "
  * marks it paid once and tells the team. A payment for one already paid
  * another way, or cancelled, is refunded.
  */
-export async function markPaid(id: string, paymentIntentId: string, via: PaidVia): Promise<void> {
+export async function markPaid(id: string, paymentIntentId: string, via: PaidVia, opts: { offersTaken?: number[] } = {}): Promise<void> {
   const admin = createAdminClient();
+  // The add-ons they ticked join the invoice: a line each, and the total.
+  const before = opts.offersTaken?.length ? await getRow(id) : null;
+  const taken = before && before.status === "open" ? opts.offersTaken!.filter((i) => (before.offers ?? [])[i] && !(before.offers ?? [])[i].taken) : [];
+  const offer =
+    before && taken.length
+      ? {
+          offers: (before.offers ?? []).map((o, i) => (taken.includes(i) ? { ...o, taken: true } : o)),
+          lines: [...(before.lines ?? []), ...taken.map((i) => ({ description: before.offers![i].label, amount_pence: before.offers![i].pence }))],
+          amount_pence: before.amount_pence + taken.reduce((sum, i) => sum + before.offers![i].pence, 0),
+        }
+      : {};
   const { data: updated, error } = await admin
     .from("payment_requests")
-    .update({ status: "paid", paid_at: new Date().toISOString(), paid_via: via, stripe_payment_intent_id: paymentIntentId, charging_at: null })
+    .update({ status: "paid", paid_at: new Date().toISOString(), paid_via: via, stripe_payment_intent_id: paymentIntentId, charging_at: null, ...offer })
     .eq("id", id)
     .eq("status", "open")
     .select("*");
@@ -509,6 +555,13 @@ export async function markPaid(id: string, paymentIntentId: string, via: PaidVia
   }
 
   const customer = row.customer_id ? await getCustomer(row.customer_id) : null;
+  const added = taken.map((i) => (row.offers ?? [])[i]).filter(Boolean);
+  if (added.length) {
+    await alertTeam(
+      added.length === 1 ? `${added[0].label} added` : "Extras added",
+      `${customer?.name || "The customer"} added ${added.map((o) => `${lowerFirst(o.label)} (${formatPence(o.pence)})`).join(" and ")} and has paid. Do it while you're there.`,
+    );
+  }
   await alertTeam(
     "Payment received",
     `${formatPence(row.amount_pence)} from ${customer?.name || customer?.email || "a customer"}: ${row.kind === "callout_fee" ? "call-out fee" : invoiceNumber(row.number)} (${PAID_VIA_LABEL[via]}).`,
@@ -540,7 +593,12 @@ export async function handlePaymentIntent(intent: Stripe.PaymentIntent): Promise
   const id = intent.metadata?.payment_request_id;
   if (!id) return false;
   const via = (["app", "saved_card", "tap_to_pay"] as const).find((v) => v === intent.metadata?.via) ?? "link";
-  await markPaid(id, intent.id, via);
+  const offersTaken = (intent.metadata?.add_offers ?? "")
+    .split(",")
+    .filter(Boolean)
+    .map(Number)
+    .filter((i) => Number.isInteger(i) && i >= 0 && i < MAX_OFFERS);
+  await markPaid(id, intent.id, via, { offersTaken });
   return true;
 }
 

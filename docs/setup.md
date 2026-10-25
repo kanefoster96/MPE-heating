@@ -186,6 +186,19 @@ Customers save a card by ticking **Save my card with MPE for future visits**
 when they pay a link. It's never saved without that tick. Once saved,
 "Card on file" shows on the Take payment page.
 
+**Extras at a repair.** Under **Settings** (the gear icon, for admins),
+Fergal adds the products he sells, at his prices. They become one-tap
+lines on an invoice. He can tick up to two as **Offered at repairs**, each
+with a price at a repair; leave that blank and it's about 20% off. On an
+invoice for a repair those extras are pre-ticked, and Fergal can untick
+them or change their price for that invoice. They appear on the customer's
+pay page under "While we're with you" as tick boxes, and the total updates
+as they tick. If they pay with one ticked, it's added to their invoice and
+receipt, and Fergal gets a push to do it before he leaves. Settings also
+suggests quick, good-margin jobs that fit a repair visit: a service, a
+magnetic system filter, a CO alarm, an inhibitor top-up, TRVs. Only the
+service has a price on the site (from £79); Fergal sets the rest.
+
 Every invoice has a number (MPE-1001, MPE-1002, and so on) and its own
 page. Before payment that page is the invoice, and afterwards the receipt.
 Customers can print it or save it as a PDF, and their account lists all of

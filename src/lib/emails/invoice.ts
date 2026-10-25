@@ -31,6 +31,14 @@ export function invoiceEmailHtml(params: { request: PaymentRequest; name: string
 ${rows}
 <tr><td style="padding:12px 0 0;font-size:16px;font-weight:700;color:#1f2a3a">${paid ? "Paid" : "To pay"}</td><td style="padding:12px 0 0 16px;font-size:18px;font-weight:700;color:#1f2a3a;text-align:right">${formatPence(r.amountPence)}</td></tr>
 </table>
+${
+    r.status === "open" && r.offers.some((o) => !o.taken)
+      ? `<div style="margin:0 0 20px;padding:14px 16px;border-radius:12px;background:#f7f5f2;font-size:15px;line-height:1.5;color:#1f2a3a"><p style="margin:0 0 6px;font-weight:700">While we're with you</p>${r.offers
+          .filter((o) => !o.taken)
+          .map((o) => `<p style="margin:0">${escapeHtml(o.label)}: <strong>${formatPence(o.pence)}</strong>${o.usualPence ? ` (usually ${formatPence(o.usualPence)})` : ""}</p>`)
+          .join("")}<p style="margin:6px 0 0;color:#5b6573;font-size:14px">Add with one tick when you pay.</p></div>`
+      : ""
+  }
 <p style="margin:0;font-size:13px;line-height:1.5;color:#5b6573">${escapeHtml(business.fullName)} · Gas Safe registered ${escapeHtml(business.gasSafeNumber)}</p>`;
 
   return renderEmailLayout({

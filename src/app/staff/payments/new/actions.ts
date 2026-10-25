@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/staff-auth";
 import {
   CALLOUT_FEE_PENCE,
+  MAX_OFFERS,
   cancelPaymentRequest,
   chargeSavedCard,
   createPaymentRequest,
@@ -51,6 +52,7 @@ export async function takePayment(ctx: Context, formData: FormData) {
     lines: lines.lines,
     send: !inPerson,
     chargeNow: intent === "charge",
+    offers: offersFrom(formData, kind, !!inPerson || intent === "charge"),
   });
   if (!created.ok) redirect(pageHref(ctx, { error: created.error }));
 
@@ -68,6 +70,30 @@ export async function takePayment(ctx: Context, formData: FormData) {
   }
   revalidatePath("/staff/schedule");
   redirect(pageHref(ctx, { done: flash }));
+}
+
+/** The extras to offer on their pay page (up to two): only on an invoice they'll pay from the link. */
+function offersFrom(formData: FormData, kind: PaymentKind, paidNow: boolean) {
+  if (kind !== "invoice" || paidNow) return [];
+  try {
+    const raw = JSON.parse(String(formData.get("offers") || "[]")) as unknown[];
+    return raw
+      .slice(0, MAX_OFFERS)
+      .map((o) => {
+        const item = o as { productId?: unknown; label?: unknown; pence?: unknown; usualPence?: unknown };
+        const pence = Math.round(Number(item.pence));
+        const usual = Math.round(Number(item.usualPence));
+        return {
+          productId: typeof item.productId === "string" ? item.productId : null,
+          label: String(item.label ?? "").trim().slice(0, 80),
+          pence,
+          usualPence: Number.isFinite(usual) && usual > pence ? usual : null,
+        };
+      })
+      .filter((o) => o.label && Number.isFinite(o.pence) && o.pence >= 100);
+  } catch {
+    return [];
+  }
 }
 
 /** On a payment already asked for: charge the saved card, mark paid, send again, or cancel. */

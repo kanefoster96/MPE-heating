@@ -100,8 +100,8 @@ Moving a visit to another day or time tells them it's moved. Each visit's
 card shows what they were sent, how and when, with **Send again**. A
 cancelled visit has **Tell them it's cancelled**.
 
-The evening before, everyone with a visit booked tomorrow gets a reminder
-automatically.
+Reminders and follow-ups then happen automatically. See **Automatic
+reminders and follow-ups** below.
 
 Every message links to the customer's own page for that visit
 (`/visit/...`). No sign-in is needed. From there they can see the visit,
@@ -127,6 +127,34 @@ at the top of the schedule and badged on the Schedule tab. Each has:
   you do have and let them know;
 - **Message**, to talk it over first;
 - **Decline**.
+
+### Automatic reminders and follow-ups
+
+These follow Kanvas Academy's approach to getting people booked and
+getting them to turn up. Each message goes once, by message, text, email
+and the app, whichever we have. Texts use plain characters only, so they
+don't cost extra.
+
+| When | Who gets it | What it says |
+| ---- | ----------- | ------------ |
+| On booking | The customer | The details, with their visit link (sent from the schedule, as above) |
+| The evening before, from 6pm | Booked visits tomorrow | A reminder, and "if you can't make it, let us know". Skipped if they were only booked that afternoon. |
+| About an hour before the window | Booked visits today | "Just confirming Fergal from MPE will be with you today between 10am and 12pm for your call-out. If anything's changed, call…" It names whoever booked the visit, and gives nothing to do except call if something's changed. |
+| Midday the day after **Not in** | Visits marked Not in | "Sorry we missed you", with their link to pick another time |
+| A day after a booking form, if there's no visit yet | The customer | What they asked about, in their own words, and a link to pick a day and time (`/request/...`) |
+| Three days after that | The customer | One last check-in that says we won't message about it again |
+| 11 months after a service or install | The customer | Their annual service is due, with a link to book |
+| A new job or visit request unanswered for 2 hours, 8am to 7pm | Every admin and engineer | A push: "2 new jobs have been waiting over two hours" |
+
+Follow-ups on a booking form stop as soon as:
+
+- there's a visit for that customer;
+- the team or the customer has written in their conversation;
+- the form is marked anything but new or contacted.
+
+Customer messages go out between 10am and 7pm, except the evening-before
+reminder and the hour-before message. Each visit card shows which reminders
+have gone and when. Jobs in the inbox show if they've been followed up.
 
 ### Customers
 
@@ -208,11 +236,13 @@ account.
 > Texts, calls and voicemail are recorded in the inbox. Customers can reply
 > STOP to opt out of texts; that is honoured on every send.
 
-## 4. Day-before reminders
+## 4. Automatic reminders and follow-ups
 
 Set `CRON_SECRET` in Vercel to any long random string. Vercel then runs
-`/api/cron/visit-reminders` once a day (`vercel.json`) and signs the call
-with it. Without it, no reminders are sent.
+`/api/cron/follow-ups` every five minutes (`vercel.json`) and signs the
+call with it. Without it, nothing automatic is sent. Every message is
+recorded once it's sent, so running it more often never sends anything
+twice.
 
 ## 5. The app (next stage)
 

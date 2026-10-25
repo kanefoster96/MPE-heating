@@ -41,6 +41,13 @@ export type Appointment = {
   notifiedVia: string[];
   lastNotice: NoticeType | null;
   remindedAt: string | null;
+  /** The "on our way" message an hour before the window. */
+  hourRemindedAt: string | null;
+  /** After a "Not in": the message offering another time. */
+  missedFollowupAt: string | null;
+  serviceDueSentAt: string | null;
+  staffNudgedAt: string | null;
+  createdBy: string | null;
   /** The customer asked to move it: to this day and part of the day. */
   change: { day: string; part: Part | null; note: string | null; at: string } | null;
 };
@@ -67,6 +74,11 @@ type Row = {
   notified_via: string[] | null;
   last_notice: NoticeType | null;
   reminded_at: string | null;
+  hour_reminded_at: string | null;
+  missed_followup_at: string | null;
+  service_due_sent_at: string | null;
+  staff_nudged_at: string | null;
+  created_by: string | null;
   change_day: string | null;
   change_part: Part | null;
   change_note: string | null;
@@ -96,6 +108,11 @@ function mapAppointment(r: Row): Appointment {
     notifiedVia: r.notified_via ?? [],
     lastNotice: r.last_notice ?? null,
     remindedAt: r.reminded_at ?? null,
+    hourRemindedAt: r.hour_reminded_at ?? null,
+    missedFollowupAt: r.missed_followup_at ?? null,
+    serviceDueSentAt: r.service_due_sent_at ?? null,
+    staffNudgedAt: r.staff_nudged_at ?? null,
+    createdBy: r.created_by ?? null,
     change:
       r.change_day && r.change_requested_at
         ? { day: r.change_day, part: r.change_part ?? null, note: r.change_note ?? null, at: r.change_requested_at }
@@ -318,7 +335,17 @@ export async function recordNotice(id: string, type: NoticeType, via: string[]):
   const now = new Date().toISOString();
   await createAdminClient()
     .from("appointments")
-    .update(type === "reminder" ? { reminded_at: now } : { notified_at: now, notified_via: via, last_notice: type })
+    .update(
+      type === "reminder"
+        ? { reminded_at: now }
+        : type === "hour"
+          ? { hour_reminded_at: now }
+          : type === "missed"
+            ? { missed_followup_at: now }
+            : type === "service_due"
+              ? { service_due_sent_at: now }
+              : { notified_at: now, notified_via: via, last_notice: type },
+    )
     .eq("id", id);
 }
 
@@ -343,13 +370,20 @@ export async function clearChangeRequest(id: string): Promise<void> {
     .eq("id", id);
 }
 
+/**
+ * New requests from today on, and booked or missed visits whose customer
+ * asked for another time from today on (a missed visit's own day is past).
+ */
+function waitingFilter(fromISO: string): string {
+  return `and(status.eq.requested,day.gte.${fromISO}),and(status.in.(booked,no_access),change_requested_at.not.is.null,change_day.gte.${fromISO})`;
+}
+
 /** Visits waiting on the team from today on: new requests, and customers asking to move. */
 export async function waitingOnTeam(fromISO: string): Promise<Appointment[]> {
   const { data } = await createAdminClient()
     .from("appointments")
     .select("*")
-    .gte("day", fromISO)
-    .or("status.eq.requested,and(status.eq.booked,change_requested_at.not.is.null)")
+    .or(waitingFilter(fromISO))
     .order("day")
     .order("start_minute")
     .limit(100);
@@ -361,8 +395,7 @@ export async function waitingOnTeamCount(fromISO: string): Promise<number> {
   const { count } = await createAdminClient()
     .from("appointments")
     .select("id", { count: "exact", head: true })
-    .gte("day", fromISO)
-    .or("status.eq.requested,and(status.eq.booked,change_requested_at.not.is.null)");
+    .or(waitingFilter(fromISO));
   return count ?? 0;
 }
 

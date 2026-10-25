@@ -23,6 +23,10 @@ export function visitEmailHtml(params: {
   phone: string;
   phoneHref: string;
   canReplyByEmail: boolean;
+  /** The service booking form, for "your service is due". */
+  bookLink?: string;
+  /** Who's coming, for the hour-before message. */
+  engineer?: string | null;
 }): string {
   const { type, visit, link, phone, phoneHref } = params;
   const hi = params.name ? `Hi ${escapeHtml(params.name.split(" ")[0])},` : "Hi,";
@@ -30,7 +34,7 @@ export function visitEmailHtml(params: {
   const when =
     type === "requested"
       ? requestedWhen(visit.day, visit.part)
-      : type === "cancelled"
+      : type === "cancelled" || type === "missed" || type === "service_due"
         ? longDate(visit.day)
         : `${longDate(visit.day)}, between ${windowLabel(visit.start, visit.end).replace("–", " and ")}`;
 
@@ -40,17 +44,22 @@ export function visitEmailHtml(params: {
     cancelled: "This visit is cancelled. If you'd still like one, just reply or give us a call.",
     reminder: "A reminder that we're with you tomorrow.",
     requested: "Thanks, we've got your request. We'll be in touch to confirm the time.",
+    hour: `Just confirming ${params.engineer ? `${escapeHtml(params.engineer)} from MPE` : "our engineer"} will be with you today between ${windowLabel(visit.start, visit.end).replace("–", " and ")}.`,
+    missed: "We called round but couldn't get in. No problem: pick another time that suits and we'll confirm it.",
+    service_due: `It's nearly a year since your boiler ${visit.kind === "install" ? "was fitted" : "was last serviced"}, so its annual service is due. A yearly service keeps it safe and its warranty valid.`,
   };
   const after =
-    type === "cancelled" || type === "requested"
+    type === "cancelled" || type === "requested" || type === "missed" || type === "service_due"
       ? ""
+      : type === "hour"
+        ? `<p ${P}>If anything's changed, call ${escapeHtml(phone)}.</p>`
       : `<p ${P}>If you can't make it, let us know${params.canReplyByEmail ? " by replying to this email," : ""} on the page below or by calling ${escapeHtml(phone)}.</p>`;
 
   const bodyHtml = `<p ${P}>${hi}</p>
 <p ${P}>${intro[type]}</p>
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse">
 <tr><td ${LABEL}>Visit</td><td ${VALUE}>${escapeHtml(KIND_LABEL[visit.kind])}</td></tr>
-<tr><td ${LABEL}>${type === "requested" ? "You asked for" : "When"}</td><td ${VALUE}>${escapeHtml(when)}</td></tr>
+<tr><td ${LABEL}>${type === "requested" ? "You asked for" : type === "service_due" ? "Last visit" : type === "missed" ? "Booked for" : "When"}</td><td ${VALUE}>${escapeHtml(when)}</td></tr>
 ${where ? `<tr><td ${LABEL}>Where</td><td ${VALUE}>${escapeHtml(where)}</td></tr>` : ""}
 </table>
 ${after}`;
@@ -59,8 +68,8 @@ ${after}`;
     previewText: `${noticeHeadline(type, visit)}: ${when}`,
     heading: noticeHeadline(type, visit),
     bodyHtml,
-    ctaLabel: type === "cancelled" ? undefined : "See your visit",
-    ctaUrl: type === "cancelled" ? undefined : link,
+    ctaLabel: type === "cancelled" ? undefined : type === "missed" ? "Pick another time" : type === "service_due" ? "Book your service" : "See your visit",
+    ctaUrl: type === "cancelled" ? undefined : type === "service_due" ? (params.bookLink ?? link) : link,
     secondaryCtaLabel: `Call ${phone}`,
     secondaryCtaUrl: phoneHref,
   });

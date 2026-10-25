@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveDisplayName } from "@/lib/display-name";
 import { customerLabel, getCustomer, listCustomerNotes } from "@/lib/customers";
 import { appointmentsForCustomer, type Appointment } from "@/lib/appointments";
-import { CATEGORY_LABEL, STATUS_LABEL as ENQUIRY_STATUS_LABEL, enquiriesForCustomer } from "@/lib/enquiries";
+import { CATEGORY_LABEL, STATUS_LABEL as ENQUIRY_STATUS_LABEL, enquiriesForCustomer, sourceLine } from "@/lib/enquiries";
 import { KIND_LABEL, KIND_STYLE, STATUS_LABEL, longDate, windowLabel } from "@/lib/day-plan";
 import { londonNow, londonParts, formatLondonClock } from "@/lib/schedule-time";
 import { CustomerFields } from "@/components/customer-fields";
@@ -326,11 +326,9 @@ export default async function CustomerPage({
                       ? `Paid${pay.paidVia ? ` · ${PAID_VIA_LABEL[pay.paidVia]}` : ""}`
                       : pay.status === "cancelled"
                         ? "Cancelled"
-                        : pay.instalments && (pay.planStatus === "active" || pay.planStatus === "past_due")
-                          ? `Monthly · ${progress.get(pay.id)?.paidCount ?? 0} of ${pay.instalments.months} paid`
-                          : pay.planStatus === "stopped"
-                            ? "Monthly payments stopped"
-                            : "Waiting"}
+                        : pay.planStatus
+                          ? `${pay.planStatus === "stopped" ? "Monthly stopped" : "Monthly"} · ${formatPence(progress.get(pay.id)?.balancePence ?? pay.amountPence)} left`
+                          : "Waiting"}
                   </span>
                 </span>
               </li>
@@ -363,6 +361,7 @@ export default async function CustomerPage({
                     {[...b.answers.filter((a) => a.q !== "Postcode").map((a) => a.a), b.message].filter(Boolean).join(" · ")}
                   </p>
                 )}
+                {sourceLine(b) && <p className="mt-1 text-xs text-muted">{sourceLine(b)}</p>}
                 {(b.status === "new" || b.status === "contacted") && (
                   <Link
                     href={`/staff/schedule?view=day&date=${today}&enquiry=${b.id}#add`}

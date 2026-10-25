@@ -319,30 +319,24 @@ export default async function AccountPage({
                   <span className="min-w-0">
                     <span className="block font-semibold text-navy">{pay.kind === "callout_fee" ? "Call-out fee" : `Invoice ${invoiceNumber(pay.number)}`}</span>
                     <span className="block truncate text-sm text-text-2">{pay.kind === "callout_fee" ? "Comes off your repair if you go ahead" : pay.description}</span>
-                    {pay.instalments && (pay.planStatus === "active" || pay.planStatus === "past_due") && (
+                    {pay.status === "open" && pay.planStatus && (
                       <span className={`block text-sm ${pay.planStatus === "past_due" ? "text-danger" : "text-text-2"}`}>
-                        Paying monthly: {progress.get(pay.id)?.paidCount ?? 0} of {pay.instalments.months} paid
-                        {pay.planStatus === "past_due" ? ", last one failed" : ""}
+                        Paying monthly: {formatPence(progress.get(pay.id)?.balancePence ?? pay.amountPence)} left
+                        {pay.planStatus === "past_due" ? ", last payment failed" : ""}
                       </span>
                     )}
                   </span>
                   <span className="shrink-0 text-right">
                     <span className="block font-bold text-navy">{formatPence(pay.amountPence)}</span>
                     <span className={`block text-xs font-semibold ${pay.status === "paid" ? "text-success" : "text-terracotta-deep"}`}>
-                      {pay.status === "paid" ? "Paid" : pay.planStatus === "active" || pay.planStatus === "past_due" ? "Monthly" : "Pay now"}
+                      {pay.status === "paid" ? "Paid" : pay.planStatus ? "Monthly" : "Pay now"}
                     </span>
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
-          {paysMonthly && !onPlan && (
-            <form action={openBillingPortal} className="mt-4">
-              <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40">
-                Update the card for monthly payments
-              </button>
-            </form>
-          )}
+          {paysMonthly && <p className="mt-4 text-sm text-text-2">Open an invoice you&rsquo;re paying monthly to pay some off or change the card.</p>}
         </section>
       )}
 

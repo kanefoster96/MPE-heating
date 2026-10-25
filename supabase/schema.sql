@@ -384,6 +384,19 @@ alter table public.enquiries add column if not exists followed_up_at timestamptz
 alter table public.enquiries add column if not exists staff_nudged_at timestamptz;
 create unique index if not exists enquiries_public_token_idx on public.enquiries (public_token);
 
+-- Where a booking form came from (Kanvas Academy's ad attribution): the
+-- source ("Facebook / Instagram", "Google", "Direct"…), "paid" when an
+-- advert's click id proved it (else the link's utm_medium), and the
+-- campaign and advert from the link's utm tags. Recorded from the first
+-- page of the visit, for everyone (src/lib/first-touch.ts). meta_context
+-- holds the Meta click ids ({"meta_fbc", "meta_fbp"}), only for someone
+-- who accepted the cookie banner (src/lib/meta-capi.ts).
+alter table public.enquiries add column if not exists traffic_source text;
+alter table public.enquiries add column if not exists traffic_medium text;
+alter table public.enquiries add column if not exists traffic_campaign text;
+alter table public.enquiries add column if not exists traffic_ad text;
+alter table public.enquiries add column if not exists meta_context jsonb;
+
 -- ---------------------------------------------------------------------------
 -- The schedule: every visit, with a rough time window (lib/appointments.ts).
 --
@@ -554,31 +567,51 @@ alter table public.chat_messages add column if not exists payment_request_id uui
 -- The customer in Stripe, once they've saved a card with MPE.
 alter table public.customers add column if not exists stripe_customer_id text;
 
--- Paying an invoice monthly (lib/instalments.ts): Fergal can let them
--- spread an invoice over up to 12 monthly payments, interest-free (no more
--- than 12, all within a year, and nothing added: that keeps it outside
--- consumer credit rules). Any deposit is taken with the first payment.
--- It's a Stripe subscription that ends itself after the last payment.
+-- Paying an invoice monthly (lib/instalments.ts). Fergal lets them spread
+-- an invoice over up to 12 monthly payments, interest-free, with any
+-- deposit taken first (12 or fewer, within a year, nothing added: outside
+-- consumer credit rules). Their first payment saves their card; then it's
+-- charged on the same date each month, the monthly amount or what's left
+-- if that's less, until the balance is paid. They can pay off any amount
+-- whenever they like, and a missed month just leaves more to pay.
 alter table public.payment_requests add column if not exists instalments integer check (instalments is null or instalments between 2 and 12);
 alter table public.payment_requests add column if not exists instalment_deposit_pence integer not null default 0;
--- Once they've chosen it: 'active', 'past_due' (a payment failed),
--- 'completed' (all paid) or 'stopped' (ended before it was all paid).
+-- Once they've started: 'active', 'past_due' (the last charge failed),
+-- 'completed' (all paid) or 'stopped' (the team stopped it).
 alter table public.payment_requests add column if not exists plan_status text check (plan_status in ('active', 'past_due', 'completed', 'stopped'));
-alter table public.payment_requests add column if not exists plan_subscription_id text;
 alter table public.payment_requests add column if not exists plan_started_at timestamptz;
+alter table public.payment_requests add column if not exists plan_monthly_pence integer;
+alter table public.payment_requests add column if not exists plan_next_due_on date;
+-- The card it's taken from (a Stripe payment method on their customer).
+alter table public.payment_requests add column if not exists plan_payment_method text;
+alter table public.payment_requests add column if not exists plan_failed_at timestamptz;
+-- Set while a monthly payment is being taken, so two runs can't both take it.
+alter table public.payment_requests add column if not exists plan_charging_at timestamptz;
+alter table public.payment_requests drop column if exists plan_subscription_id;
 alter table public.payment_requests drop constraint if exists payment_requests_paid_via_check;
 alter table public.payment_requests add constraint payment_requests_paid_via_check
   check (paid_via in ('link', 'app', 'saved_card', 'tap_to_pay', 'in_person', 'cash', 'bank_transfer', 'instalments'));
-create unique index if not exists payment_requests_plan_sub_idx on public.payment_requests (plan_subscription_id) where plan_subscription_id is not null;
+create index if not exists payment_requests_plan_due_idx on public.payment_requests (plan_next_due_on) where plan_status in ('active', 'past_due');
 
--- Each monthly payment that came in, once (Stripe resends webhooks).
+-- Every payment towards an invoice being paid monthly: the first, each
+-- month's, anything extra they pay off, and money Fergal takes in person.
+-- A Stripe payment is counted once, however often Stripe tells us.
 create table if not exists public.instalment_payments (
   id uuid primary key default gen_random_uuid(),
   payment_request_id uuid not null references public.payment_requests (id) on delete cascade,
-  stripe_invoice_id text not null unique,
-  amount_pence integer not null,
+  amount_pence integer not null check (amount_pence > 0),
+  kind text not null default 'monthly' check (kind in ('first', 'monthly', 'extra', 'in_person')),
+  stripe_payment_intent_id text unique,
+  paid_via text,
+  recorded_by uuid references auth.users (id) on delete set null,
   paid_at timestamptz not null default now()
 );
+-- From the first draft of this table (a Stripe invoice per payment).
+alter table public.instalment_payments add column if not exists kind text not null default 'monthly' check (kind in ('first', 'monthly', 'extra', 'in_person'));
+alter table public.instalment_payments add column if not exists stripe_payment_intent_id text unique;
+alter table public.instalment_payments add column if not exists paid_via text;
+alter table public.instalment_payments add column if not exists recorded_by uuid references auth.users (id) on delete set null;
+alter table public.instalment_payments drop column if exists stripe_invoice_id;
 create index if not exists instalment_payments_request_idx on public.instalment_payments (payment_request_id, paid_at);
 alter table public.instalment_payments enable row level security;
 

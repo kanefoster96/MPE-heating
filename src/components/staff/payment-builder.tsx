@@ -239,7 +239,7 @@ export function PaymentBuilder({
                 {!monthly
                   ? "Add the lines first."
                   : monthly.ok
-                    ? `They can choose: ${scheduleSummary(monthly.schedule, formatPence)}. Interest-free, taken from their card automatically.`
+                    ? `They can choose: ${scheduleSummary(monthly.schedule, formatPence)}. Taken from their card on that date each month until it's paid; they can pay off more any time.`
                     : monthly.error}
               </p>
               <p className="text-xs text-muted">Offered on their pay page next to paying in full. Up to 12 months with nothing added keeps it outside consumer credit rules.</p>

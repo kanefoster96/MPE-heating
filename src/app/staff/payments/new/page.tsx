@@ -195,7 +195,7 @@ function ExistingPayment({
   online: boolean;
   progress?: InstalmentProgress;
 }) {
-  const monthly = p.planStatus === "active" || p.planStatus === "past_due";
+  const monthly = p.status === "open" && !!p.planStatus;
   return (
     <li className="rounded-xl border border-border bg-surface px-4 py-3" data-payment={p.status}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -209,12 +209,16 @@ function ExistingPayment({
           ? `Paid ✓${p.paidVia ? ` · ${PAID_VIA_LABEL[p.paidVia]}` : ""}`
           : p.status === "cancelled"
             ? "Cancelled"
-            : monthly && p.instalments
-              ? `Paying monthly: ${progress?.paidCount ?? 0} of ${p.instalments.months} paid (${formatPence(progress?.paidPence ?? 0)})${p.planStatus === "past_due" ? " · last payment failed" : ""}`
-              : p.planStatus === "stopped"
-                ? `Monthly payments stopped with ${formatPence(p.amountPence - (progress?.paidPence ?? 0))} to pay`
-                : `Waiting for them to pay${p.reminderCount ? ` · reminded ${p.reminderCount === 1 ? "once" : "twice"}` : ""}`}
+            : p.planStatus
+              ? `${p.planStatus === "stopped" ? "Monthly payments stopped" : "Paying monthly"}: ${formatPence(progress?.paidPence ?? 0)} paid, ${formatPence(progress?.balancePence ?? p.amountPence)} left${p.planStatus === "past_due" ? " · last payment failed" : ""}`
+              : `Waiting for them to pay${p.reminderCount ? ` · reminded ${p.reminderCount === 1 ? "once" : "twice"}` : ""}`}
       </p>
+      {progress?.nextOn && progress.nextPence && (
+        <p className="text-xs text-muted">
+          Next: {formatPence(progress.nextPence)} on {longDate(progress.nextOn)}
+          {p.planMonthlyPence ? ` (${formatPence(p.planMonthlyPence)} a month)` : ""}
+        </p>
+      )}
       {p.status === "open" && !p.planStatus && p.instalments && (
         <p className="text-xs text-muted">They can pay monthly over {p.instalments.months} months.</p>
       )}
@@ -231,11 +235,37 @@ function ExistingPayment({
         </p>
       )}
       {monthly && (
-        <form action={action} className="mt-2">
-          <button type="submit" name="intent" value="stop_monthly" className="min-h-9 px-2 text-xs font-medium text-danger">
-            Stop monthly payments
-          </button>
-        </form>
+        <>
+          <details className="mt-2 rounded-xl border border-border bg-background px-3 py-1">
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-muted">They&rsquo;ve paid some in person</summary>
+            <form action={action} className="flex flex-wrap items-end gap-2 pb-3 pt-1" data-monthly-in-person>
+              <label className="flex flex-col gap-1 text-xs text-muted">
+                Amount £
+                <input name="amount" inputMode="decimal" required className="w-28 rounded-lg border border-border bg-background px-3 py-2.5 text-right text-base outline-none focus:border-foreground/40 sm:text-sm" />
+              </label>
+              <button type="submit" name="intent" value="monthly_in_person" className={SMALL}>
+                Card machine
+              </button>
+              <button type="submit" name="intent" value="monthly_cash" className={SMALL}>
+                Cash
+              </button>
+              <button type="submit" name="intent" value="monthly_bank_transfer" className={SMALL}>
+                Bank transfer
+              </button>
+            </form>
+          </details>
+          <form action={action} className="mt-1">
+            {p.planStatus === "stopped" ? (
+              <button type="submit" name="intent" value="restart_monthly" className="min-h-9 px-2 text-xs font-semibold">
+                Restart monthly payments
+              </button>
+            ) : (
+              <button type="submit" name="intent" value="stop_monthly" className="min-h-9 px-2 text-xs font-medium text-danger">
+                Stop monthly payments
+              </button>
+            )}
+          </form>
+        </>
       )}
       {p.status === "open" && !monthly && (
         <form action={action} className="mt-2 flex flex-wrap gap-1.5">

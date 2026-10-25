@@ -9,7 +9,7 @@ import { business } from "@/lib/content";
 import { getCustomer } from "@/lib/customers";
 import { enquiriesOn } from "@/lib/enquiries";
 import { PAID_VIA_LABEL, formatPence, getPaymentByToken, invoiceNumber, paymentsOn } from "@/lib/payments";
-import { changeCard, payMonthly, payNow } from "./actions";
+import { changeCard, payMonthly, payNow, payOff } from "./actions";
 import { instalmentSchedule, scheduleSummary } from "@/lib/instalment-schedule";
 import { instalmentProgress } from "@/lib/instalments";
 import { PayForm } from "./pay-form";
@@ -32,10 +32,10 @@ export default async function PayPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ paid?: string; monthly?: string; error?: string }>;
+  searchParams: Promise<{ paid?: string; monthly?: string; paidoff?: string; card?: string; error?: string }>;
 }) {
   const { token } = await params;
-  const { paid, monthly, error } = await searchParams;
+  const { paid, monthly, paidoff, card, error } = await searchParams;
   if (!enquiriesOn()) notFound();
   const p = await getPaymentByToken(token);
   if (!p) notFound();
@@ -61,6 +61,11 @@ export default async function PayPage({
           {monthly && !p.planStatus && (
             <p className="mb-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-success print:hidden" data-confirming>
               Thank you! We&rsquo;re just setting up your monthly payments. Refresh in a moment.
+            </p>
+          )}
+          {(paidoff || card) && p.planStatus && (
+            <p className="mb-4 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-success print:hidden">
+              {paidoff ? "Thank you! It can take a moment to show below: refresh if it isn't there yet." : "Thanks, your monthly payments will come from your new card."}
             </p>
           )}
           {error && <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger print:hidden">{error}</p>}
@@ -135,26 +140,95 @@ export default async function PayPage({
               <p className="mt-4 text-sm text-text-2">If you go ahead with the repair, the call-out fee comes off your bill.</p>
             )}
 
-            {p.instalments && progress && (onMonthly || p.planStatus === "stopped") && (
-              <div className="mt-6 rounded-2xl bg-cream p-5" data-monthly-progress>
-                <p className="font-semibold text-navy">
-                  Paying monthly: {progress.paidCount} of {p.instalments.months} payments made ({formatPence(progress.paidPence)} of {formatPence(p.amountPence)})
+            {progress && p.planStatus && (
+              <section id="monthly" className="mt-6 scroll-mt-24 rounded-2xl bg-cream p-5" data-monthly-progress aria-labelledby="monthly-heading">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 id="monthly-heading" className="font-semibold text-navy">
+                    {isPaid ? "Paid off monthly" : "Paying monthly"}
+                  </h2>
+                  {!isPaid && (
+                    <p className="text-navy">
+                      <span className="text-2xl font-extrabold" data-balance>
+                        {formatPence(progress.balancePence)}
+                      </span>{" "}
+                      <span className="text-sm text-text-2">left to pay</span>
+                    </p>
+                  )}
+                </div>
+                <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white" role="progressbar" aria-valuemin={0} aria-valuemax={p.amountPence} aria-valuenow={progress.paidPence} aria-label="Paid so far">
+                  <div className="h-full rounded-full bg-success" style={{ width: `${Math.min(100, Math.round((progress.paidPence / p.amountPence) * 100))}%` }} />
+                </div>
+                <p className="mt-2 text-sm text-text-2">
+                  {formatPence(progress.paidPence)} of {formatPence(p.amountPence)} paid. No interest, nothing added.
                 </p>
-                {p.planStatus === "past_due" ? (
-                  <p className="mt-1 text-sm text-danger">Your last payment didn&rsquo;t go through. Change your card and we&rsquo;ll try again.</p>
-                ) : p.planStatus === "stopped" ? (
-                  <p className="mt-1 text-sm text-text-2">Your monthly payments have stopped. Please call us on {business.phoneDisplay} about the rest.</p>
-                ) : progress.nextOn ? (
-                  <p className="mt-1 text-sm text-text-2">Next payment due {DATE.format(new Date(progress.nextOn))}, taken from your card automatically. No interest, nothing added.</p>
-                ) : null}
-                {onMonthly && (
-                  <form action={changeCard.bind(null, token)} className="mt-3 print:hidden">
-                    <button type="submit" className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline underline-offset-4">
-                      Change card or see payments
-                    </button>
-                  </form>
+                {p.planStatus === "past_due" && (
+                  <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+                    Your last monthly payment didn&rsquo;t go through. Please pay it below, or change your card.
+                  </p>
                 )}
-              </div>
+                {p.planStatus === "stopped" && !isPaid && (
+                  <p className="mt-3 text-sm text-text-2">Your monthly payments have stopped. You can pay what&rsquo;s left below, or call us on {business.phoneDisplay}.</p>
+                )}
+                {progress.nextOn && progress.nextPence && (
+                  <p className="mt-3 text-sm font-semibold text-navy" data-next-payment>
+                    Next payment: {formatPence(progress.nextPence)} on {DATE.format(new Date(`${progress.nextOn}T12:00:00Z`))}
+                    {p.planMonthlyPence && progress.nextPence < p.planMonthlyPence ? ", the last one" : ""}, taken from your card automatically.
+                  </p>
+                )}
+
+                {progress.payments.length > 0 && (
+                  <ul className="mt-4 flex flex-col divide-y divide-line border-y border-line text-sm" data-monthly-payments>
+                    {progress.payments.map((pay, i) => (
+                      <li key={i} className="flex justify-between gap-3 py-2">
+                        <span className="text-text-2">
+                          {DATE.format(new Date(pay.paidAt))} · {pay.kind === "first" ? "First payment" : pay.kind === "monthly" ? "Monthly payment" : pay.kind === "extra" ? "Paid off" : "Paid in person"}
+                        </span>
+                        <span className="font-semibold text-navy">{formatPence(pay.amountPence)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {!isPaid && p.status === "open" && paymentsOn() && (
+                  <div className="mt-5 flex flex-col gap-3 print:hidden">
+                    <form action={payOff.bind(null, token)} className="flex flex-col gap-2 sm:flex-row sm:items-end" data-pay-off>
+                      <label className="flex flex-1 flex-col gap-1">
+                        <span className="text-sm font-semibold text-navy">Pay some off now</span>
+                        <span className="flex items-center rounded-lg border border-line bg-white px-3 focus-within:border-navy/40">
+                          <span className="text-text-2" aria-hidden="true">
+                            £
+                          </span>
+                          <input
+                            name="amount"
+                            inputMode="decimal"
+                            required
+                            defaultValue={((progress.nextPence ?? progress.balancePence) / 100).toString()}
+                            aria-label="Amount in pounds"
+                            className="w-full bg-transparent px-2 py-3 text-base text-navy outline-none"
+                          />
+                        </span>
+                      </label>
+                      <button type="submit" className="inline-flex min-h-12 items-center justify-center rounded-full bg-terracotta-deep px-5 font-semibold text-white hover:opacity-90">
+                        Pay this amount
+                      </button>
+                    </form>
+                    <form action={payOff.bind(null, token)}>
+                      <input type="hidden" name="amount" value={(progress.balancePence / 100).toString()} />
+                      <button type="submit" className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline underline-offset-4">
+                        Pay off the rest: {formatPence(progress.balancePence)}
+                      </button>
+                    </form>
+                    {onMonthly && (
+                      <form action={changeCard.bind(null, token)}>
+                        <button type="submit" className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline underline-offset-4">
+                          Change the card for monthly payments
+                        </button>
+                      </form>
+                    )}
+                    <p className="text-xs text-text-2">Paying extra doesn&rsquo;t change your dates or monthly amount. It just means you&rsquo;re done sooner, and the last payment is only what&rsquo;s left.</p>
+                  </div>
+                )}
+              </section>
             )}
 
             {p.status === "open" && !onMonthly && p.planStatus !== "stopped" &&
@@ -168,8 +242,8 @@ export default async function PayPage({
                       <form action={payMonthly.bind(null, token)} className="rounded-2xl border-2 border-line bg-cream p-4" data-pay-monthly>
                         <p className="font-semibold text-navy">Or spread the cost, interest-free</p>
                         <p className="mt-1 text-sm text-text-2">
-                          {scheduleSummary(offerMonthly.schedule, formatPence)}, taken from your card automatically. {formatPence(p.amountPence)} in all: no interest,
-                          nothing added.
+                          {scheduleSummary(offerMonthly.schedule, formatPence)}, taken from your card automatically until it&rsquo;s paid. {formatPence(p.amountPence)} in
+                          all: no interest, nothing added. Pay off more whenever you like.
                         </p>
                         <button
                           type="submit"

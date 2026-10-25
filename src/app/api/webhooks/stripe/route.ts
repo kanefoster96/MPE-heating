@@ -3,15 +3,16 @@ import type Stripe from "stripe";
 import { stripe, CONNECT_ACCOUNT } from "@/lib/stripe";
 import { handlePaymentIntent } from "@/lib/payments";
 import { getPlanMember, openPlan, planPaymentFailed, syncPlanSubscription } from "@/lib/maintenance-plan";
-import { instalmentFailed, instalmentPaid, instalmentsEnded, openInstalments } from "@/lib/instalments";
+import { handleCardSetup, handleInstalmentIntent } from "@/lib/instalments";
 
 /**
  * Stripe's webhook (Kanvas Academy's, for MPE's payments). Three kinds:
  *  - a call-out fee or invoice paid in one go, however it was paid
  *    (payment_intent.succeeded);
- *  - the maintenance plan, a subscription (metadata kind "plan");
- *  - an invoice paid monthly, a subscription that ends itself (metadata
- *    kind "instalments").
+ *  - the maintenance plan, a Stripe subscription (metadata kind "plan");
+ *  - an invoice paid monthly: its first payment, each month's, and any
+ *    paid off (payment intent metadata "instalment"), and a new card for
+ *    it (a setup Checkout, metadata kind "instalments_card").
  * Every handler is safe to repeat, so a redelivered event changes nothing;
  * a failure answers 500 so Stripe tries again.
  */
@@ -32,16 +33,21 @@ export async function POST(request: Request) {
 
   try {
     switch (event.type) {
-      case "payment_intent.succeeded":
-        await handlePaymentIntent(event.data.object as Stripe.PaymentIntent);
+      case "payment_intent.succeeded": {
+        const intent = event.data.object as Stripe.PaymentIntent;
+        if (!(await handleInstalmentIntent(intent))) await handlePaymentIntent(intent);
         break;
+      }
 
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === "setup" && session.metadata?.kind === "instalments_card") {
+          await handleCardSetup(session);
+          break;
+        }
         const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
         if (session.mode !== "subscription" || !subscriptionId) break;
         if (session.metadata?.kind === "plan" && session.metadata.plan_member_id) await openPlan(session.metadata.plan_member_id, subscriptionId);
-        if (session.metadata?.kind === "instalments" && session.metadata.payment_request_id) await openInstalments(session.metadata.payment_request_id, subscriptionId);
         break;
       }
 
@@ -60,10 +66,6 @@ export async function POST(request: Request) {
             await openPlan(meta.plan_member_id, subscriptionId);
           }
         }
-        if (meta.kind === "instalments" && meta.payment_request_id) {
-          if (event.type === "invoice.paid") await instalmentPaid(meta.payment_request_id, invoice, subscriptionId);
-          else await instalmentFailed(meta.payment_request_id, invoice);
-        }
         break;
       }
 
@@ -71,9 +73,6 @@ export async function POST(request: Request) {
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
         if (sub.metadata?.kind === "plan") await syncPlanSubscription(sub);
-        if (sub.metadata?.kind === "instalments" && sub.metadata.payment_request_id && event.type === "customer.subscription.deleted") {
-          await instalmentsEnded(sub.metadata.payment_request_id);
-        }
         break;
       }
     }

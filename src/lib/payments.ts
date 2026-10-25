@@ -81,9 +81,11 @@ export type PaymentRequest = {
   offers: PaymentOffer[];
   /** Fergal let them pay it monthly: over this many payments, any deposit taken with the first. */
   instalments: { months: number; depositPence: number } | null;
-  /** Once they chose to pay monthly. */
+  /** Once they chose to pay monthly: how it's going, what's taken each month and when next. */
   planStatus: PlanStatus | null;
   planStartedAt: string | null;
+  planMonthlyPence: number | null;
+  planNextDueOn: string | null;
 };
 
 type Row = {
@@ -109,8 +111,9 @@ type Row = {
   instalments: number | null;
   instalment_deposit_pence: number | null;
   plan_status: PlanStatus | null;
-  plan_subscription_id: string | null;
   plan_started_at: string | null;
+  plan_monthly_pence: number | null;
+  plan_next_due_on: string | null;
 };
 
 function mapRow(r: Row): PaymentRequest {
@@ -135,6 +138,8 @@ function mapRow(r: Row): PaymentRequest {
     instalments: r.instalments ? { months: r.instalments, depositPence: r.instalment_deposit_pence ?? 0 } : null,
     planStatus: r.plan_status ?? null,
     planStartedAt: r.plan_started_at ?? null,
+    planMonthlyPence: r.plan_monthly_pence ?? null,
+    planNextDueOn: r.plan_next_due_on ?? null,
   };
 }
 
@@ -319,7 +324,7 @@ export function monthlyLine(p: Pick<PaymentRequest, "instalments" | "planStatus"
   return plan.ok ? ` Or spread the cost, interest-free: ${scheduleSummary(plan.schedule, formatPence)}.` : "";
 }
 
-const partPaidMonthly = "Some of this was paid monthly: take the rest in person, or send a new invoice for what's left.";
+const partPaidMonthly = "This one's being paid monthly: record what they pay under its monthly payments.";
 
 /** Being paid monthly: nothing else may take the money for it, or cancel it, until that stops. */
 function onMonthly(row: Pick<Row, "plan_status">): string | null {
@@ -410,7 +415,7 @@ export async function checkoutUrl(id: string, opts: { saveCard: boolean; addOffe
   const row = await getRow(id);
   if (!row) return { error: "Payment not found." };
   if (row.status !== "open") return { error: row.status === "paid" ? "That's already paid. Thank you!" : "That payment was cancelled." };
-  if (row.plan_status) return { error: row.plan_status === "stopped" ? "Please call us about what's left to pay." : "You're paying this monthly, so there's nothing to pay here now." };
+  if (row.plan_status) return { error: "You're paying this monthly: pay something off from the monthly payments section instead." };
   const customer = row.customer_id ? await getCustomer(row.customer_id) : null;
   const stripeCustomer = opts.saveCard && customer ? await stripeCustomerFor(customer) : null;
   const link = payLink(mapRow(row));
@@ -544,11 +549,11 @@ export async function markPaidInPerson(id: string, via: "in_person" | "cash" | "
     .update({ status: "paid", paid_at: new Date().toISOString(), paid_via: via, charging_at: null })
     .eq("id", id)
     .eq("status", "open")
-    .or("plan_status.is.null,plan_status.in.(completed,stopped)")
+    .is("plan_status", null)
     .select("id");
   if (data?.length) return { ok: true };
   const row = await getRow(id);
-  return { ok: false, error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid." : (onMonthly(row) ?? "That payment was cancelled.") };
+  return { ok: false, error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid." : row.plan_status ? partPaidMonthly : "That payment was cancelled." };
 }
 
 /**

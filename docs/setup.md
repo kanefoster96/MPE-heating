@@ -215,20 +215,36 @@ in person** for any card machine Fergal already has.
 
 **Paying monthly.** On an invoice, tick **Let them pay monthly** and pick
 how many payments (2 to 12) and any deposit. The preview shows exactly
-what they'll be offered, e.g. "£700 today (including a £500 deposit), then
-£200 a month for 9 months". Their pay page then offers that next to paying
-in full. If they choose it, today's payment is taken and the rest come from
-their card automatically each month. Once the last one is in, the invoice
-is marked paid and they get a receipt. If a payment fails, they're sent a
-link to pay it or change card, and the team gets a push. Stripe tries again
-over the next few days. The invoice shows "Paying monthly: 3 of 10 paid"
-for the team and the customer, and **Stop monthly payments** ends it early.
+what they'll be offered, e.g. "£650 today (including a £500 deposit), then
+£150 a month on the same date for 9 months". Their pay page then offers
+that next to paying in full.
 
-Keep it to 12 payments or fewer, all within a year, with nothing added:
+How it runs:
+- **Set dates.** Their first payment (the deposit and first month) saves
+  their card. After that, the card is charged on the same date each month
+  (the 1st to the 28th), by the 5-minute follow-up job from 10am.
+- **Until it's paid.** Each month takes the monthly amount, or what's left
+  if that's less, so the last payment adjusts itself (e.g. £25 left on a
+  £50 a month plan takes £25). It doesn't end until the balance is £0.
+- **Pay off any time.** On their invoice page they can see what's left,
+  every payment made and the next date. They can pay off any amount, or
+  the rest in one go, and change the card. Paying extra doesn't change
+  the dates or the monthly amount; it just finishes sooner.
+- **Missed payments.** If a month's payment fails, it's still owed and the
+  dates carry on. They're sent the link to pay it or change card, and the
+  team gets a push.
+- **In person.** On the Take payment page, "They've paid some in person"
+  records cash, card machine or bank transfer towards the balance.
+  **Stop monthly payments** stops the dates (what's left can still be paid
+  off), and **Restart** starts them again.
+- **Paid off.** When the balance reaches £0 the invoice is marked paid and
+  they get a receipt.
+
+Keep it to 12 payments or fewer within a year, with nothing added:
 interest-free credit like that doesn't need FCA consumer credit
 authorisation. Longer terms, or charging interest, need a finance provider.
-The site won't offer more than 12. Remember the work is usually done before
-it's all paid, so it's Fergal's risk if someone stops paying.
+The site won't offer more than 12. The work is usually done before it's all
+paid, so it's Fergal's risk if someone stops paying.
 
 ### Maintenance plan
 

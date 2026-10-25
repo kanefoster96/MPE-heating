@@ -20,12 +20,10 @@
   --color-terracotta-deep: #b5411c;
   --color-terracotta-light: #fbe4db;
   --color-whatsapp: #25d366;
-  /* The homepage "ticket" palette. The board's #c24e1c only gets 3.9:1
-     with the ticket's pale text, so the ticket and its buttons use
-     terracotta-deep (5.6:1 with white) and a darker stub. */
-  --color-ticket-stub: #963514; /* 4.7:1 with the yellow £0 */
+  /* The homepage palette. Buttons use terracotta-deep (5.6:1 with
+     white); ticket-stub is the darker orange for eyebrows and hovers. */
+  --color-ticket-stub: #963514; /* 6.9:1 on cream */
   --color-sun: #ffc53d; /* yellow pills and the highlighter; navy text on it */
-  --color-ticket-ink: #ffe1d0; /* pale text on the ticket, 4.5:1 or better */
   --color-whatsapp-dark: #178245; /* white text on it, 4.9:1 */
   --color-whatsapp-tint: #e5f3ea;
   --color-whatsapp-ink: #11602f;
@@ -59,7 +57,6 @@
   --color-whatsapp: var(--color-whatsapp);
   --color-ticket-stub: var(--color-ticket-stub);
   --color-sun: var(--color-sun);
-  --color-ticket-ink: var(--color-ticket-ink);
   --color-whatsapp-dark: var(--color-whatsapp-dark);
   --color-whatsapp-tint: var(--color-whatsapp-tint);
   --color-whatsapp-ink: var(--color-whatsapp-ink);
@@ -130,20 +127,6 @@ textarea {
   .js .reveal.is-in {
     opacity: 1;
     transform: none;
-  }
-
-  /* The ticket's perforation notches: two half-circles cut out of the
-     top and bottom edges where the stub starts, so whatever is behind
-     shows through. Each mask layer covers half the height. The shadow
-     comes from drop-shadow on the parent, which follows the cut shape. */
-  .ticket-notches {
-    --notch-x: calc(100% - var(--stub) + 1px);
-    -webkit-mask:
-      radial-gradient(circle 11px at var(--notch-x) 0, transparent 98%, #000 100%) top / 100% 51% no-repeat,
-      radial-gradient(circle 11px at var(--notch-x) 100%, transparent 98%, #000 100%) bottom / 100% 51% no-repeat;
-    mask:
-      radial-gradient(circle 11px at var(--notch-x) 0, transparent 98%, #000 100%) top / 100% 51% no-repeat,
-      radial-gradient(circle 11px at var(--notch-x) 100%, transparent 98%, #000 100%) bottom / 100% 51% no-repeat;
   }
 
   /* The request box under an email field folds open once. */

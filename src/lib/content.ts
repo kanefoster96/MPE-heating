@@ -51,28 +51,25 @@ export type TwoTone = { lead: string; em: string };
 
 // Hero copy is built on the value equation: dream outcome + likelihood it
 // works, minus time delay and effort. Every claim must be one MPE can keep.
-// The homepage follows the "ticket" board: chips, headline, the £50 / £0
-// coupon, one big button, call and WhatsApp, three ticks.
+// The hero follows the kanvas.one layout, without the phone: proof pill,
+// two-tone headline, one button, and an orange card of promises.
 export const hero = {
-  // Navy strip under the nav: one line and a yellow pill.
-  banner: { text: "Boiler down? We're out today.", cta: "Book now" },
-  chips: { gasSafe: "Gas Safe reg. 552052" },
-  headline: { line1: "Heating off?", line2: "We'll be round", highlight: "today." },
+  // Proof pill above the headline, as on kanvas.one: who we are, then a
+  // way to ask a question straight away.
+  proof: { line1: "Family-run and Gas Safe registered", line2: "Got a question? WhatsApp us" },
+  headline: { lead: "Heating off?", em: "We'll be round today." },
   subline:
     "A Gas Safe engineer at your door for a £50 call-out. Price agreed before any work starts, and most faults fixed on the spot with parts from the van.",
-  // The tear-off ticket: what you pay, and what you pay when we fix it.
-  ticket: {
-    label: "Same-day call-out",
-    price: "£50",
-    text: "We come out, find the fault and agree the price.",
-    stubLabel: "We fix it?",
-    stubPrice: "£0",
-    stubText: "call-out back in full",
-  },
-  underTicket: "Decide not to go ahead and £50 is all you pay.",
   cta: "Book a same-day call-out",
-  ticks: ["Price agreed first", "3-month guarantee", "Local to Whitley Bay"],
-};
+  // The orange promise card on the right of the hero. `info` opens a note
+  // under the card.
+  promises: [
+    { text: "£50 call-out, back in full when we fix it", info: "fee" },
+    { text: "Price agreed before any work starts" },
+    { text: "Every repair guaranteed for 3\u00a0months", info: "guarantee" },
+    { text: "Local engineers, based in Whitley Bay" },
+  ],
+}
 
 // The same-day tick on every form. Ticking it is a nudge to book, not a
 // promise of priority: it shows our number with this line.

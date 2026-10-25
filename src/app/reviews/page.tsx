@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/Nav";
-import { PromoBar } from "@/components/PromoBar";
 import { RatingCard } from "@/components/Reviews";
 import { ReviewCarousel } from "@/components/ReviewCarousel";
 import { Stars } from "@/components/Stars";
@@ -24,7 +23,6 @@ export default function ReviewsPage() {
   return (
     <>
       <Nav />
-      <PromoBar />
       <main>
         <section className="overflow-x-clip bg-page pt-8 pb-12 lg:pt-16 lg:pb-20">
           <div className="mx-auto grid max-w-2xl gap-10 px-5 sm:px-6 lg:max-w-6xl lg:grid-cols-2 lg:items-center lg:gap-20">

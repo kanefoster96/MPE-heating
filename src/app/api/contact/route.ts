@@ -3,11 +3,14 @@ import { business } from "@/lib/content";
 import { formatPostcode, isValidEmail, isValidPhone, isValidPostcode } from "@/lib/validation";
 import { isLikelyBotSubmission } from "@/lib/spamGuard";
 import { ENQUIRY_TYPES, type EnquiryType } from "@/lib/enquiry";
+import { CATEGORY_LABEL, categoryFor, recordEnquiry } from "@/lib/enquiries";
 
-// Delivers a booking/quote enquiry to the team's inbox via Resend's REST
-// API (no SDK, one fetch). If RESEND_API_KEY isn't set the route answers
-// 503 and the form shows the phone/WhatsApp fallback — better than a
-// "thanks, we've got it" that went nowhere.
+// Every booking form lands here. It's filed as a job in the team inbox
+// (lib/enquiries.ts: a categorised enquiry, plus the customer's
+// conversation in the live chat) and emailed to MPE via Resend's REST API.
+// Either is enough; with neither set up the route answers 503 and the
+// form shows the phone/WhatsApp fallback — better than a "thanks, we've
+// got it" that went nowhere.
 
 const RESEND_URL = "https://api.resend.com/emails";
 
@@ -96,16 +99,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Check the email address." }, { status: 400 });
   }
 
+  const label = path.length ? path.join(" › ") : ENQUIRY_TYPES[type].label;
+  const stored = await recordEnquiry({
+    type,
+    label,
+    name,
+    email,
+    phone,
+    postcode,
+    sameDay: sameDayRequested,
+    path,
+    answers,
+    message,
+  });
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "Email delivery isn't configured." }, { status: 503 });
+    return stored
+      ? NextResponse.json({ ok: true })
+      : NextResponse.json({ error: "Email delivery isn't configured." }, { status: 503 });
   }
 
   const to = process.env.CONTACT_TO_EMAIL || business.email;
   const from = process.env.CONTACT_FROM_EMAIL || "MPE Website <onboarding@resend.dev>";
-  const label = path.length ? path.join(" › ") : ENQUIRY_TYPES[type].label;
   const urgent = sameDayRequested ? " — SAME-DAY" : "";
-  const subject = `${label}${urgent}: ${name || email || phone}${postcode ? ` (${postcode})` : ""}`;
+  const subject = `New job: ${CATEGORY_LABEL[categoryFor(type)]}${urgent} — ${name || email || phone}${postcode ? ` (${postcode})` : ""}`;
 
   const lines = [
     `Request: ${label}${sameDayRequested ? " (same-day requested)" : ""}`,
@@ -148,11 +166,13 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    if (!response.ok) {
+    if (!response.ok && !stored) {
       return NextResponse.json({ error: "Couldn't send just now." }, { status: 502 });
     }
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: "Couldn't send just now." }, { status: 502 });
+    return stored
+      ? NextResponse.json({ ok: true })
+      : NextResponse.json({ error: "Couldn't send just now." }, { status: 502 });
   }
 }

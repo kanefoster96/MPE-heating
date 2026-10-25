@@ -15,7 +15,8 @@ import type { ChatMessage, Conversation, ConversationWithMember } from "@/lib/ch
 export function isGuestUser(
   user: { is_anonymous?: boolean | null; user_metadata?: Record<string, unknown> | null } | null | undefined,
 ): boolean {
-  return !!user?.is_anonymous || !!user?.user_metadata?.sms_guest;
+  // email_guest: a contact MPE made for an email-only booking (lib/enquiries.ts).
+  return !!user?.is_anonymous || !!user?.user_metadata?.sms_guest || !!user?.user_metadata?.email_guest;
 }
 
 type ConversationRow = {

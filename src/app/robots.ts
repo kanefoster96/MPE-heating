@@ -5,13 +5,14 @@ import { SITE_URL } from "@/lib/seo";
 // crawlers and the AI ones (GPTBot, ClaudeBot, PerplexityBot,
 // Google-Extended, etc.) — no need to enumerate them individually unless
 // we wanted to block one, which we don't. /api/ is disallowed since
-// there's nothing there worth indexing (just the contact-form route).
+// there's nothing there worth indexing, nor in the live chat and the
+// team's login and inbox.
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: "/api/",
+      disallow: ["/api/", "/messages", "/login", "/staff"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };

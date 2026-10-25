@@ -23,7 +23,8 @@ export const FROM_EMAIL = process.env.CONTACT_FROM_EMAIL || SANDBOX_FROM_EMAIL;
 // has to be set to a verified domain — but it turns the failure mode from
 // silent into a loud, once-per-boot log line.
 const isProduction = (process.env.VERCEL_ENV ?? process.env.NODE_ENV) === "production";
-if (isProduction && FROM_EMAIL === SANDBOX_FROM_EMAIL) {
+// MPE: only once Resend is switched on (RESEND_API_KEY set).
+if (isProduction && process.env.RESEND_API_KEY && FROM_EMAIL === SANDBOX_FROM_EMAIL) {
   console.error(
     "[resend] CONTACT_FROM_EMAIL is not set in production — emails are sending from " +
       `${SANDBOX_FROM_EMAIL}, Resend's sandbox address. Resend silently rejects any ` +

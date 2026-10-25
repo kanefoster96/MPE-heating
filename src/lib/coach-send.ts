@@ -1,7 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { staffIdentity } from "@/lib/staff-identity";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isAdmin } from "@/lib/coach";
 import { getConversationForCoachById, getConversationMemberEmail } from "@/lib/chat-db";
 import { resolveDisplayName } from "@/lib/display-name";
 import { resend, FROM_EMAIL } from "@/lib/resend";
@@ -75,11 +74,10 @@ export async function deliverCoachMessage({
   // Fail before writing anything if the chosen channel can't be reached.
   let recipientEmail: string | null = null;
   if (channel === "sms") {
-    // Texts cost per message, so sending one is an admin's call — a
-    // deliberate per-message choice in the composer, never a default.
-    if (!(await isAdmin(user.id))) {
-      return { success: false, error: "Only admins can send texts — use live chat or email.", status: 403 };
-    }
+    // Kanvas Academy keeps texts to admins (they cost per message). At MPE
+    // engineers answer customers who text or call too, so anyone on the
+    // team can text — still a deliberate choice in the composer each time.
+    // To go back to admins only: `if (!(await isAdmin(user.id))) return {...}`.
     if (!existingConversation.phone) {
       return {
         success: false,

@@ -2,13 +2,13 @@ import Link from "next/link";
 import { business, hero } from "@/lib/content";
 import { contactHref } from "@/lib/enquiry";
 import { FlameIcon } from "./icons";
-import { HeroFreeCard } from "./HeroFreeCard";
+import { HeroCallOutCard } from "./HeroCallOutCard";
 
 // The hero in the kanvas.one layout, without the phone mockup. Left: a
 // proof pill (who we are, and a way to ask straight away), the two-tone
 // headline with the orange clause on its own line, one line of copy, one
-// big button and a line of quiet links. Right: the orange card of free
-// ways to start. Centred and stacked on a phone; two columns from 1024px.
+// big button and a line of quiet links. Right: the orange card that
+// explains the £50 call-out. Centred and stacked on a phone; two columns from 1024px.
 export function Hero() {
   return (
     <section className="overflow-x-clip bg-page pt-10 pb-12 sm:pt-14 lg:pt-[72px] lg:pb-24">
@@ -60,7 +60,7 @@ export function Hero() {
         </div>
 
         <div className="mx-auto mt-10 w-full max-w-[440px] lg:mt-0">
-          <HeroFreeCard />
+          <HeroCallOutCard />
         </div>
       </div>
     </section>

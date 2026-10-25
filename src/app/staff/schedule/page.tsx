@@ -6,6 +6,7 @@ import { appointmentsBetween, getAppointment, waitingOnTeam, type Appointment } 
 import { business } from "@/lib/content";
 import { viaPhrase } from "@/lib/visit-notify";
 import { remindersSent } from "@/lib/follow-up-sweep";
+import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForAppointments, type PaymentRequest } from "@/lib/payments";
 import { requestedWhen } from "@/lib/visit-copy";
 import { customerLabel, getCustomer, getCustomers, type Customer } from "@/lib/customers";
 import { getEnquiry, visitKindFor, CATEGORY_LABEL } from "@/lib/enquiries";
@@ -358,6 +359,7 @@ function visitName(a: Appointment, customers: Map<string, Customer>): string {
 async function DayView({ day, today, params }: { day: string; today: string; params: SearchParams }) {
   const appointments = await appointmentsBetween(day, day);
   const customers = await getCustomers(appointments.map((a) => a.customerId).filter((id): id is string => !!id));
+  const payments = await paymentsForAppointments(appointments.map((a) => a.id));
   const active = appointments.filter(live);
   const booked = active.filter(counts);
   const asks = active.length - booked.length;
@@ -507,7 +509,9 @@ async function DayView({ day, today, params }: { day: string; today: string; par
               No visits yet. Add one, or tap a free slot on the timeline.
             </p>
           ) : (
-            appointments.map((a) => <VisitCard key={a.id} appointment={a} customer={a.customerId ? customers.get(a.customerId) : undefined} />)
+            appointments.map((a) => (
+              <VisitCard key={a.id} appointment={a} customer={a.customerId ? customers.get(a.customerId) : undefined} payments={payments.get(a.id) ?? []} />
+            ))
           )}
           <KindKey />
         </div>
@@ -520,7 +524,7 @@ const SENT_TIME = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", 
 
 const PILL = "inline-flex min-h-9 items-center rounded-full border border-border px-3 text-xs font-semibold transition-colors hover:border-foreground/40";
 
-function VisitCard({ appointment: a, customer }: { appointment: Appointment; customer: Customer | undefined }) {
+function VisitCard({ appointment: a, customer, payments }: { appointment: Appointment; customer: Customer | undefined; payments: PaymentRequest[] }) {
   const place = [a.address, a.postcode].filter(Boolean).join(", ");
   const requested = a.status === "requested";
   const firstName = customer?.name?.split(" ")[0] ?? "them";
@@ -646,8 +650,35 @@ function VisitCard({ appointment: a, customer }: { appointment: Appointment; cus
         </div>
       )}
 
+      {customer && !requested && a.status !== "cancelled" && <PaymentLine appointment={a} payments={payments} />}
       {customer && !requested && <NoticeLine appointment={a} firstName={firstName} />}
     </article>
+  );
+}
+
+/** The visit's call-out fee and invoices, and Take payment. */
+function PaymentLine({ appointment: a, payments }: { appointment: Appointment; payments: PaymentRequest[] }) {
+  const shown = payments.filter((p) => p.status !== "cancelled");
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-sm" data-payment-line>
+      <ul className="flex flex-col gap-0.5">
+        {shown.length === 0 ? (
+          <li className="text-xs text-muted">Nothing taken yet.</li>
+        ) : (
+          shown.map((p) => (
+            <li key={p.id} className="text-xs">
+              <span className="font-semibold">{p.kind === "callout_fee" ? "Call-out fee" : invoiceNumber(p.number)}</span> {formatPence(p.amountPence)} ·{" "}
+              <span className={p.status === "paid" ? "font-medium text-success" : "text-muted"}>
+                {p.status === "paid" ? `Paid ✓${p.paidVia ? ` ${PAID_VIA_LABEL[p.paidVia]}` : ""}` : "Waiting"}
+              </span>
+            </li>
+          ))
+        )}
+      </ul>
+      <Link href={`/staff/payments/new?visit=${a.id}`} className="inline-flex min-h-11 items-center rounded-full bg-foreground px-4 text-sm font-semibold text-background hover:opacity-90">
+        Take payment
+      </Link>
+    </div>
   );
 }
 

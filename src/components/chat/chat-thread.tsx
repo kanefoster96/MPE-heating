@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { AvatarCircle } from "@/components/coach/avatar-circle";
 import { ChatBody } from "@/components/chat/chat-body";
+import { PaymentRequestCard } from "@/components/chat/payment-request-card";
 import type {
   ChatAttachmentType,
   ChatChannel,
@@ -854,12 +855,19 @@ export function ChatThread({
                             resolveUrl={resolveAttachmentUrl}
                           />
                         )}
-                        {message.body && (
-                          <ChatBody
-                            body={message.body}
-                            linkify={message.senderIsCoach}
-                            className={message.attachmentPath ? "px-2 pb-1" : ""}
+                        {message.paymentRequestId ? (
+                          <PaymentRequestCard
+                            id={message.paymentRequestId}
+                            fallback={<ChatBody body={message.body} linkify={message.senderIsCoach} />}
                           />
+                        ) : (
+                          message.body && (
+                            <ChatBody
+                              body={message.body}
+                              linkify={message.senderIsCoach}
+                              className={message.attachmentPath ? "px-2 pb-1" : ""}
+                            />
+                          )
                         )}
                       </div>
                       {message.channel !== "chat" && (
@@ -1082,6 +1090,15 @@ export function ChatThread({
                   <FileGlyph />
                   File
                 </button>
+                {shareItems && (
+                  <a
+                    href={`/staff/payments/new?conversation=${conversationId}`}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-background active:bg-background/70"
+                  >
+                    <LinkGlyph />
+                    Take payment
+                  </a>
+                )}
                 {shareItems &&
                   (
                     [

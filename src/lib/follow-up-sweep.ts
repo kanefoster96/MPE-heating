@@ -7,6 +7,7 @@ import { sendVisitNotice } from "@/lib/visit-notify";
 import { sendEnquiryFollowUp } from "@/lib/enquiry-follow-up";
 import { chatRecipientIds } from "@/lib/chat-routing";
 import { pushToUsers } from "@/lib/push";
+import { sendUnpaidReminder } from "@/lib/payments";
 
 /**
  * Every automatic message to customers, and the team's nudges, in one pass.
@@ -21,7 +22,9 @@ import { pushToUsers } from "@/lib/push";
  *   last check-in three days after that;
  * - a year after a service or install: their annual service is due;
  * - the team: a push when a new job or a customer's request has waited two
- *   hours unanswered.
+ *   hours unanswered;
+ * - an invoice or call-out fee still unpaid: a reminder after 3 days and
+ *   after 7, then the team's told it needs chasing.
  *
  * Run every five minutes (vercel.json). Every stage checks its own "sent"
  * column first and sets it after, so a re-run never sends twice, and each
@@ -44,10 +47,14 @@ const FOLLOW_UP_WITHIN_DAYS = 14;
 const STAFF_NUDGE_AFTER_HOURS = 2;
 const SERVICE_DUE_AFTER_DAYS = 335;
 const SERVICE_DUE_UNTIL_DAYS = 400;
+const UNPAID_FIRST_DAYS = 3;
+const UNPAID_SECOND_DAYS = 7;
+const UNPAID_TEAM_DAYS = 10;
 /** Keeps one run comfortably inside a function's time limit; the rest go next run. */
 const MAX_SENDS = 40;
 
 export type SweepResult = {
+  unpaidReminders: number;
   hourBefore: number;
   dayBefore: number;
   missed: number;
@@ -59,7 +66,7 @@ export type SweepResult = {
 const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 3_600_000;
 
 export async function runFollowUpSweep(): Promise<SweepResult> {
-  const result: SweepResult = { hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
+  const result: SweepResult = { unpaidReminders: 0, hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
   const { dateISO: today, minutes } = londonNow();
   const admin = createAdminClient();
   let budget = MAX_SENDS;
@@ -227,6 +234,39 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     if (jobIds.length) await admin.from("enquiries").update({ staff_nudged_at: now }).in("id", jobIds);
     if (requestIds.length) await admin.from("appointments").update({ staff_nudged_at: now }).in("id", requestIds);
     result.staffNudged = jobIds.length + requestIds.length;
+  });
+
+  // 7. Unpaid: reminders at 3 and 7 days, then the team chases it.
+  await stage("unpaid", async () => {
+    if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
+    const { data } = await admin
+      .from("payment_requests")
+      .select("id, number, kind, amount_pence, reminder_count, created_at, reminded_at")
+      .eq("status", "open")
+      .lt("reminder_count", 3)
+      .lte("created_at", new Date(Date.now() - UNPAID_FIRST_DAYS * 86_400_000).toISOString());
+    for (const row of data ?? []) {
+      const count = (row.reminder_count as number) ?? 0;
+      const age = hoursSince(row.created_at as string) / 24;
+      const due = count === 0 ? age >= UNPAID_FIRST_DAYS : count === 1 ? age >= UNPAID_SECOND_DAYS : age >= UNPAID_TEAM_DAYS;
+      if (!due) continue;
+      if (count < 2) {
+        if (!spend()) return;
+        await sendUnpaidReminder(row.id as string);
+        result.unpaidReminders++;
+      } else {
+        await pushToUsers(await chatRecipientIds(), {
+          title: "Still unpaid",
+          body: `${row.kind === "callout_fee" ? "A call-out fee" : `MPE-${row.number}`} (£${((row.amount_pence as number) / 100).toFixed(2)}) is still unpaid after two reminders.`,
+          data: { kind: "link", href: "/staff/schedule" },
+        });
+      }
+      await admin
+        .from("payment_requests")
+        .update({ reminder_count: count + 1, reminded_at: new Date().toISOString() })
+        .eq("id", row.id as string)
+        .eq("status", "open");
+    }
   });
 
   return result;

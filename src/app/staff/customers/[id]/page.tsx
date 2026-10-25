@@ -12,6 +12,7 @@ import { londonNow, londonParts, formatLondonClock } from "@/lib/schedule-time";
 import { CustomerFields } from "@/components/customer-fields";
 import { PhoneIcon } from "@/components/icons";
 import { addNote, openCustomerChat, removeNote, saveCustomer } from "../actions";
+import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForCustomer } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Customer" };
 
@@ -62,7 +63,12 @@ export default async function CustomerPage({
   const customer = await getCustomer(id);
   if (!customer) notFound();
 
-  const [notes, visits, bookings] = await Promise.all([listCustomerNotes(id), appointmentsForCustomer(id), enquiriesForCustomer(id)]);
+  const [notes, visits, bookings, payments] = await Promise.all([
+    listCustomerNotes(id),
+    appointmentsForCustomer(id),
+    enquiriesForCustomer(id),
+    paymentsForCustomer(id),
+  ]);
   const today = londonNow().dateISO;
   const upcoming = visits.filter((v) => v.day >= today && v.status === "booked").reverse();
   const past = visits.filter((v) => !(v.day >= today && v.status === "booked"));
@@ -213,6 +219,37 @@ export default async function CustomerPage({
           </ul>
         </section>
       )}
+
+      <section className="mt-8" aria-labelledby="payments">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="payments" className="text-lg font-semibold">
+            Invoices and payments
+          </h2>
+          <Link href={`/staff/payments/new?customer=${customer.id}`} className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold hover:border-foreground/40">
+            Take payment
+          </Link>
+        </div>
+        {payments.length === 0 ? (
+          <p className="mt-2 text-sm text-muted">None yet.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {payments.map((pay) => (
+              <li key={pay.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+                <span>
+                  <span className="font-semibold">{pay.kind === "callout_fee" ? "Call-out fee" : `${invoiceNumber(pay.number)} · ${pay.description}`}</span>
+                  <span className="block text-xs text-muted">{when(pay.createdAt)}</span>
+                </span>
+                <span className="text-right">
+                  <span className="block font-bold">{formatPence(pay.amountPence)}</span>
+                  <span className={`text-xs ${pay.status === "paid" ? "font-medium text-success" : "text-muted"}`}>
+                    {pay.status === "paid" ? `Paid${pay.paidVia ? ` · ${PAID_VIA_LABEL[pay.paidVia]}` : ""}` : pay.status === "cancelled" ? "Cancelled" : "Waiting"}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="mt-8" aria-labelledby="bookings">
         <h2 id="bookings" className="text-lg font-semibold">

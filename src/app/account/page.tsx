@@ -15,6 +15,7 @@ import { KIND_LABEL, REQUESTABLE_KINDS, STATUS_LABEL } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { DayPartFields } from "@/components/DayPartPicker";
+import { formatPence, invoiceNumber, paymentsForCustomer } from "@/lib/payments";
 import { requestVisit, sendSignInLink, signOut, updateMyDetails } from "./actions";
 
 export const metadata: Metadata = {
@@ -112,6 +113,7 @@ export default async function AccountPage({
   const customer = await customerForUser(user.id, user.email);
   const today = londonNow().dateISO;
   const visits = customer ? await appointmentsForCustomer(customer.id) : [];
+  const payments = customer ? (await paymentsForCustomer(customer.id)).filter((x) => x.status !== "cancelled") : [];
   const upcoming = visits.filter((v) => v.day >= today && (v.status === "booked" || v.status === "requested")).reverse();
 
   return (
@@ -177,6 +179,35 @@ export default async function AccountPage({
           </Link>
         </div>
       </section>
+
+      {payments.length > 0 && (
+        <section id="payments" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="payments-heading">
+          <h2 id="payments-heading" className="text-xl font-semibold text-navy">
+            Invoices and payments
+          </h2>
+          <ul className="mt-4 flex flex-col gap-2" data-my-payments>
+            {payments.map((pay) => (
+              <li key={pay.id}>
+                <Link
+                  href={`/pay/${pay.publicToken}`}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-cream px-4 py-3 transition-colors hover:border-navy/40"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-navy">{pay.kind === "callout_fee" ? "Call-out fee" : `Invoice ${invoiceNumber(pay.number)}`}</span>
+                    <span className="block truncate text-sm text-text-2">{pay.kind === "callout_fee" ? "Comes off your repair if you go ahead" : pay.description}</span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block font-bold text-navy">{formatPence(pay.amountPence)}</span>
+                    <span className={`block text-xs font-semibold ${pay.status === "paid" ? "text-success" : "text-terracotta-deep"}`}>
+                      {pay.status === "paid" ? "Paid" : "Pay now"}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section id="request" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="request-heading">
         <h2 id="request-heading" className="text-xl font-semibold text-navy">

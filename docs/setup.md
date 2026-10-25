@@ -10,6 +10,7 @@ did before.
 | Supabase | Live chat on the site (`/messages`), team login (`/login`), the team inbox (`/staff/messages`), booking forms saved as jobs, the schedule (`/staff/schedule`), customer pages (`/staff/customers`) and customer accounts (`/account`) |
 | Resend   | Booking forms emailed to MPE; emails to customers when an engineer replies |
 | Twilio   | Missed-call text backs, texts in and out, voicemail in the inbox |
+| Stripe   | Call-out fees and invoices paid online (Apple Pay, Google Pay, card), saved cards, Tap to Pay in the app |
 
 All the variable names are in `.env.example`. Set them in Vercel under
 **Project → Settings → Environment Variables**, then redeploy.
@@ -156,6 +157,49 @@ Customer messages go out between 10am and 7pm, except the evening-before
 reminder and the hour-before message. Each visit card shows which reminders
 have gone and when. Jobs in the inbox show if they've been followed up.
 
+### Taking payment
+
+Tap **Take payment** on a visit card, or in a customer's chat (**+ → Take
+payment**), or on their customer page. There are two choices.
+
+**Call-out fee.** One tap sends them the £50 call-out fee, the amount the
+site promises. If they go ahead with the repair, it comes off the invoice
+automatically.
+
+**Invoice for the job.** Add a line per part and the labour, in pounds. A
+call-out fee they've already paid on that visit is added as a "Call-out fee
+already paid" credit line. Remove that line if it shouldn't apply.
+
+Then choose how to take it:
+
+- **Send them the invoice.** It goes by message, text, email and the app,
+  as a link to their invoice page. They pay with Apple Pay, Google Pay or
+  card through Stripe. In the chat it shows as a card with **Pay**, which
+  turns to **Paid ✓** by itself.
+- **Charge their card ending 4242.** Shown when they've saved a card with
+  MPE. Ask them first, then tap. If their bank wants them to approve it,
+  the link is sent instead.
+- **They've paid me in person.** Record a card machine, cash or bank
+  transfer payment. They're sent a receipt.
+
+Customers save a card by ticking **Save my card with MPE for future visits**
+when they pay a link. It's never saved without that tick. Once saved,
+"Card on file" shows on the Take payment page.
+
+Every invoice has a number (MPE-1001, MPE-1002, and so on) and its own
+page. Before payment that page is the invoice, and afterwards the receipt.
+Customers can print it or save it as a PDF, and their account lists all of
+them. Unpaid ones get a reminder after 3 days and again after 7. After 10
+days the team gets a push saying it needs chasing. The team also gets a
+push whenever a payment comes in.
+
+**Tap to Pay** (taking a contactless card on Fergal's phone) works on
+iPhone and Android in the UK through Stripe Terminal. It has to run inside
+a native app, so it arrives with the MPE app. The server side is ready:
+`/api/terminal/connection-token` and
+`/api/payment-requests/<id>/tap-to-pay`. Until then, use **They've paid me
+in person** for any card machine Fergal already has.
+
 ### Customers
 
 Every booking form and every customer who leaves their details in the chat
@@ -244,7 +288,18 @@ call with it. Without it, nothing automatic is sent. Every message is
 recorded once it's sent, so running it more often never sends anything
 twice.
 
-## 5. The app (next stage)
+## 5. Stripe
+
+1. In Stripe, turn on Apple Pay and Google Pay under **Settings →
+   Payment methods**. Checkout shows them automatically.
+2. Copy the secret key into `STRIPE_SECRET_KEY`.
+3. Add a webhook to `https://<site>/api/webhooks/stripe` for the
+   `payment_intent.succeeded` event. Copy its signing secret into
+   `STRIPE_WEBHOOK_SECRET`.
+4. For Tap to Pay (with the app), create a location under **Terminal →
+   Locations** and set its id as `STRIPE_TERMINAL_LOCATION`.
+
+## 6. The app (next stage)
 
 When the MPE app is in the stores, set `NEXT_PUBLIC_APP_STORE_URL` and
 `NEXT_PUBLIC_PLAY_STORE_URL`. The chat then shows the download buttons

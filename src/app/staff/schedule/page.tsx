@@ -9,6 +9,7 @@ import { remindersSent } from "@/lib/follow-up-sweep";
 import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForAppointments, type PaymentRequest } from "@/lib/payments";
 import { requestedWhen } from "@/lib/visit-copy";
 import { customerLabel, getCustomer, getCustomers, type Customer } from "@/lib/customers";
+import { onPlan } from "@/lib/maintenance-plan";
 import { getEnquiry, visitKindFor, CATEGORY_LABEL } from "@/lib/enquiries";
 import {
   APPOINTMENT_STATUSES,
@@ -362,6 +363,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
   const appointments = await appointmentsBetween(day, day);
   const customers = await getCustomers(appointments.map((a) => a.customerId).filter((id): id is string => !!id));
   const payments = await paymentsForAppointments(appointments.map((a) => a.id));
+  const members = await onPlan([...customers.keys()]).catch(() => new Set<string>());
   const active = appointments.filter(live);
   const booked = active.filter(counts);
   const asks = active.length - booked.length;
@@ -512,7 +514,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
             </p>
           ) : (
             appointments.map((a) => (
-              <VisitCard key={a.id} appointment={a} customer={a.customerId ? customers.get(a.customerId) : undefined} payments={payments.get(a.id) ?? []} />
+              <VisitCard key={a.id} appointment={a} customer={a.customerId ? customers.get(a.customerId) : undefined} payments={payments.get(a.id) ?? []} member={!!a.customerId && members.has(a.customerId)} />
             ))
           )}
           <KindKey />
@@ -526,7 +528,7 @@ const SENT_TIME = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", 
 
 const PILL = "inline-flex min-h-9 items-center rounded-full border border-border px-3 text-xs font-semibold transition-colors hover:border-foreground/40";
 
-function VisitCard({ appointment: a, customer, payments }: { appointment: Appointment; customer: Customer | undefined; payments: PaymentRequest[] }) {
+function VisitCard({ appointment: a, customer, payments, member }: { appointment: Appointment; customer: Customer | undefined; payments: PaymentRequest[]; member: boolean }) {
   const place = [a.address, a.postcode].filter(Boolean).join(", ");
   const requested = a.status === "requested";
   const firstName = customer?.name?.split(" ")[0] ?? "them";
@@ -542,6 +544,11 @@ function VisitCard({ appointment: a, customer, payments }: { appointment: Appoin
             <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold ${KIND_STYLE[a.kind].block}`}>{KIND_LABEL[a.kind]}</span>
             <span className="font-semibold">{requested ? `Asked for ${a.part ? PART_LABEL[a.part].toLowerCase() : windowLabel(a.start, a.end)}` : windowLabel(a.start, a.end)}</span>
             {requested && <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-semibold">Request</span>}
+            {member && (
+              <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success" title="On the maintenance plan: no call-out fee, yearly service included" data-plan-chip>
+                Plan
+              </span>
+            )}
           </p>
           <p className={`mt-1 truncate font-semibold ${a.status === "cancelled" ? "line-through" : ""}`}>
             {customer ? (
@@ -603,6 +610,7 @@ function VisitCard({ appointment: a, customer, payments }: { appointment: Appoin
         {customer && (customer.boilerMake || customer.boilerModel) && (
           <p className="text-muted">Boiler: {[customer.boilerMake, customer.boilerModel, customer.boilerAge].filter(Boolean).join(" · ")}</p>
         )}
+        {customer?.boilerNotes && <p className="text-muted">Their boiler notes: {customer.boilerNotes}</p>}
         {customer?.accessNotes && <p className="text-muted">Access: {customer.accessNotes}</p>}
         {a.notes && <p className="whitespace-pre-wrap rounded-lg bg-background px-3 py-2 text-foreground">{a.notes}</p>}
         {a.status === "done" && customer && (

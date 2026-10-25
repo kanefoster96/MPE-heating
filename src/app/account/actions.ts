@@ -14,6 +14,8 @@ import { postCustomerVisitMessage, sendVisitNotice } from "@/lib/visit-notify";
 import { requestedWhen } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { KIND_LABEL, REQUESTABLE_KINDS, addDays, isISODate, isPart, type AppointmentKind } from "@/lib/day-plan";
+import { billingPortalUrl, cancelPlan, getPlanMember, keepPlan, pendingPlanFor, planDate } from "@/lib/maintenance-plan";
+import { addCardUrl, removeCard } from "@/lib/customer-cards";
 
 /**
  * Emails the customer a sign-in link: no password to remember. Their
@@ -112,4 +114,60 @@ export async function requestVisit(formData: FormData) {
   await sendVisitNotice(visit.id, "requested", null);
   revalidatePath("/account");
   redirect("/account?requested=1#visits");
+}
+
+/** "Join the plan" from their account: on to their plan page to pick monthly or yearly. */
+export async function startPlan() {
+  const customer = await requireCustomer();
+  const member = await pendingPlanFor(customer.id, null);
+  if (!member) redirect(`/account?planError=${encodeURIComponent("Couldn't do that just now. Please try again.")}#plan`);
+  redirect(`/plan/${member.publicToken}`);
+}
+
+/** Their card and payments: Stripe's billing page, then back here. */
+export async function openBillingPortal() {
+  const customer = await requireCustomer();
+  const url = await billingPortalUrl(customer.id, "/account#plan");
+  if (!url) redirect(`/account?planError=${encodeURIComponent("Couldn't open that just now. Please try again, or call us.")}#plan`);
+  redirect(url);
+}
+
+async function myPlan(memberId: string) {
+  const customer = await requireCustomer();
+  const member = await getPlanMember(memberId);
+  if (!member || member.customerId !== customer.id) redirect("/account#plan");
+  return { customer, member };
+}
+
+/** Cancel: it runs to the end of what they've paid for (or the minimum term), and the team's told. */
+export async function cancelMyPlan(memberId: string) {
+  const { customer, member } = await myPlan(memberId);
+  const result = await cancelPlan(member.id);
+  if (!result.ok) redirect(`/account?planError=${encodeURIComponent(result.error)}#plan`);
+  await postCustomerVisitMessage(customer, `I've cancelled my maintenance plan${result.endsOn ? `. It ends on ${planDate(result.endsOn)}` : ""}.`);
+  revalidatePath("/account");
+  redirect("/account?plan=cancelled#plan");
+}
+
+export async function keepMyPlan(memberId: string) {
+  const { member } = await myPlan(memberId);
+  const result = await keepPlan(member.id);
+  if (!result.ok) redirect(`/account?planError=${encodeURIComponent(result.error)}#plan`);
+  revalidatePath("/account");
+  redirect("/account?plan=kept#plan");
+}
+
+/** Save a new card with MPE: Stripe's secure page, nothing charged. */
+export async function addMyCard() {
+  const customer = await requireCustomer();
+  const url = await addCardUrl(customer.id, "/account#cards");
+  if (!url) redirect(`/account?cardError=${encodeURIComponent("Couldn't open that just now. Please try again.")}#cards`);
+  redirect(url);
+}
+
+export async function removeMyCard(paymentMethodId: string) {
+  const customer = await requireCustomer();
+  const result = await removeCard(customer.id, paymentMethodId);
+  revalidatePath("/account");
+  redirect(result.ok ? "/account?card=removed#cards" : `/account?cardError=${encodeURIComponent(result.error)}#cards`);
 }

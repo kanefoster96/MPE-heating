@@ -368,6 +368,10 @@ create table if not exists public.customer_notes (
   author_id uuid references auth.users (id) on delete set null,
   created_at timestamptz not null default now()
 );
+-- What the customer tells us about their boiler (noises, error codes, its
+-- history). Not private: they write it from their account, the team sees it.
+alter table public.customers add column if not exists boiler_notes text;
+
 create index if not exists customer_notes_customer_idx on public.customer_notes (customer_id, created_at desc);
 alter table public.customer_notes enable row level security;
 
@@ -383,6 +387,19 @@ alter table public.enquiries add column if not exists followup_count integer not
 alter table public.enquiries add column if not exists followed_up_at timestamptz;
 alter table public.enquiries add column if not exists staff_nudged_at timestamptz;
 create unique index if not exists enquiries_public_token_idx on public.enquiries (public_token);
+
+-- Where a booking form came from (Kanvas Academy's ad attribution): the
+-- source ("Facebook / Instagram", "Google", "Direct"…), "paid" when an
+-- advert's click id proved it (else the link's utm_medium), and the
+-- campaign and advert from the link's utm tags. Recorded from the first
+-- page of the visit, for everyone (src/lib/first-touch.ts). meta_context
+-- holds the Meta click ids ({"meta_fbc", "meta_fbp"}), only for someone
+-- who accepted the cookie banner (src/lib/meta-capi.ts).
+alter table public.enquiries add column if not exists traffic_source text;
+alter table public.enquiries add column if not exists traffic_medium text;
+alter table public.enquiries add column if not exists traffic_campaign text;
+alter table public.enquiries add column if not exists traffic_ad text;
+alter table public.enquiries add column if not exists meta_context jsonb;
 
 -- ---------------------------------------------------------------------------
 -- The schedule: every visit, with a rough time window (lib/appointments.ts).
@@ -553,6 +570,88 @@ alter table public.payment_requests add column if not exists offers jsonb not nu
 alter table public.chat_messages add column if not exists payment_request_id uuid references public.payment_requests (id) on delete set null;
 -- The customer in Stripe, once they've saved a card with MPE.
 alter table public.customers add column if not exists stripe_customer_id text;
+
+-- Paying an invoice monthly (lib/instalments.ts). Fergal lets them spread
+-- an invoice over up to 12 monthly payments, interest-free, with any
+-- deposit taken first (12 or fewer, within a year, nothing added: outside
+-- consumer credit rules). Their first payment saves their card; then it's
+-- charged on the same date each month, the monthly amount or what's left
+-- if that's less, until the balance is paid. They can pay off any amount
+-- whenever they like, and a missed month just leaves more to pay.
+alter table public.payment_requests add column if not exists instalments integer check (instalments is null or instalments between 2 and 12);
+alter table public.payment_requests add column if not exists instalment_deposit_pence integer not null default 0;
+-- Once they've started: 'active', 'past_due' (the last charge failed),
+-- 'completed' (all paid) or 'stopped' (the team stopped it).
+alter table public.payment_requests add column if not exists plan_status text check (plan_status in ('active', 'past_due', 'completed', 'stopped'));
+alter table public.payment_requests add column if not exists plan_started_at timestamptz;
+alter table public.payment_requests add column if not exists plan_monthly_pence integer;
+alter table public.payment_requests add column if not exists plan_next_due_on date;
+-- The card it's taken from (a Stripe payment method on their customer).
+alter table public.payment_requests add column if not exists plan_payment_method text;
+alter table public.payment_requests add column if not exists plan_failed_at timestamptz;
+-- Set while a monthly payment is being taken, so two runs can't both take it.
+alter table public.payment_requests add column if not exists plan_charging_at timestamptz;
+alter table public.payment_requests drop column if exists plan_subscription_id;
+alter table public.payment_requests drop constraint if exists payment_requests_paid_via_check;
+alter table public.payment_requests add constraint payment_requests_paid_via_check
+  check (paid_via in ('link', 'app', 'saved_card', 'tap_to_pay', 'in_person', 'cash', 'bank_transfer', 'instalments'));
+create index if not exists payment_requests_plan_due_idx on public.payment_requests (plan_next_due_on) where plan_status in ('active', 'past_due');
+
+-- Every payment towards an invoice being paid monthly: the first, each
+-- month's, anything extra they pay off, and money Fergal takes in person.
+-- A Stripe payment is counted once, however often Stripe tells us.
+create table if not exists public.instalment_payments (
+  id uuid primary key default gen_random_uuid(),
+  payment_request_id uuid not null references public.payment_requests (id) on delete cascade,
+  amount_pence integer not null check (amount_pence > 0),
+  kind text not null default 'monthly' check (kind in ('first', 'monthly', 'extra', 'in_person')),
+  stripe_payment_intent_id text unique,
+  paid_via text,
+  recorded_by uuid references auth.users (id) on delete set null,
+  paid_at timestamptz not null default now()
+);
+-- From the first draft of this table (a Stripe invoice per payment).
+alter table public.instalment_payments add column if not exists kind text not null default 'monthly' check (kind in ('first', 'monthly', 'extra', 'in_person'));
+alter table public.instalment_payments add column if not exists stripe_payment_intent_id text unique;
+alter table public.instalment_payments add column if not exists paid_via text;
+alter table public.instalment_payments add column if not exists recorded_by uuid references auth.users (id) on delete set null;
+alter table public.instalment_payments drop column if exists stripe_invoice_id;
+create index if not exists instalment_payments_request_idx on public.instalment_payments (payment_request_id, paid_at);
+alter table public.instalment_payments enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- The maintenance plan (lib/maintenance-plan.ts): free call-outs all year
+-- round and a free yearly service, paid monthly or yearly by Stripe
+-- subscription (Kanvas Academy's memberships). The prices, and any minimum
+-- term, are set in Settings. A row starts 'pending' when the customer is
+-- sent the link (or opens it from their account), and is 'active' once
+-- they've paid; 'past_due' when a payment fails, 'ended' when it's over.
+-- cancel_at is set while it's due to end. Service-role only.
+create table if not exists public.plan_members (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid not null references public.customers (id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'active', 'past_due', 'ended')),
+  billing text check (billing in ('month', 'year')),
+  price_pence integer,
+  -- The minimum term when they joined, in months (0: none).
+  min_months integer not null default 0,
+  stripe_subscription_id text unique,
+  current_period_end timestamptz,
+  cancel_at timestamptz,
+  started_at timestamptz,
+  ended_at timestamptz,
+  -- Their free yearly service: the last one done while on the plan.
+  last_service_on date,
+  payment_failed_at timestamptz,
+  public_token text not null default replace(gen_random_uuid()::text, '-', ''),
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists plan_members_token_idx on public.plan_members (public_token);
+create index if not exists plan_members_customer_idx on public.plan_members (customer_id, created_at desc);
+create unique index if not exists plan_members_one_live_idx on public.plan_members (customer_id) where status in ('active', 'past_due');
+alter table public.plan_members enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- App push notifications (the MPE app, next stage).

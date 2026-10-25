@@ -26,8 +26,8 @@ export const metadata: Metadata = {
 };
 
 // The team's side of the site: a slim 4rem bar (the conversation page
-// sizes its thread to the rest of the screen) with the inbox, schedule,
-// customers and log out.
+// sizes its thread to the rest of the screen) with home, the inbox, the
+// schedule, customers and log out (on a phone, log out is on home).
 export default async function StaffLayout({ children }: { children: ReactNode }) {
   // Customers' requests and asks to move, badged on the Schedule tab.
   const waiting = enquiriesOn() ? await waitingOnTeamCount(londonNow().dateISO).catch(() => 0) : 0;
@@ -43,7 +43,7 @@ export default async function StaffLayout({ children }: { children: ReactNode })
     <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href="/staff/messages" className="hidden min-h-11 shrink-0 items-center sm:flex">
+          <Link href="/staff" className="hidden min-h-11 shrink-0 items-center sm:flex">
             <Image src="/mpe-logo.png" alt="MPE team" width={1189} height={513} className="h-8 w-auto" />
           </Link>
           <StaffNav waiting={waiting} />
@@ -55,7 +55,7 @@ export default async function StaffLayout({ children }: { children: ReactNode })
               <GearIcon className="h-5 w-5" />
             </Link>
           )}
-          <form action={logout}>
+          <form action={logout} className="hidden sm:block">
             <button
               type="submit"
               className="min-h-11 shrink-0 rounded-full px-2 text-sm font-medium text-muted transition-colors hover:text-foreground sm:px-4"

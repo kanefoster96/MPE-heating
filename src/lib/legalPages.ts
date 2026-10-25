@@ -15,6 +15,7 @@
 
 import type { ContentBlock } from "./richContent";
 import { business } from "./content";
+import { META_PIXEL_ID } from "./meta-pixel";
 
 const TERMS_DISCLAIMER: ContentBlock = {
   type: "callout",
@@ -26,7 +27,38 @@ const PRIVACY_DISCLAIMER: ContentBlock = {
   text: "This is a general template, not a substitute for legal advice — worth having it reviewed to confirm it fully reflects how your systems handle data, especially how enquiries are stored once they reach your inbox.",
 };
 
-export const lastUpdated = "28 August 2026";
+export const lastUpdated = "25 October 2026";
+
+// The cookie wording follows the code: the Meta Pixel only exists once
+// NEXT_PUBLIC_META_PIXEL_ID is set (lib/meta-pixel.ts), so until then the
+// policy says there are no advert cookies, because there aren't. Wording
+// adapted from Kanvas Academy's policy.
+const PRIVACY_COOKIES: ContentBlock[] = META_PIXEL_ID
+  ? [
+      {
+        type: "p",
+        text: "We use essential cookies to run the website, for example to keep you signed in to your account. These don't need consent and can't be turned off.",
+      },
+      {
+        type: "p",
+        text: `If you allow it, we also use the Meta (Facebook and Instagram) Pixel. It tells Meta which of our pages you visit, when you tap to call or WhatsApp us, and when you send a booking form. Your browser sends Meta your IP address and browser details as it does this. ${
+          // Only said when the server-side copy (lib/meta-capi.ts) is switched on.
+          process.env.META_CONVERSIONS_API_ACCESS_TOKEN
+            ? 'When you send a booking form, our server also sends Meta your email address and phone number in scrambled ("hashed") form, with your IP address and browser details. '
+            : ""
+        }We keep Meta's advert-click identifiers with your booking. This lets Meta match your visit to our adverts and tell us which ones work. Meta acts as a joint controller for this. The pixel never runs on your account, payment, plan or visit pages. If you decline, none of this is shared.`,
+      },
+      {
+        type: "p",
+        text: 'You\'ll see a short banner on your first visit asking whether to allow this, and you can change your choice at any time using "Cookie settings" at the bottom of the page.',
+      },
+    ]
+  : [
+      {
+        type: "p",
+        text: "We don't currently use tracking or advertising cookies. If that changes — for example, if we add analytics in future — we'll update this policy and, where required, ask for your consent first.",
+      },
+    ];
 
 export const termsContent: ContentBlock[] = [
   {
@@ -109,6 +141,7 @@ export const privacyContent: ContentBlock[] = [
       "Contact details you give us — name, phone number, email address, and a description of the problem — when you book a visit, request a quote, or get in touch through our contact form.",
       "Job records — details about your boiler and the work we've carried out, so future visits go smoothly and we can honour the guarantee.",
       "Basic technical information — standard web server logs (like browser type and IP address), used only to keep the site running securely.",
+      "How you found us — when you send a booking form, we note where your visit started (for example a Facebook advert, a Google search, or the campaign name in the link you followed), taken from the page you arrived on. Nothing is stored on your device to do this.",
     ],
   },
   { type: "h2", text: "How we use your information" },
@@ -121,6 +154,9 @@ export const privacyContent: ContentBlock[] = [
     type: "p",
     text: "We share information only where it's needed to provide our service — for example, with the email service that delivers your enquiry to our team. We don't share your information with third parties for their own marketing purposes.",
   },
+  ...(META_PIXEL_ID
+    ? [{ type: "p", text: "If you accept advert cookies, we also share some information with Meta to measure our adverts. See Cookies, below." } satisfies ContentBlock]
+    : []),
   { type: "h2", text: "How long we keep it" },
   {
     type: "p",
@@ -140,10 +176,7 @@ export const privacyContent: ContentBlock[] = [
   },
   { type: "p", text: `To exercise any of these rights, contact us at ${business.email}.` },
   { type: "h2", text: "Cookies" },
-  {
-    type: "p",
-    text: "We don't currently use tracking or advertising cookies. If that changes — for example, if we add analytics in future — we'll update this policy and, where required, ask for your consent first.",
-  },
+  ...PRIVACY_COOKIES,
   { type: "h2", text: "Children" },
   {
     type: "p",

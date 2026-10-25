@@ -10,6 +10,7 @@ import { newBoilersPage } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
 import { SITE_URL, serviceJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
+import { MetaViewContent } from "@/components/MetaViewContent";
 
 export const metadata: Metadata = {
   title: "New Boiler Installation Whitley Bay & North East | Free Fixed-Price Quote",
@@ -58,6 +59,7 @@ export default function NewBoilersPage() {
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(newBoilersPage)} />
+      <MetaViewContent contentId={newBoilersPage.slug} contentName={newBoilersPage.eyebrow} />
       <JsonLd data={breadcrumbJsonLd([{ name: "New boilers", path: `/${newBoilersPage.slug}` }])} />
     </>
   );

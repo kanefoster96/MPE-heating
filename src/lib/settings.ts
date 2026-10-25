@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * Simple settings the team changes in Settings (app_settings). Read
  * server-side only.
  */
-export type SettingKey = "review_url";
+export type SettingKey = "review_url" | "plan_month_pence" | "plan_year_pence" | "plan_min_months";
 
 export async function getSetting(key: SettingKey): Promise<string | null> {
   const { data } = await createAdminClient().from("app_settings").select("value").eq("key", key).maybeSingle();

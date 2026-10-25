@@ -16,7 +16,11 @@ import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { DayPartFields } from "@/components/DayPartPicker";
 import { formatPence, invoiceNumber, paymentsForCustomer } from "@/lib/payments";
-import { requestVisit, sendSignInLink, signOut, updateMyDetails } from "./actions";
+import { BILLING_LABEL, PLAN_BENEFITS, earliestEnd, minTermLine, planDate, planFor, planOpen, planPrices, priceLine } from "@/lib/maintenance-plan";
+import { instalmentProgress } from "@/lib/instalments";
+import { addMyCard, cancelMyPlan, keepMyPlan, openBillingPortal, removeMyCard, requestVisit, sendSignInLink, signOut, startPlan, updateMyDetails } from "./actions";
+import { cardsFor, planPaymentsFor } from "@/lib/customer-cards";
+import { paymentsOn } from "@/lib/payments";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -51,9 +55,9 @@ function Shell({ children }: { children: React.ReactNode }) {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; error?: string; saved?: string; requested?: string; requestError?: string }>;
+  searchParams: Promise<{ sent?: string; error?: string; saved?: string; requested?: string; requestError?: string; plan?: string; planError?: string; card?: string; cardError?: string }>;
 }) {
-  const { sent, error, saved, requested, requestError } = await searchParams;
+  const { sent, error, saved, requested, requestError, plan: planFlash, planError, card: cardFlash, cardError } = await searchParams;
 
   if (!CHAT_ON) {
     return (
@@ -116,6 +120,16 @@ export default async function AccountPage({
   const payments = customer ? (await paymentsForCustomer(customer.id)).filter((x) => x.status !== "cancelled") : [];
   const upcoming = visits.filter((v) => v.day >= today && (v.status === "booked" || v.status === "requested")).reverse();
   const past = visits.filter((v) => v.status === "done").slice(0, 10);
+  const [plan, prices, progress, cards, planPayments] = await Promise.all([
+    customer ? planFor(customer.id) : Promise.resolve(null),
+    planPrices(),
+    instalmentProgress(payments),
+    customer ? cardsFor(customer.id) : Promise.resolve([]),
+    customer ? planPaymentsFor(customer.id) : Promise.resolve([]),
+  ]);
+  const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
+  const canJoin = !onPlan && planOpen(prices);
+  const paysMonthly = payments.some((p) => p.planStatus === "active" || p.planStatus === "past_due");
 
   return (
     <Shell>
@@ -132,7 +146,21 @@ export default async function AccountPage({
         </form>
       </div>
 
-      <section className={`mt-8 ${CARD}`} aria-labelledby="visits">
+      <nav className="mt-6 flex flex-wrap gap-2" aria-label="On this page" data-account-nav>
+        {[
+          { href: "#visits", label: "Visits" },
+          ...(onPlan || canJoin ? [{ href: "#plan", label: "Maintenance plan" }] : []),
+          ...(payments.length || planPayments.length ? [{ href: "#payments", label: "Payments and receipts" }] : []),
+          ...(paymentsOn() ? [{ href: "#cards", label: "Cards" }] : []),
+          { href: "#details", label: "Details and boiler" },
+        ].map((l) => (
+          <a key={l.href} href={l.href} className="inline-flex min-h-11 items-center rounded-full border border-line bg-white px-4 text-sm font-semibold text-navy hover:border-navy/40">
+            {l.label}
+          </a>
+        ))}
+      </nav>
+
+      <section className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="visits">
         <h2 id="visits" className="text-xl font-semibold text-navy">
           Your visits
         </h2>
@@ -202,11 +230,104 @@ export default async function AccountPage({
         </section>
       )}
 
-      {payments.length > 0 && (
+      {(onPlan || canJoin) && (
+        <section id="plan" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="plan-heading" data-my-plan={onPlan ? onPlan.status : "join"}>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h2 id="plan-heading" className="text-xl font-semibold text-navy">
+              Maintenance plan
+            </h2>
+            {onPlan && (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  onPlan.status === "past_due" ? "bg-danger/10 text-danger" : onPlan.cancelAt ? "bg-navy/10 text-navy" : "bg-success/10 text-success"
+                }`}
+              >
+                {onPlan.status === "past_due" ? "Payment failed" : onPlan.cancelAt ? `Ends ${planDate(onPlan.cancelAt)}` : "Active"}
+              </span>
+            )}
+          </div>
+          {planFlash === "cancelled" && (
+            <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">Cancelled. You&rsquo;re covered until it ends.</p>
+          )}
+          {planFlash === "kept" && <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">Great, your plan carries on.</p>}
+          {planError && <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{planError}</p>}
+          <ul className="mt-4 flex flex-col gap-2">
+            {PLAN_BENEFITS.map((b) => (
+              <li key={b} className="flex items-start gap-2 text-navy">
+                <span className="font-bold text-success" aria-hidden="true">
+                  ✓
+                </span>
+                {b}
+              </li>
+            ))}
+          </ul>
+          {onPlan ? (
+            <>
+              <p className="mt-4 text-text-2">
+                {onPlan.pricePence && onPlan.billing ? `${formatPence(onPlan.pricePence)} ${BILLING_LABEL[onPlan.billing]}` : "On the plan"}
+                {onPlan.startedAt ? `, since ${planDate(onPlan.startedAt)}` : ""}.
+                {!onPlan.cancelAt && onPlan.currentPeriodEnd ? ` Next payment ${planDate(onPlan.currentPeriodEnd)}.` : ""}
+                {onPlan.lastServiceOn ? ` Last service ${longDate(onPlan.lastServiceOn)}.` : ""}
+              </p>
+              {onPlan.status === "past_due" && (
+                <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">
+                  Your last payment didn&rsquo;t go through. Update your card and we&rsquo;ll try again.
+                </p>
+              )}
+              <div className="mt-5 flex flex-wrap gap-2">
+                <form action={openBillingPortal}>
+                  <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40">
+                    Update card and see payments
+                  </button>
+                </form>
+                {onPlan.cancelAt ? (
+                  <form action={keepMyPlan.bind(null, onPlan.id)}>
+                    <button type="submit" className="inline-flex min-h-11 items-center rounded-full bg-terracotta-deep px-4 text-sm font-semibold text-white hover:opacity-90">
+                      Keep my plan
+                    </button>
+                  </form>
+                ) : (
+                  <details className="w-full rounded-2xl border border-line px-4 py-1">
+                    <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-text-2">Cancel my plan</summary>
+                    <div className="pb-4 pt-1">
+                      <p className="text-sm text-text-2">
+                        {(() => {
+                          const end = earliestEnd(onPlan);
+                          return end ? `It'll end on ${planDate(end.toISOString())}, and you're covered until then.` : "It'll end at the end of what you've paid for.";
+                        })()}
+                        {onPlan.minMonths > 0 ? ` ${minTermLine(onPlan.minMonths)}` : ""}
+                      </p>
+                      <form action={cancelMyPlan.bind(null, onPlan.id)} className="mt-3">
+                        <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-danger/40 px-4 text-sm font-semibold text-danger hover:bg-danger/10">
+                          Yes, cancel my plan
+                        </button>
+                      </form>
+                    </div>
+                  </details>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-4 text-text-2">
+                {priceLine(prices)}. {minTermLine(prices.minMonths)}
+              </p>
+              <form action={startPlan} className="mt-5">
+                <button type="submit" className={BUTTON}>
+                  Join the plan
+                </button>
+              </form>
+            </>
+          )}
+        </section>
+      )}
+
+      {(payments.length > 0 || planPayments.length > 0) && (
         <section id="payments" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="payments-heading">
           <h2 id="payments-heading" className="text-xl font-semibold text-navy">
-            Invoices and payments
+            Payments and receipts
           </h2>
+          <p className="mt-1 text-sm text-text-2">Open any of them for the invoice or receipt, to print or save.</p>
           <ul className="mt-4 flex flex-col gap-2" data-my-payments>
             {payments.map((pay) => (
               <li key={pay.id}>
@@ -217,17 +338,99 @@ export default async function AccountPage({
                   <span className="min-w-0">
                     <span className="block font-semibold text-navy">{pay.kind === "callout_fee" ? "Call-out fee" : `Invoice ${invoiceNumber(pay.number)}`}</span>
                     <span className="block truncate text-sm text-text-2">{pay.kind === "callout_fee" ? "Comes off your repair if you go ahead" : pay.description}</span>
+                    {pay.status === "open" && pay.planStatus && (
+                      <span className={`block text-sm ${pay.planStatus === "past_due" ? "text-danger" : "text-text-2"}`}>
+                        Paying monthly: {formatPence(progress.get(pay.id)?.balancePence ?? pay.amountPence)} left
+                        {pay.planStatus === "past_due" ? ", last payment failed" : ""}
+                      </span>
+                    )}
                   </span>
                   <span className="shrink-0 text-right">
                     <span className="block font-bold text-navy">{formatPence(pay.amountPence)}</span>
                     <span className={`block text-xs font-semibold ${pay.status === "paid" ? "text-success" : "text-terracotta-deep"}`}>
-                      {pay.status === "paid" ? "Paid" : "Pay now"}
+                      {pay.status === "paid" ? "Paid" : pay.planStatus ? "Monthly" : "Pay now"}
                     </span>
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
+          {paysMonthly && <p className="mt-4 text-sm text-text-2">Open an invoice you&rsquo;re paying monthly to pay some off or change the card.</p>}
+          {planPayments.length > 0 && (
+            <>
+              <h3 className="mt-6 font-semibold text-navy">Maintenance plan payments</h3>
+              <ul className="mt-2 flex flex-col divide-y divide-line border-y border-line text-sm" data-plan-payments>
+                {planPayments.map((pp) => (
+                  <li key={pp.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="text-text-2">{longDate(pp.date.slice(0, 10))}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="font-semibold text-navy">{formatPence(pp.amountPence)}</span>
+                      {pp.url ? (
+                        <a href={pp.url} target="_blank" rel="noopener noreferrer" className={`inline-flex min-h-11 items-center font-semibold underline underline-offset-4 ${pp.status === "open" ? "text-danger" : "text-navy"}`}>
+                          {pp.status === "paid" ? "Receipt" : pp.status === "open" ? "Pay now" : "View"}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-text-2">{pp.status === "paid" ? "Paid" : ""}</span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
+
+      {paymentsOn() && (
+        <section id="cards" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="cards-heading">
+          <h2 id="cards-heading" className="text-xl font-semibold text-navy">
+            Your cards
+          </h2>
+          <p className="mt-1 text-sm text-text-2">Cards you&rsquo;ve saved with MPE. We always ask you before using one, unless it&rsquo;s for your plan or monthly payments you&rsquo;ve agreed to.</p>
+          {cardFlash === "added" && <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">Card saved. It can take a moment to show: refresh if it isn&rsquo;t here yet.</p>}
+          {cardFlash === "removed" && <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">Card removed.</p>}
+          {cardError && <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{cardError}</p>}
+          {cards.length === 0 ? (
+            <p className="mt-4 text-text-2">No cards saved.</p>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-2" data-my-cards>
+              {cards.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-cream px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-navy">
+                      {c.brand} ending {c.last4}
+                    </span>
+                    <span className={`block text-sm ${c.expired ? "text-danger" : "text-text-2"}`}>
+                      {c.expired ? "Expired" : "Expires"} {c.expires}
+                      {c.usedFor.length ? ` · ${c.usedFor.join(", ")}` : ""}
+                    </span>
+                  </span>
+                  {c.usedFor.length === 0 && (
+                    <form action={removeMyCard.bind(null, c.id)}>
+                      <button type="submit" className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-danger hover:bg-danger/10">
+                        Remove
+                      </button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <form action={addMyCard}>
+              <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40">
+                Add a card
+              </button>
+            </form>
+            {onPlan && (
+              <form action={openBillingPortal}>
+                <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40">
+                  Change the card for your plan
+                </button>
+              </form>
+            )}
+          </div>
+          {paysMonthly && <p className="mt-3 text-sm text-text-2">To change the card for monthly payments, open that invoice above.</p>}
         </section>
       )}
 
@@ -265,7 +468,7 @@ export default async function AccountPage({
 
       <section id="details" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="details-heading">
         <h2 id="details-heading" className="text-xl font-semibold text-navy">
-          Your details and boiler
+          Your details, address and boiler
         </h2>
         <p className="mt-1 text-text-2">Keep these up to date and our engineers arrive knowing what to expect.</p>
         {saved && <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">Saved. Thanks!</p>}

@@ -20,12 +20,17 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           <p className="text-sm uppercase tracking-widest text-muted">MPE team</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Customers</h1>
         </div>
-        <Link
-          href="/staff/customers/new"
-          className="inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90"
-        >
-          + New customer
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/staff/plan" className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold hover:border-foreground/40">
+            Plan members
+          </Link>
+          <Link
+            href="/staff/customers/new"
+            className="inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-foreground transition-opacity hover:opacity-90"
+          >
+            + New customer
+          </Link>
+        </div>
       </div>
 
       <form method="get" className="relative mt-6">

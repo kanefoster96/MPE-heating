@@ -4,6 +4,10 @@ import "./globals.css";
 import { business } from "@/lib/content";
 import { SITE_URL, localBusinessJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
+import { MetaPixel } from "@/components/MetaPixel";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import { META_PIXEL_ID } from "@/lib/meta-pixel";
+import { CONSENT_COOKIE_NAME, CONSENT_SET_CLASS } from "@/lib/cookie-consent";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -51,10 +55,25 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             scroll-in fades (.js .reveal) never hide content when scripts
             fail to load. */}
         <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
+        {/* Hides the cookie banner before first paint for someone who has
+            already answered it, without the server reading cookies (which
+            would stop every page being static). Only once the pixel is set
+            up; until then there's no banner. */}
+        {META_PIXEL_ID && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `if(/(?:^|; )${CONSENT_COOKIE_NAME}=/.test(document.cookie))document.documentElement.classList.add('${CONSENT_SET_CLASS}')`,
+            }}
+          />
+        )}
       </head>
       <body className="min-h-full flex flex-col bg-page text-navy">
+        {/* Before the page, so the pixel is ready by the time the page's own
+            events (a service page's ViewContent) fire. Renders nothing. */}
+        <MetaPixel />
         {children}
         <JsonLd data={localBusinessJsonLd()} />
+        <CookieConsentBanner />
       </body>
     </html>
   );

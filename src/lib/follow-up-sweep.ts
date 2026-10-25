@@ -9,6 +9,7 @@ import { chatRecipientIds } from "@/lib/chat-routing";
 import { pushToUsers } from "@/lib/push";
 import { sendUnpaidReminder } from "@/lib/payments";
 import { REVIEW_REMIND_AFTER_DAYS, sendReviewAsk } from "@/lib/job-completion";
+import { takeDueInstalments } from "@/lib/instalments";
 
 /**
  * Every automatic message to customers, and the team's nudges, in one pass.
@@ -27,7 +28,9 @@ import { REVIEW_REMIND_AFTER_DAYS, sendReviewAsk } from "@/lib/job-completion";
  * - an invoice or call-out fee still unpaid: a reminder after 3 days and
  *   after 7, then the team's told it needs chasing;
  * - a finished job: "how did we do?" a couple of hours later, and one
- *   reminder three days on (lib/job-completion.ts).
+ *   reminder three days on (lib/job-completion.ts);
+ * - an invoice being paid monthly: on its date, that month's payment is
+ *   taken from their saved card (lib/instalments.ts).
  *
  * Run every five minutes (vercel.json). Every stage checks its own "sent"
  * column first and sets it after, so a re-run never sends twice, and each
@@ -57,6 +60,7 @@ const UNPAID_TEAM_DAYS = 10;
 const MAX_SENDS = 40;
 
 export type SweepResult = {
+  monthlyPayments: number;
   reviewAsks: number;
   unpaidReminders: number;
   hourBefore: number;
@@ -70,7 +74,7 @@ export type SweepResult = {
 const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 3_600_000;
 
 export async function runFollowUpSweep(): Promise<SweepResult> {
-  const result: SweepResult = { reviewAsks: 0, unpaidReminders: 0, hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
+  const result: SweepResult = { monthlyPayments: 0, reviewAsks: 0, unpaidReminders: 0, hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
   const { dateISO: today, minutes } = londonNow();
   const admin = createAdminClient();
   let budget = MAX_SENDS;
@@ -240,6 +244,12 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     result.staffNudged = jobIds.length + requestIds.length;
   });
 
+  // 6b. Monthly payments due today, from 10am (London), so a failed one can be sorted the same day.
+  await stage("monthly", async () => {
+    if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
+    result.monthlyPayments = await takeDueInstalments(spend);
+  });
+
   // 7. Unpaid: reminders at 3 and 7 days, then the team chases it.
   await stage("unpaid", async () => {
     if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
@@ -247,6 +257,8 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
       .from("payment_requests")
       .select("id, number, kind, amount_pence, reminder_count, created_at, reminded_at")
       .eq("status", "open")
+      // Being paid monthly: Stripe takes it, and chases a missed one itself.
+      .is("plan_status", null)
       .lt("reminder_count", 3)
       .lte("created_at", new Date(Date.now() - UNPAID_FIRST_DAYS * 86_400_000).toISOString());
     for (const row of data ?? []) {

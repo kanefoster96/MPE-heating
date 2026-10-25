@@ -16,6 +16,7 @@ import {
   type PaymentKind,
 } from "@/lib/payments";
 import { viaPhrase } from "@/lib/visit-notify";
+import { recordInPersonInstalment, restartInstalments, stopInstalments } from "@/lib/instalments";
 
 type Context = { customerId: string; appointmentId: string | null; back: string };
 
@@ -53,6 +54,7 @@ export async function takePayment(ctx: Context, formData: FormData) {
     send: !inPerson,
     chargeNow: intent === "charge",
     offers: offersFrom(formData, kind, !!inPerson || intent === "charge"),
+    instalments: kind === "invoice" && intent === "send" ? instalmentsFrom(formData) : null,
   });
   if (!created.ok) redirect(pageHref(ctx, { error: created.error }));
 
@@ -70,6 +72,14 @@ export async function takePayment(ctx: Context, formData: FormData) {
   }
   revalidatePath("/staff/schedule");
   redirect(pageHref(ctx, { done: flash }));
+}
+
+/** "Let them pay monthly": how many payments, and any deposit. */
+function instalmentsFrom(formData: FormData): { months: number; depositPence: number } | null {
+  const months = Number(formData.get("instalmentMonths"));
+  if (!Number.isInteger(months) || months < 2) return null;
+  const deposit = Number(String(formData.get("instalmentDeposit") ?? "").replace(/[£,\s]/g, ""));
+  return { months, depositPence: Number.isFinite(deposit) && deposit > 0 ? Math.round(deposit * 100) : 0 };
 }
 
 /** The extras to offer on their pay page (up to two): only on an invoice they'll pay from the link. */
@@ -112,6 +122,19 @@ export async function managePayment(ctx: Context, paymentId: string, formData: F
   } else if (intent === "resend") {
     const via = await resendPaymentLink(paymentId, user.id);
     flash = via.length ? `Sent again by ${viaPhrase(via)}.` : "Couldn't reach them: add an email or mobile to their details.";
+  } else if (intent === "stop_monthly") {
+    const result = await stopInstalments(paymentId);
+    flash = result.ok ? "Monthly payments stopped. Anything left can still be paid off." : result.error;
+  } else if (intent === "restart_monthly") {
+    const result = await restartInstalments(paymentId);
+    flash = result.ok ? "Monthly payments restarted." : result.error;
+  } else if (intent.startsWith("monthly_")) {
+    const via = intent.slice("monthly_".length);
+    const pounds = Number(String(formData.get("amount") ?? "").replace(/[£,\s]/g, ""));
+    const result = (IN_PERSON as readonly string[]).includes(via)
+      ? await recordInPersonInstalment(paymentId, Number.isFinite(pounds) ? Math.round(pounds * 100) : 0, via as (typeof IN_PERSON)[number], user.id)
+      : { ok: false as const, error: "Pick how they paid." };
+    flash = result.ok ? "Recorded: it's come off what they owe." : result.error;
   } else if (intent === "cancel") {
     const result = await cancelPaymentRequest(paymentId);
     flash = result.ok ? "Cancelled." : result.error;

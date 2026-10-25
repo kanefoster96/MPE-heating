@@ -6,6 +6,8 @@ import { ENQUIRY_TYPES, type EnquiryType } from "@/lib/enquiry";
 import { CATEGORY_LABEL, categoryFor, recordEnquiry } from "@/lib/enquiries";
 import { addDays, isISODate, isPart } from "@/lib/day-plan";
 import { londonNow } from "@/lib/schedule-time";
+import { normalizePhone } from "@/lib/phone";
+import { sendMetaConversionEvent } from "@/lib/meta-capi";
 
 // Every booking form lands here. It's filed as a job in the team inbox
 // (lib/enquiries.ts: a categorised enquiry, plus the customer's
@@ -36,6 +38,11 @@ type Payload = {
   website?: unknown;
   company?: unknown;
   fillMs?: unknown;
+  // The booking forms: where the visit started (source, paid or not,
+  // campaign, advert; lib/traffic-source.ts), and the id shared with the
+  // browser's Meta Lead event.
+  attribution?: unknown;
+  metaEventId?: unknown;
 };
 
 function str(value: unknown, max: number): string {
@@ -110,7 +117,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Check the email address." }, { status: 400 });
   }
 
+  // Untrusted like any input, so capped, and only ever shown to the team as a label.
+  const attr = body.attribution && typeof body.attribution === "object" ? (body.attribution as Record<string, unknown>) : {};
+  const attribution = {
+    source: str(attr.source, 80) || null,
+    campaign: str(attr.campaign, 120) || null,
+    medium: str(attr.medium, 40) || null,
+    ad: str(attr.ad, 120) || null,
+  };
+
   const label = path.length ? path.join(" › ") : ENQUIRY_TYPES[type].label;
+
+  // The booking forms' Lead, the server's copy of the one the browser
+  // sends (Kanvas Academy's trial booking). Only from a form that sent an
+  // event id, and does nothing without the Meta settings or the visitor's
+  // cookie consent (lib/meta-capi.ts).
+  const metaEventId = str(body.metaEventId, 64);
+  async function accepted() {
+    if (metaEventId) {
+      await sendMetaConversionEvent({
+        eventName: "Lead",
+        eventId: metaEventId,
+        email: email || undefined,
+        phone: normalizePhone(phone) ?? undefined,
+        customData: { content_name: label },
+      });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const stored = await recordEnquiry({
     type,
     label,
@@ -123,12 +158,13 @@ export async function POST(request: NextRequest) {
     answers,
     message,
     preferred,
+    attribution,
   });
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return stored
-      ? NextResponse.json({ ok: true })
+      ? accepted()
       : NextResponse.json({ error: "Email delivery isn't configured." }, { status: 503 });
   }
 
@@ -181,10 +217,10 @@ export async function POST(request: NextRequest) {
     if (!response.ok && !stored) {
       return NextResponse.json({ error: "Couldn't send just now." }, { status: 502 });
     }
-    return NextResponse.json({ ok: true });
+    return accepted();
   } catch {
     return stored
-      ? NextResponse.json({ ok: true })
+      ? accepted()
       : NextResponse.json({ error: "Couldn't send just now." }, { status: 502 });
   }
 }

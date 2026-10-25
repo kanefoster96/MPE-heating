@@ -30,6 +30,7 @@ export type Customer = {
   boilerAge: string | null;
   boilerLocation: string | null;
   lastService: string | null;
+  boilerNotes: string | null;
   accessNotes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -57,6 +58,7 @@ type Row = {
   boiler_age: string | null;
   boiler_location: string | null;
   last_service: string | null;
+  boiler_notes: string | null;
   access_notes: string | null;
   created_at: string;
   updated_at: string;
@@ -78,6 +80,7 @@ function mapCustomer(r: Row): Customer {
     boilerAge: r.boiler_age,
     boilerLocation: r.boiler_location,
     lastService: r.last_service,
+    boilerNotes: r.boiler_notes ?? null,
     accessNotes: r.access_notes,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -109,6 +112,7 @@ export type CustomerFields = {
   boilerAge: string | null;
   boilerLocation: string | null;
   lastService: string | null;
+  boilerNotes: string | null;
   accessNotes: string | null;
 };
 
@@ -123,10 +127,11 @@ const FIELD_COLUMN: Record<keyof CustomerFields, keyof Row> = {
   boilerAge: "boiler_age",
   boilerLocation: "boiler_location",
   lastService: "last_service",
+  boilerNotes: "boiler_notes",
   accessNotes: "access_notes",
 };
 
-const MAX_LENGTH: Partial<Record<keyof CustomerFields, number>> = { address: 400, accessNotes: 1000, name: 120, email: 200 };
+const MAX_LENGTH: Partial<Record<keyof CustomerFields, number>> = { address: 400, accessNotes: 1000, boilerNotes: 1000, name: 120, email: 200 };
 
 /**
  * Reads and checks a customer form. Empty fields clear; a phone must be a

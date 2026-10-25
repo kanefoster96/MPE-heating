@@ -213,6 +213,73 @@ a native app, so it arrives with the MPE app. The server side is ready:
 `/api/payment-requests/<id>/tap-to-pay`. Until then, use **They've paid me
 in person** for any card machine Fergal already has.
 
+**Paying monthly.** On an invoice, tick **Let them pay monthly** and pick
+how many payments (2 to 12) and any deposit. The preview shows exactly
+what they'll be offered, e.g. "£650 today (including a £500 deposit), then
+£150 a month on the same date for 9 months". Their pay page then offers
+that next to paying in full.
+
+How it runs:
+- **Set dates.** Their first payment (the deposit and first month) saves
+  their card. After that, the card is charged on the same date each month
+  (the 1st to the 28th), by the 5-minute follow-up job from 10am.
+- **Until it's paid.** Each month takes the monthly amount, or what's left
+  if that's less, so the last payment adjusts itself (e.g. £25 left on a
+  £50 a month plan takes £25). It doesn't end until the balance is £0.
+- **Pay off any time.** On their invoice page they can see what's left,
+  every payment made and the next date. They can pay off any amount, or
+  the rest in one go, and change the card. Paying extra doesn't change
+  the dates or the monthly amount; it just finishes sooner.
+- **Missed payments.** If a month's payment fails, it's still owed and the
+  dates carry on. They're sent the link to pay it or change card, and the
+  team gets a push.
+- **In person.** On the Take payment page, "They've paid some in person"
+  records cash, card machine or bank transfer towards the balance.
+  **Stop monthly payments** stops the dates (what's left can still be paid
+  off), and **Restart** starts them again.
+- **Paid off.** When the balance reaches £0 the invoice is marked paid and
+  they get a receipt.
+
+Keep it to 12 payments or fewer within a year, with nothing added:
+interest-free credit like that doesn't need FCA consumer credit
+authorisation. Longer terms, or charging interest, need a finance provider.
+The site won't offer more than 12. The work is usually done before it's all
+paid, so it's Fergal's risk if someone stops paying.
+
+### Maintenance plan
+
+The plan includes what the site already says: free call-outs all year
+round and a free yearly service. Set its price under **Settings →
+Maintenance plan**: monthly, yearly or both. A minimum term is optional.
+With no price set, the plan's booking form still takes enquiries, but no
+one can join online. Members keep the price they joined at.
+
+**Joining.** On a customer's page, **Send them the plan** sends their own
+link by message, text, email and the app. They choose monthly or yearly
+and pay by Apple Pay, Google Pay or card. Customers can also join from
+their account. The team gets a push when someone joins, and the customer
+gets a welcome message.
+
+**Day to day.**
+- A member's visits show a green **Plan** chip on the schedule, and their
+  page says "On the maintenance plan".
+- The Take payment page doesn't offer a member the call-out fee. On a
+  service, it notes the service is included.
+- Finishing a service with "Serviced on this visit" ticked records it as
+  their yearly service.
+- **Customers → Plan members** lists everyone, roughly what the plan brings
+  in a month, failed payments, and who's leaving.
+
+**Changes.** Members manage it from their account:
+- **Update card and see payments** opens Stripe's billing page.
+- **Cancel my plan** runs it to the end of what they've paid for, or to
+  the end of the minimum term if that's later.
+- **Keep my plan** undoes a cancellation.
+
+The team can do the same from the customer's page, and can also end a plan
+today. A failed payment sends them Stripe's link to pay it or update their
+card, and the team gets a push.
+
 ### Finishing a job and reviews
 
 Tapping **Done** on a visit opens a short finish screen:
@@ -244,6 +311,25 @@ Google.
 Reviews show on the customer's page against each visit, including whether
 they went on to Google.
 
+### Fergal's home page
+
+After logging in, the team lands on **Home** (`/staff`):
+- **Needs you:** unread messages, new jobs, visit requests to confirm,
+  invoices unpaid over a week, and failed monthly or plan payments. Each
+  one links to where it's dealt with. When nothing's waiting, it says so.
+- **Today:** the day's visits, and **next two weeks**: how full each day
+  is, 8am to 5pm.
+- **The business:** taken this month (against last month), owed, plan
+  members and roughly what they bring in a month, and reviews over the
+  last 90 days.
+- **New jobs this month:** booking forms, how many were booked in, and
+  where they came from (Facebook or Instagram ads, Google, direct). This
+  needs the Meta pixel and ad links set up (docs/setup-checklist.md).
+- **Invoices** (`/staff/invoices`): everything unpaid and for how long,
+  everything being paid monthly and what's left, and the last 90 days paid.
+
+On a phone, **Log out** is at the bottom of Home.
+
 ### Customers
 
 Every booking form and every customer who leaves their details in the chat
@@ -259,8 +345,15 @@ page at `/staff/customers` has:
 ### Customer accounts
 
 At `/account`, customers sign in with a link emailed to them, with no
-password. They see their upcoming visits and can update their own details
-and boiler. They never see the team's notes. If they were chatting as a
+password. They see their upcoming and past visits and their maintenance
+plan, and can:
+- update their details, address and boiler, including notes about the
+  boiler (noises, error codes) that the team sees on the visit card;
+- see every invoice, call-out fee and plan payment, with receipts to print
+  or save;
+- see their saved cards, add one, and remove one that isn't in use. A
+  card their plan or monthly payments use is changed from the plan or the
+  invoice first. They never see the team's notes. If they were chatting as a
 website guest in the same browser, the conversation moves to their
 account.
 
@@ -337,9 +430,12 @@ twice.
 1. In Stripe, turn on Apple Pay and Google Pay under **Settings →
    Payment methods**. Checkout shows them automatically.
 2. Copy the secret key into `STRIPE_SECRET_KEY`.
-3. Add a webhook to `https://<site>/api/webhooks/stripe` for the
-   `payment_intent.succeeded` event. Copy its signing secret into
-   `STRIPE_WEBHOOK_SECRET`.
+3. Add a webhook to `https://<site>/api/webhooks/stripe` for these events:
+   `payment_intent.succeeded`, `checkout.session.completed`,
+   `invoice.paid`, `invoice.payment_failed`,
+   `customer.subscription.updated` and `customer.subscription.deleted`.
+   The last five are for the maintenance plan and monthly payments. Copy
+   its signing secret into `STRIPE_WEBHOOK_SECRET`.
 4. For Tap to Pay (with the app), create a location under **Terminal →
    Locations** and set its id as `STRIPE_TERMINAL_LOCATION`.
 

@@ -18,7 +18,9 @@ import { DayPartFields } from "@/components/DayPartPicker";
 import { formatPence, invoiceNumber, paymentsForCustomer } from "@/lib/payments";
 import { BILLING_LABEL, PLAN_BENEFITS, earliestEnd, minTermLine, planDate, planFor, planOpen, planPrices, priceLine } from "@/lib/maintenance-plan";
 import { instalmentProgress } from "@/lib/instalments";
-import { cancelMyPlan, keepMyPlan, openBillingPortal, requestVisit, sendSignInLink, signOut, startPlan, updateMyDetails } from "./actions";
+import { addMyCard, cancelMyPlan, keepMyPlan, openBillingPortal, removeMyCard, requestVisit, sendSignInLink, signOut, startPlan, updateMyDetails } from "./actions";
+import { cardsFor, planPaymentsFor } from "@/lib/customer-cards";
+import { paymentsOn } from "@/lib/payments";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -53,9 +55,9 @@ function Shell({ children }: { children: React.ReactNode }) {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; error?: string; saved?: string; requested?: string; requestError?: string; plan?: string; planError?: string }>;
+  searchParams: Promise<{ sent?: string; error?: string; saved?: string; requested?: string; requestError?: string; plan?: string; planError?: string; card?: string; cardError?: string }>;
 }) {
-  const { sent, error, saved, requested, requestError, plan: planFlash, planError } = await searchParams;
+  const { sent, error, saved, requested, requestError, plan: planFlash, planError, card: cardFlash, cardError } = await searchParams;
 
   if (!CHAT_ON) {
     return (
@@ -118,10 +120,12 @@ export default async function AccountPage({
   const payments = customer ? (await paymentsForCustomer(customer.id)).filter((x) => x.status !== "cancelled") : [];
   const upcoming = visits.filter((v) => v.day >= today && (v.status === "booked" || v.status === "requested")).reverse();
   const past = visits.filter((v) => v.status === "done").slice(0, 10);
-  const [plan, prices, progress] = await Promise.all([
+  const [plan, prices, progress, cards, planPayments] = await Promise.all([
     customer ? planFor(customer.id) : Promise.resolve(null),
     planPrices(),
     instalmentProgress(payments),
+    customer ? cardsFor(customer.id) : Promise.resolve([]),
+    customer ? planPaymentsFor(customer.id) : Promise.resolve([]),
   ]);
   const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
   const canJoin = !onPlan && planOpen(prices);
@@ -142,7 +146,21 @@ export default async function AccountPage({
         </form>
       </div>
 
-      <section className={`mt-8 ${CARD}`} aria-labelledby="visits">
+      <nav className="mt-6 flex flex-wrap gap-2" aria-label="On this page" data-account-nav>
+        {[
+          { href: "#visits", label: "Visits" },
+          ...(onPlan || canJoin ? [{ href: "#plan", label: "Maintenance plan" }] : []),
+          ...(payments.length || planPayments.length ? [{ href: "#payments", label: "Payments and receipts" }] : []),
+          ...(paymentsOn() ? [{ href: "#cards", label: "Cards" }] : []),
+          { href: "#details", label: "Details and boiler" },
+        ].map((l) => (
+          <a key={l.href} href={l.href} className="inline-flex min-h-11 items-center rounded-full border border-line bg-white px-4 text-sm font-semibold text-navy hover:border-navy/40">
+            {l.label}
+          </a>
+        ))}
+      </nav>
+
+      <section className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="visits">
         <h2 id="visits" className="text-xl font-semibold text-navy">
           Your visits
         </h2>
@@ -304,11 +322,12 @@ export default async function AccountPage({
         </section>
       )}
 
-      {payments.length > 0 && (
+      {(payments.length > 0 || planPayments.length > 0) && (
         <section id="payments" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="payments-heading">
           <h2 id="payments-heading" className="text-xl font-semibold text-navy">
-            Invoices and payments
+            Payments and receipts
           </h2>
+          <p className="mt-1 text-sm text-text-2">Open any of them for the invoice or receipt, to print or save.</p>
           <ul className="mt-4 flex flex-col gap-2" data-my-payments>
             {payments.map((pay) => (
               <li key={pay.id}>
@@ -337,6 +356,81 @@ export default async function AccountPage({
             ))}
           </ul>
           {paysMonthly && <p className="mt-4 text-sm text-text-2">Open an invoice you&rsquo;re paying monthly to pay some off or change the card.</p>}
+          {planPayments.length > 0 && (
+            <>
+              <h3 className="mt-6 font-semibold text-navy">Maintenance plan payments</h3>
+              <ul className="mt-2 flex flex-col divide-y divide-line border-y border-line text-sm" data-plan-payments>
+                {planPayments.map((pp) => (
+                  <li key={pp.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="text-text-2">{longDate(pp.date.slice(0, 10))}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="font-semibold text-navy">{formatPence(pp.amountPence)}</span>
+                      {pp.url ? (
+                        <a href={pp.url} target="_blank" rel="noopener noreferrer" className={`inline-flex min-h-11 items-center font-semibold underline underline-offset-4 ${pp.status === "open" ? "text-danger" : "text-navy"}`}>
+                          {pp.status === "paid" ? "Receipt" : pp.status === "open" ? "Pay now" : "View"}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-text-2">{pp.status === "paid" ? "Paid" : ""}</span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
+
+      {paymentsOn() && (
+        <section id="cards" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="cards-heading">
+          <h2 id="cards-heading" className="text-xl font-semibold text-navy">
+            Your cards
+          </h2>
+          <p className="mt-1 text-sm text-text-2">Cards you&rsquo;ve saved with MPE. We always ask you before using one, unless it&rsquo;s for your plan or monthly payments you&rsquo;ve agreed to.</p>
+          {cardFlash === "added" && <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">Card saved. It can take a moment to show: refresh if it isn&rsquo;t here yet.</p>}
+          {cardFlash === "removed" && <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">Card removed.</p>}
+          {cardError && <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{cardError}</p>}
+          {cards.length === 0 ? (
+            <p className="mt-4 text-text-2">No cards saved.</p>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-2" data-my-cards>
+              {cards.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-cream px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-navy">
+                      {c.brand} ending {c.last4}
+                    </span>
+                    <span className={`block text-sm ${c.expired ? "text-danger" : "text-text-2"}`}>
+                      {c.expired ? "Expired" : "Expires"} {c.expires}
+                      {c.usedFor.length ? ` · ${c.usedFor.join(", ")}` : ""}
+                    </span>
+                  </span>
+                  {c.usedFor.length === 0 && (
+                    <form action={removeMyCard.bind(null, c.id)}>
+                      <button type="submit" className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-danger hover:bg-danger/10">
+                        Remove
+                      </button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <form action={addMyCard}>
+              <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40">
+                Add a card
+              </button>
+            </form>
+            {onPlan && (
+              <form action={openBillingPortal}>
+                <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40">
+                  Change the card for your plan
+                </button>
+              </form>
+            )}
+          </div>
+          {paysMonthly && <p className="mt-3 text-sm text-text-2">To change the card for monthly payments, open that invoice above.</p>}
         </section>
       )}
 
@@ -374,7 +468,7 @@ export default async function AccountPage({
 
       <section id="details" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="details-heading">
         <h2 id="details-heading" className="text-xl font-semibold text-navy">
-          Your details and boiler
+          Your details, address and boiler
         </h2>
         <p className="mt-1 text-text-2">Keep these up to date and our engineers arrive knowing what to expect.</p>
         {saved && <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">Saved. Thanks!</p>}

@@ -15,6 +15,7 @@ import { requestedWhen } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { KIND_LABEL, REQUESTABLE_KINDS, addDays, isISODate, isPart, type AppointmentKind } from "@/lib/day-plan";
 import { billingPortalUrl, cancelPlan, getPlanMember, keepPlan, pendingPlanFor, planDate } from "@/lib/maintenance-plan";
+import { addCardUrl, removeCard } from "@/lib/customer-cards";
 
 /**
  * Emails the customer a sign-in link: no password to remember. Their
@@ -154,4 +155,19 @@ export async function keepMyPlan(memberId: string) {
   if (!result.ok) redirect(`/account?planError=${encodeURIComponent(result.error)}#plan`);
   revalidatePath("/account");
   redirect("/account?plan=kept#plan");
+}
+
+/** Save a new card with MPE: Stripe's secure page, nothing charged. */
+export async function addMyCard() {
+  const customer = await requireCustomer();
+  const url = await addCardUrl(customer.id, "/account#cards");
+  if (!url) redirect(`/account?cardError=${encodeURIComponent("Couldn't open that just now. Please try again.")}#cards`);
+  redirect(url);
+}
+
+export async function removeMyCard(paymentMethodId: string) {
+  const customer = await requireCustomer();
+  const result = await removeCard(customer.id, paymentMethodId);
+  revalidatePath("/account");
+  redirect(result.ok ? "/account?card=removed#cards" : `/account?cardError=${encodeURIComponent(result.error)}#cards`);
 }

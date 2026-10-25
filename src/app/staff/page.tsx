@@ -14,7 +14,7 @@ import { logout } from "../login/actions";
 
 export const metadata: Metadata = { title: "Home" };
 
-const CARD = "rounded-2xl border border-border bg-surface p-5";
+const CARD = "min-w-0 rounded-2xl border border-border bg-surface p-5";
 const SHORT_DAY = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short" });
 
 /**
@@ -38,7 +38,9 @@ export default async function StaffHome() {
   ]);
   const todays = visits.filter((v) => v.status !== "cancelled" && v.status !== "requested");
   const customers = await getCustomers(todays.map((v) => v.customerId).filter((id): id is string => !!id));
-  const first = resolveDisplayName(user).split(" ")[0];
+  // Their first name, if they've one set (not their email).
+  const name = resolveDisplayName(user);
+  const first = name.includes("@") ? null : name.split(" ")[0];
   const greeting = minutes < 12 * 60 ? "Morning" : minutes < 18 * 60 ? "Afternoon" : "Evening";
 
   const needs = [
@@ -130,7 +132,7 @@ export default async function StaffHome() {
             </Link>
           </div>
           <p className="text-xs text-muted">How full each day is, 8am to 5pm.</p>
-          <ul className="mt-3 grid grid-cols-7 gap-1.5" data-fortnight>
+          <ul className="mt-3 grid grid-cols-[repeat(7,minmax(0,1fr))] gap-1.5" data-fortnight>
             {days.map((d) => {
               const full = Math.min(100, Math.round((d.minutes / (WORKDAY.end - WORKDAY.start)) * 100));
               return (

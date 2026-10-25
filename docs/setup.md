@@ -311,6 +311,25 @@ Google.
 Reviews show on the customer's page against each visit, including whether
 they went on to Google.
 
+### Fergal's home page
+
+After logging in, the team lands on **Home** (`/staff`):
+- **Needs you:** unread messages, new jobs, visit requests to confirm,
+  invoices unpaid over a week, and failed monthly or plan payments. Each
+  one links to where it's dealt with. When nothing's waiting, it says so.
+- **Today:** the day's visits, and **next two weeks**: how full each day
+  is, 8am to 5pm.
+- **The business:** taken this month (against last month), owed, plan
+  members and roughly what they bring in a month, and reviews over the
+  last 90 days.
+- **New jobs this month:** booking forms, how many were booked in, and
+  where they came from (Facebook or Instagram ads, Google, direct). This
+  needs the Meta pixel and ad links set up (docs/setup-checklist.md).
+- **Invoices** (`/staff/invoices`): everything unpaid and for how long,
+  everything being paid monthly and what's left, and the last 90 days paid.
+
+On a phone, **Log out** is at the bottom of Home.
+
 ### Customers
 
 Every booking form and every customer who leaves their details in the chat
@@ -326,8 +345,15 @@ page at `/staff/customers` has:
 ### Customer accounts
 
 At `/account`, customers sign in with a link emailed to them, with no
-password. They see their upcoming visits and can update their own details
-and boiler. They never see the team's notes. If they were chatting as a
+password. They see their upcoming and past visits and their maintenance
+plan, and can:
+- update their details, address and boiler, including notes about the
+  boiler (noises, error codes) that the team sees on the visit card;
+- see every invoice, call-out fee and plan payment, with receipts to print
+  or save;
+- see their saved cards, add one, and remove one that isn't in use. A
+  card their plan or monthly payments use is changed from the plan or the
+  invoice first. They never see the team's notes. If they were chatting as a
 website guest in the same browser, the conversation moves to their
 account.
 

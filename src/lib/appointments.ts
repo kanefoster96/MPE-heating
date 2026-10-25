@@ -48,6 +48,12 @@ export type Appointment = {
   serviceDueSentAt: string | null;
   staffNudgedAt: string | null;
   createdBy: string | null;
+  /** What was done, in words the customer sees (lib/job-completion.ts). */
+  jobReport: string | null;
+  completedAt: string | null;
+  reviewDueAt: string | null;
+  reviewAskedAt: string | null;
+  reviewRemindedAt: string | null;
   /** The customer asked to move it: to this day and part of the day. */
   change: { day: string; part: Part | null; note: string | null; at: string } | null;
 };
@@ -79,6 +85,11 @@ type Row = {
   service_due_sent_at: string | null;
   staff_nudged_at: string | null;
   created_by: string | null;
+  job_report: string | null;
+  completed_at: string | null;
+  review_due_at: string | null;
+  review_asked_at: string | null;
+  review_reminded_at: string | null;
   change_day: string | null;
   change_part: Part | null;
   change_note: string | null;
@@ -113,6 +124,11 @@ function mapAppointment(r: Row): Appointment {
     serviceDueSentAt: r.service_due_sent_at ?? null,
     staffNudgedAt: r.staff_nudged_at ?? null,
     createdBy: r.created_by ?? null,
+    jobReport: r.job_report ?? null,
+    completedAt: r.completed_at ?? null,
+    reviewDueAt: r.review_due_at ?? null,
+    reviewAskedAt: r.review_asked_at ?? null,
+    reviewRemindedAt: r.review_reminded_at ?? null,
     change:
       r.change_day && r.change_requested_at
         ? { day: r.change_day, part: r.change_part ?? null, note: r.change_note ?? null, at: r.change_requested_at }

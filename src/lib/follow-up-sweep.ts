@@ -8,6 +8,7 @@ import { sendEnquiryFollowUp } from "@/lib/enquiry-follow-up";
 import { chatRecipientIds } from "@/lib/chat-routing";
 import { pushToUsers } from "@/lib/push";
 import { sendUnpaidReminder } from "@/lib/payments";
+import { REVIEW_REMIND_AFTER_DAYS, sendReviewAsk } from "@/lib/job-completion";
 
 /**
  * Every automatic message to customers, and the team's nudges, in one pass.
@@ -24,7 +25,9 @@ import { sendUnpaidReminder } from "@/lib/payments";
  * - the team: a push when a new job or a customer's request has waited two
  *   hours unanswered;
  * - an invoice or call-out fee still unpaid: a reminder after 3 days and
- *   after 7, then the team's told it needs chasing.
+ *   after 7, then the team's told it needs chasing;
+ * - a finished job: "how did we do?" a couple of hours later, and one
+ *   reminder three days on (lib/job-completion.ts).
  *
  * Run every five minutes (vercel.json). Every stage checks its own "sent"
  * column first and sets it after, so a re-run never sends twice, and each
@@ -54,6 +57,7 @@ const UNPAID_TEAM_DAYS = 10;
 const MAX_SENDS = 40;
 
 export type SweepResult = {
+  reviewAsks: number;
   unpaidReminders: number;
   hourBefore: number;
   dayBefore: number;
@@ -66,7 +70,7 @@ export type SweepResult = {
 const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 3_600_000;
 
 export async function runFollowUpSweep(): Promise<SweepResult> {
-  const result: SweepResult = { unpaidReminders: 0, hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
+  const result: SweepResult = { reviewAsks: 0, unpaidReminders: 0, hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
   const { dateISO: today, minutes } = londonNow();
   const admin = createAdminClient();
   let budget = MAX_SENDS;
@@ -269,6 +273,37 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     }
   });
 
+  // 8. Finished jobs: how did we do? Then one reminder.
+  await stage("reviews", async () => {
+    if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
+    const nowIso = new Date().toISOString();
+    const { data: due } = await admin
+      .from("appointments")
+      .select("id")
+      .eq("status", "done")
+      .not("customer_id", "is", null)
+      .lte("review_due_at", nowIso)
+      .is("review_asked_at", null)
+      .limit(50);
+    for (const row of due ?? []) {
+      if (!spend()) return;
+      if (await sendReviewAsk(row.id as string, 1)) result.reviewAsks++;
+      await admin.from("appointments").update({ review_asked_at: new Date().toISOString() }).eq("id", row.id as string);
+    }
+    const { data: remind } = await admin
+      .from("appointments")
+      .select("id")
+      .eq("status", "done")
+      .lte("review_asked_at", new Date(Date.now() - REVIEW_REMIND_AFTER_DAYS * 86_400_000).toISOString())
+      .is("review_reminded_at", null)
+      .limit(50);
+    for (const row of remind ?? []) {
+      if (!spend()) return;
+      if (await sendReviewAsk(row.id as string, 2)) result.reviewAsks++;
+      await admin.from("appointments").update({ review_reminded_at: new Date().toISOString() }).eq("id", row.id as string);
+    }
+  });
+
   return result;
 }
 
@@ -279,6 +314,8 @@ export function remindersSent(a: Appointment): { label: string; at: string }[] {
     a.hourRemindedAt ? { label: "On-our-way message", at: a.hourRemindedAt } : null,
     a.missedFollowupAt ? { label: "Sorry we missed you", at: a.missedFollowupAt } : null,
     a.serviceDueSentAt ? { label: "Service due reminder", at: a.serviceDueSentAt } : null,
+    a.reviewAskedAt ? { label: "Review ask", at: a.reviewAskedAt } : null,
+    a.reviewRemindedAt ? { label: "Review reminder", at: a.reviewRemindedAt } : null,
   ].filter((x): x is { label: string; at: string } => !!x);
 }
 

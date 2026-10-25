@@ -4,7 +4,8 @@ import { requireStaff } from "@/lib/staff-auth";
 import { isAdmin } from "@/lib/coach";
 import { MAX_UPSELLS, SUGGESTED_PRODUCTS, defaultUpsellPrice, listProducts, type Product } from "@/lib/products";
 import { formatPence } from "@/lib/payments";
-import { addProduct, removeProduct, saveProduct, toggleUpsell } from "./actions";
+import { addProduct, removeProduct, saveProduct, saveReviewLink, toggleUpsell } from "./actions";
+import { getSetting } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -20,12 +21,12 @@ const pounds = (pence: number | null | undefined) => (pence ? (pence / 100).toSt
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string }>;
+  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string; reviewDone?: string; reviewError?: string }>;
 }) {
   const params = await searchParams;
   const user = await requireStaff("/staff/settings");
   if (!(await isAdmin(user.id))) redirect("/staff/schedule");
-  const products = await listProducts();
+  const [products, googleReview] = await Promise.all([listProducts(), getSetting("review_url").catch(() => null)]);
   const upsellCount = products.filter((p) => p.upsell).length;
   const have = new Set(products.map((p) => p.name.toLowerCase()));
   const suggestions = SUGGESTED_PRODUCTS.filter((s) => !have.has(s.name.toLowerCase()));
@@ -35,6 +36,31 @@ export default async function SettingsPage({
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <p className="text-sm uppercase tracking-widest text-muted">MPE team</p>
       <h1 className="mt-1 text-3xl font-semibold tracking-tight">Settings</h1>
+
+      <section id="reviews" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="reviews-heading">
+        <h2 id="reviews-heading" className="text-lg font-semibold">
+          Google reviews
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          After a job, customers rate it for you, then get a button to post a review on your Google Business Profile. Everyone gets the button,
+          whatever they rated: only asking happy customers isn&rsquo;t allowed by Google.
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          To find the link: open your Google Business Profile (search &ldquo;my business&rdquo; on Google), tap <strong>Ask for reviews</strong>, and copy the link.
+        </p>
+        {params.reviewDone && <p className="mt-3 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">{params.reviewDone}</p>}
+        {params.reviewError && <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{params.reviewError}</p>}
+        <form action={saveReviewLink} className="mt-4 flex flex-col gap-2 sm:flex-row" data-review-link>
+          <label className="flex-1">
+            <span className="sr-only">Google review link</span>
+            <input name="reviewUrl" type="url" inputMode="url" defaultValue={googleReview ?? ""} placeholder="https://g.page/r/…/review" className={FIELD} />
+          </label>
+          <button type="submit" className="min-h-11 rounded-full bg-foreground px-5 text-sm font-semibold text-background hover:opacity-90">
+            Save
+          </button>
+        </form>
+        {!googleReview && <p className="mt-2 text-xs text-muted">Until it&rsquo;s set, customers can still rate the job for you; they just aren&rsquo;t sent to Google.</p>}
+      </section>
 
       <section id="products" className="mt-8 scroll-mt-20" aria-labelledby="products-heading">
         <h2 id="products-heading" className="text-lg font-semibold">

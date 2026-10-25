@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/staff-auth";
 import { isAdmin } from "@/lib/coach";
 import { archiveProduct, createProduct, productFromForm, setUpsell, updateProduct } from "@/lib/products";
+import { parseReviewUrl, setSetting } from "@/lib/settings";
 
 async function requireAdmin() {
   const user = await requireStaff("/staff/settings");
@@ -44,4 +45,15 @@ export async function removeProduct(id: string) {
   await archiveProduct(id);
   revalidatePath("/staff/settings");
   redirect(back({ done: "Removed." }));
+}
+
+/** The Google Business Profile review link customers are asked to use. */
+export async function saveReviewLink(formData: FormData) {
+  await requireAdmin();
+  const parsed = parseReviewUrl(String(formData.get("reviewUrl") ?? ""));
+  const to = (params: Record<string, string>) => `/staff/settings?${new URLSearchParams(params).toString()}#reviews`;
+  if (!parsed.ok) redirect(to({ reviewError: parsed.error }));
+  if (!(await setSetting("review_url", parsed.url))) redirect(to({ reviewError: "Couldn't save that." }));
+  revalidatePath("/staff/settings");
+  redirect(to({ reviewDone: parsed.url ? "Review link saved." : "Review link removed." }));
 }

@@ -13,6 +13,7 @@ const prompts: Record<EnquiryType, string> = {
   repair: "What's wrong? E.g. no heating, or the boiler's showing an error code.",
   service: "Your boiler make, and when suits you.",
   quote: "What you have now, and what you'd like.",
+  plan: "Your boiler make and age, and who it's for.",
   commercial: "Your business, and what you need.",
   other: "How can we help?",
 };

@@ -62,6 +62,12 @@ export function CustomerFields({ customer, withEmail = true }: { customer?: Part
         <Field name="boilerAge" label="Roughly how old" value={customer?.boilerAge} hint="e.g. 8 years" />
         <Field name="boilerLocation" label="Where it is" value={customer?.boilerLocation} hint="e.g. kitchen cupboard" />
         <Field name="lastService" label="Last serviced" value={customer?.lastService} hint="e.g. March 2025" />
+        <label className="flex flex-col gap-2 sm:col-span-2">
+          <span className="text-sm text-muted">
+            About the boiler <span className="text-muted">(noises, error codes, anything we should know)</span>
+          </span>
+          <textarea name="boilerNotes" defaultValue={customer?.boilerNotes ?? ""} rows={3} className={FIELD} />
+        </label>
       </fieldset>
 
       <label className="flex flex-col gap-2">

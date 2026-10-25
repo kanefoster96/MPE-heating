@@ -26,7 +26,7 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}${suffix}`);
   }
 
-  redirect(next ?? "/staff/messages");
+  redirect(next ?? "/staff");
 }
 
 export async function logout() {

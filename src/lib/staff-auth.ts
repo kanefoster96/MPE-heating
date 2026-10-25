@@ -8,7 +8,7 @@ import { CHAT_ON } from "@/lib/chat-on";
  * (user_roles). Anyone else goes to the login, or home. `next` is where to
  * come back to after logging in.
  */
-export async function requireStaff(next = "/staff/messages") {
+export async function requireStaff(next = "/staff") {
   if (!CHAT_ON) redirect("/login");
   const supabase = await createClient();
   const {

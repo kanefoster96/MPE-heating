@@ -21,6 +21,9 @@ import { DayPartPicker } from "./DayPartPicker";
 import { isISODate, isPart, PART_LABEL } from "@/lib/day-plan";
 import { requestedWhen } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
+import { getFirstTouch } from "@/lib/first-touch";
+import { parseAd, parseCampaign, parseMedium, parseTrafficSource } from "@/lib/traffic-source";
+import { newMetaEventId, trackMetaEvent } from "@/lib/meta-pixel";
 
 // The dedicated booking forms (call-out, new boiler, service, plan), built
 // on Kanvas Academy's trial form: one step per panel under numbered
@@ -203,6 +206,12 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
 
     setSending(true);
     setNotice(null);
+    // Shared with the server's copy of the Lead (api/contact) so Meta
+    // counts the browser and server events as one booking, not two.
+    const metaEventId = newMetaEventId();
+    // Where the visit started, not this page: by the contact step the
+    // advert's ?utm_ and ?fbclid= are long gone (lib/first-touch.ts).
+    const firstTouch = getFirstTouch();
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
@@ -220,9 +229,18 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
           sameDayRequested: !!step.sameDay && sameDay,
           website,
           fillMs: fillMsSince(openedAt),
+          attribution: {
+            source: parseTrafficSource(firstTouch.referrer, firstTouch.search),
+            campaign: parseCampaign(firstTouch.search),
+            medium: parseMedium(firstTouch.search),
+            ad: parseAd(firstTouch.search),
+          },
+          metaEventId,
         }),
       });
       if (res.ok) {
+        // Does nothing unless the pixel loaded (set up, and cookies accepted).
+        trackMetaEvent("Lead", { content_name: flow.label }, metaEventId);
         writeSaved(flow.key, null);
         setMoved(true);
         setSent(true);

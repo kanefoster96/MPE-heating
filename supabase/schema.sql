@@ -368,6 +368,10 @@ create table if not exists public.customer_notes (
   author_id uuid references auth.users (id) on delete set null,
   created_at timestamptz not null default now()
 );
+-- What the customer tells us about their boiler (noises, error codes, its
+-- history). Not private: they write it from their account, the team sees it.
+alter table public.customers add column if not exists boiler_notes text;
+
 create index if not exists customer_notes_customer_idx on public.customer_notes (customer_id, created_at desc);
 alter table public.customer_notes enable row level security;
 

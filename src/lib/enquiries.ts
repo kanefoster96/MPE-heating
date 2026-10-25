@@ -8,6 +8,7 @@ import { findOrCreateCustomer } from "@/lib/customers";
 import { createRequest } from "@/lib/appointments";
 import { sendVisitNotice } from "@/lib/visit-notify";
 import type { Part } from "@/lib/day-plan";
+import { captureMetaClickIds } from "@/lib/meta-capi";
 
 /**
  * Booking enquiries, filed as jobs. MPE's own addition to Kanvas Academy's
@@ -79,6 +80,12 @@ export type Enquiry = {
   followupCount: number;
   followedUpAt: string | null;
   staffNudgedAt: string | null;
+  /** Where the visit that sent it started (lib/traffic-source.ts): "Facebook / Instagram", "Google", "Direct"… */
+  trafficSource: string | null;
+  /** "paid" when an advert's click id proved it, else the link's utm_medium. Null means unknown, not organic. */
+  trafficMedium: string | null;
+  trafficCampaign: string | null;
+  trafficAd: string | null;
 };
 
 type Row = {
@@ -100,6 +107,11 @@ type Row = {
   followup_count: number | null;
   followed_up_at: string | null;
   staff_nudged_at: string | null;
+  // Missing until the attribution columns are added (supabase/schema.sql).
+  traffic_source?: string | null;
+  traffic_medium?: string | null;
+  traffic_campaign?: string | null;
+  traffic_ad?: string | null;
 };
 
 function mapEnquiry(r: Row): Enquiry {
@@ -122,7 +134,22 @@ function mapEnquiry(r: Row): Enquiry {
     followupCount: r.followup_count ?? 0,
     followedUpAt: r.followed_up_at ?? null,
     staffNudgedAt: r.staff_nudged_at ?? null,
+    trafficSource: r.traffic_source ?? null,
+    trafficMedium: r.traffic_medium ?? null,
+    trafficCampaign: r.traffic_campaign ?? null,
+    trafficAd: r.traffic_ad ?? null,
   };
+}
+
+/**
+ * Where a job came from, for the team: "From: Facebook / Instagram ad ·
+ * campaign Winter boilers · ad Video 2". Null when there's nothing worth
+ * saying (no record, or a plain "Direct" visit with no campaign).
+ */
+export function sourceLine(e: Pick<Enquiry, "trafficSource" | "trafficMedium" | "trafficCampaign" | "trafficAd">): string | null {
+  if (!e.trafficSource || (e.trafficSource === "Direct" && !e.trafficCampaign)) return null;
+  const medium = e.trafficMedium === "paid" ? " ad" : e.trafficMedium ? ` (${e.trafficMedium})` : "";
+  return [`From: ${e.trafficSource}${medium}`, e.trafficCampaign && `campaign ${e.trafficCampaign}`, e.trafficAd && `ad ${e.trafficAd}`].filter(Boolean).join(" · ");
 }
 
 /** Whether enquiries can be saved: the Supabase service key is set. */
@@ -194,6 +221,8 @@ export async function recordEnquiry(input: {
   message: string;
   /** From the "when suits you" step: becomes a request on the team's schedule. */
   preferred?: { day: string; part: Part } | null;
+  /** Where the visit started, from the booking forms (lib/traffic-source.ts). */
+  attribution?: { source: string | null; campaign: string | null; medium: string | null; ad: string | null };
 }): Promise<boolean> {
   if (!enquiriesOn()) return false;
   try {
@@ -251,6 +280,25 @@ export async function recordEnquiry(input: {
     if (error) {
       console.error("recordEnquiry: insert failed", error);
       return false;
+    }
+
+    // Which advert or link brought them, and (with cookie consent) the
+    // advert click itself, so Fergal can see what each job came from.
+    // Written after the insert rather than in it, as the Academy does:
+    // this only ever helps the adverts, so a database that hasn't had the
+    // columns added yet must never cost someone their booking.
+    const a = input.attribution;
+    const clickIds = await captureMetaClickIds();
+    const extra = {
+      ...(a?.source ? { traffic_source: a.source } : {}),
+      ...(a?.medium ? { traffic_medium: a.medium } : {}),
+      ...(a?.campaign ? { traffic_campaign: a.campaign } : {}),
+      ...(a?.ad ? { traffic_ad: a.ad } : {}),
+      ...(Object.keys(clickIds).length ? { meta_context: clickIds } : {}),
+    };
+    if (inserted && Object.keys(extra).length) {
+      const { error: extraError } = await admin.from("enquiries").update(extra).eq("id", inserted.id);
+      if (extraError) console.error("recordEnquiry: saving where it came from failed", inserted.id, extraError);
     }
 
     // The day they picked goes on the schedule as a request, and they get

@@ -19,6 +19,7 @@ import {
   STATUS_LABEL,
   listEnquiries,
   openEnquiryCategories,
+  sourceLine,
   type Enquiry,
   type EnquiryCategory,
   type EnquiryStatus,
@@ -260,6 +261,11 @@ function JobCard({ job }: { job: Enquiry }) {
         <p className="mt-2 line-clamp-3 text-sm text-foreground">{[...details, job.message].filter(Boolean).join(" · ")}</p>
       )}
       <p className="mt-2 text-xs text-muted">{[job.email, job.phone].filter(Boolean).join(" · ")}</p>
+      {sourceLine(job) && (
+        <p className="mt-1 text-xs text-muted" data-source>
+          {sourceLine(job)}
+        </p>
+      )}
       {job.followupCount > 0 && job.followedUpAt && (
         <p className="mt-1 text-xs text-muted" data-followed-up>
           {job.followupCount === 1 ? "Followed up automatically" : "Followed up twice (the last one)"} · {formatJobDate(job.followedUpAt)}

@@ -10,6 +10,7 @@ import { boilerRepairPage, guarantee } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
 import { SITE_URL, serviceJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
+import { MetaViewContent } from "@/components/MetaViewContent";
 
 export const metadata: Metadata = {
   title: "Boiler Repairs Whitley Bay & North East | Same-Day, £50 Call-Out Refunded",
@@ -58,6 +59,7 @@ export default function BoilerRepairPage() {
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(boilerRepairPage)} />
+      <MetaViewContent contentId={boilerRepairPage.slug} contentName={boilerRepairPage.eyebrow} />
       <JsonLd data={breadcrumbJsonLd([{ name: "Boiler repair", path: `/${boilerRepairPage.slug}` }])} />
     </>
   );

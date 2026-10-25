@@ -10,6 +10,7 @@ import { commercialPage } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
 import { SITE_URL, serviceJsonLd, breadcrumbJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
+import { MetaViewContent } from "@/components/MetaViewContent";
 
 export const metadata: Metadata = {
   title: "Commercial Gas, Heating & Electrics North East | Priority Call-Outs",
@@ -58,6 +59,7 @@ export default function CommercialPage() {
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(commercialPage)} />
+      <MetaViewContent contentId={commercialPage.slug} contentName={commercialPage.eyebrow} />
       <JsonLd data={breadcrumbJsonLd([{ name: "Commercial", path: `/${commercialPage.slug}` }])} />
     </>
   );

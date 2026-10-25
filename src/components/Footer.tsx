@@ -4,6 +4,8 @@ import { business, footerLinks, accreditations } from "@/lib/content";
 import { PhoneIcon, WhatsAppIcon } from "./icons";
 import { FreeBand } from "./FreeBand";
 import { CHAT_ON } from "@/lib/chat-on";
+import { META_PIXEL_ID } from "@/lib/meta-pixel";
+import { CookieSettingsButton } from "./CookieSettingsButton";
 
 export function Footer() {
   return (
@@ -59,6 +61,8 @@ export function Footer() {
                 Your account
               </Link>
             )}
+            {/* Only once there are advert cookies to change your mind about. */}
+            {META_PIXEL_ID && <CookieSettingsButton className="inline-flex min-h-11 items-center text-left text-text-2 hover:text-navy" />}
           </div>
 
           <div className="flex flex-col gap-1 text-sm">

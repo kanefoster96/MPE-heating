@@ -175,9 +175,42 @@ switch to live keys and a live webhook.
 - [ ] **Products and prices:** what MPE sells, and tick up to two to offer
       at repairs.
 
-## 7. Meta pixel and ads
+## 7. Meta pixel and ads (Facebook and Instagram)
 
-Filled in below once the pixel is added.
+Off until the pixel id is set. Then a cookie banner asks visitors first,
+and the pixel only loads for people who accept. It never loads on private
+pages (visits, invoices, the plan link, accounts, the team's pages).
+
+- [ ] In Meta **Events Manager**, create a dataset (pixel) for MPE, or use
+      the one in MPE's Business portfolio. Copy its id.
+- [ ] **Business settings → Brand safety → Domains:** add and verify
+      `mpenortheast.co.uk` (a DNS record, or the meta tag).
+- [ ] **Events Manager → the dataset → Settings → Conversions API →
+      Generate access token.**
+- [ ] **Settings:** leave **Automatic advanced matching** off (the privacy
+      policy doesn't cover the pixel reading form fields). Turning
+      **automatic events** off is the tighter privacy choice.
+- [ ] Set the variables below and redeploy. Then use **Test events** with
+      `META_TEST_EVENT_CODE` set: send a booking form, and **Lead** should
+      show from both Browser and Server, marked "Deduplicated". Remove the
+      test code afterwards.
+- [ ] If Events Manager asks for **Aggregated Event Measurement** for the
+      domain, put **Lead** first.
+- [ ] On every ad, under **URL parameters**, add:
+      `utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.name}}&utm_content={{ad.name}}`.
+      That's what puts "From: Facebook / Instagram ad · campaign · ad" on
+      each job, and feeds "Where jobs came from" on Fergal's home page.
+
+| Variable | Where it comes from | Public? |
+| --- | --- | --- |
+| `NEXT_PUBLIC_META_PIXEL_ID` | Events Manager → the dataset's id | Public (built into the pages: redeploy after changing) |
+| `META_CONVERSIONS_API_ACCESS_TOKEN` | The Conversions API token above | **Secret** |
+| `META_TEST_EVENT_CODE` | Optional: Events Manager → Test events. Remove after testing | **Secret** |
+
+Events sent: **PageView** (public pages), **ViewContent** (the boiler
+repair, servicing, new boilers and commercial pages), **Contact** (a tap
+on the phone number or WhatsApp) and **Lead** (a booking form sent, from
+the browser and the server, counted once).
 
 ## 8. The app (later)
 

@@ -610,6 +610,7 @@ function VisitCard({ appointment: a, customer, payments, member }: { appointment
         {customer && (customer.boilerMake || customer.boilerModel) && (
           <p className="text-muted">Boiler: {[customer.boilerMake, customer.boilerModel, customer.boilerAge].filter(Boolean).join(" · ")}</p>
         )}
+        {customer?.boilerNotes && <p className="text-muted">Their boiler notes: {customer.boilerNotes}</p>}
         {customer?.accessNotes && <p className="text-muted">Access: {customer.accessNotes}</p>}
         {a.notes && <p className="whitespace-pre-wrap rounded-lg bg-background px-3 py-2 text-foreground">{a.notes}</p>}
         {a.status === "done" && customer && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Animated, FlatList, LayoutAnimation, PanResponder, Platform, Pressable, RefreshControl, TextInput, UIManager, View } from "react-native";
+import { Animated, FlatList, PanResponder, Platform, Pressable, RefreshControl, TextInput, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ChatThread } from "@/components/chat-thread";
@@ -128,9 +128,6 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "done", label: "Done" },
 ];
 const SWIPE = 92;
-
-if (Platform.OS === "android") UIManager.setLayoutAnimationEnabledExperimental?.(true);
-const ease = () => LayoutAnimation.configureNext(LayoutAnimation.create(220, "easeInEaseOut", "opacity"));
 
 /**
  * A conversation in the inbox (Kanvas Academy's row): swipe it left for
@@ -316,7 +313,6 @@ function Inbox() {
     try {
       await apiPost("/api/mobile/chat/status", { conversationId: item.id, action: item.completed ? "reopen" : "complete" });
       haptic.success();
-      ease();
       setItems((current) => (current ?? []).map((c) => (c.id === item.id ? { ...c, completed: !item.completed, unread: false } : c)));
       refreshMe();
     } catch (err) {
@@ -359,12 +355,9 @@ function Inbox() {
             style={{ flex: 1, height: 48, fontSize: 16, fontFamily: fonts.regular, color: colors.navy }}
           />
           <Pressable
-            onPress={() => {
-              ease();
-              setFiltersOpen((v) => !v);
-            }}
+            onPress={() => setFiltersOpen((v) => !v)}
             accessibilityLabel={`Filter conversations: ${FILTERS.find((f) => f.key === filter)!.label}`}
-            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+            style={({ pressed }) => [{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.7 }]}
           >
             <Ionicons name="options-outline" size={22} color={filter === "all" ? colors.navy : colors.orangeDeep} />
           </Pressable>
@@ -376,14 +369,11 @@ function Inbox() {
               return (
                 <Pressable
                   key={f.key}
-                  onPress={() => {
-                    ease();
-                    setFilter(f.key);
-                  }}
+                  onPress={() => setFilter(f.key)}
                   accessibilityLabel={`${f.label}${active ? ", selected" : ""}`}
-                  style={{ minHeight: 44, justifyContent: "center" }}
+                  style={({ pressed }) => [{ minHeight: 44, justifyContent: "center" }, pressed && { opacity: 0.7 }]}
                 >
-                  <View style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: active ? colors.navy : colors.edge, backgroundColor: active ? colors.navy : "transparent" }}>
+                  <View style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: active ? colors.orangeDeep : colors.edge, backgroundColor: active ? colors.orangeDeep : "transparent" }}>
                     <AppText weight="semibold" style={{ color: active ? "#fff" : colors.text2, fontSize: 12 }}>
                       {f.label}
                     </AppText>
@@ -421,7 +411,7 @@ function Inbox() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              tintColor={colors.navy}
+              tintColor={colors.orangeDeep}
               onRefresh={async () => {
                 setRefreshing(true);
                 await load();

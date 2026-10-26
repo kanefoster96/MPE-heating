@@ -333,13 +333,13 @@ export function ChatThread({
                         borderRadius: 18,
                         padding: photo ? 6 : 0,
                         gap: 6,
-                        backgroundColor: mine ? colors.navy : colors.grey,
+                        backgroundColor: mine ? colors.orangeDeep : colors.grey,
                         borderWidth: mine ? 0 : 1,
                         borderColor: colors.edge,
                       }}
                     >
                       {photo && (
-                        <Pressable onPress={() => setViewing(photo)} accessibilityLabel="Open photo" accessibilityRole="imagebutton" style={{ width: 208, height: 208, borderRadius: 12, overflow: "hidden" }}>
+                        <Pressable onPress={() => setViewing(photo)} accessibilityLabel="Open photo" accessibilityRole="imagebutton" style={({ pressed }) => [{ width: 208, height: 208, borderRadius: 12, overflow: "hidden" }, pressed && { opacity: 0.85 }]}>
                           <Image source={{ uri: photo }} style={{ width: "100%", height: "100%", backgroundColor: colors.edge }} resizeMode="cover" accessibilityIgnoresInvertColors />
                           {item.pending && (
                             <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.25)" }}>
@@ -386,7 +386,7 @@ export function ChatThread({
                 <Pressable
                   onPress={() => setChannelMenu((v) => !v)}
                   accessibilityLabel={`Send as ${CHANNEL_LABEL[channel]}. Change it`}
-                  style={{ height: 44, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 6 }}
+                  style={({ pressed }) => [{ height: 44, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 6 }, pressed && { opacity: 0.7 }]}
                 >
                   <Ionicons name={CHANNEL_ICON[channel]} size={16} color={colors.navy} />
                   <AppText weight="bold" style={{ fontSize: 15 }}>
@@ -404,7 +404,7 @@ export function ChatThread({
                           setChannelMenu(false);
                         }}
                         accessibilityLabel={`${CHANNEL_LABEL[c]}${channel === c ? ", selected" : ""}`}
-                        style={{ minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12 }}
+                        style={({ pressed }) => [{ minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12 }, pressed && { backgroundColor: colors.cream }]}
                       >
                         <Ionicons name={`${CHANNEL_ICON[c]}-outline` as never} size={16} color={channel === c ? colors.navy : colors.text2} />
                         <AppText weight={channel === c ? "bold" : "regular"} style={{ fontSize: 14, flex: 1 }}>
@@ -425,7 +425,7 @@ export function ChatThread({
                 else attach();
               }}
               accessibilityLabel={actions ? "More: book, invoice, payment, quote, photo" : "Send a photo"}
-              style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+              style={({ pressed }) => [{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.7 }]}
             >
               <Ionicons name="add-circle-outline" size={28} color={colors.orangeDeep} />
             </Pressable>
@@ -438,9 +438,9 @@ export function ChatThread({
               }}
               disabled={!draft.trim() || !data}
               accessibilityLabel="Send"
-              style={{ height: 44, justifyContent: "center" }}
+              style={({ pressed }) => [{ height: 44, justifyContent: "center" }, pressed && { opacity: 0.8 }]}
             >
-              <View style={{ height: 40, borderRadius: 20, paddingHorizontal: 20, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center", opacity: !draft.trim() || !data ? 0.45 : 1 }}>
+              <View style={{ height: 40, borderRadius: 20, paddingHorizontal: 20, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center", opacity: !draft.trim() || !data ? 0.45 : 1 }}>
                 {sending ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
@@ -465,8 +465,8 @@ export function ChatThread({
             accessibilityLabel="Message"
             style={{ flex: 1, height: draft ? inputHeight : COMPOSER_MIN, borderRadius: 22, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.grey, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 16, lineHeight: 22, fontFamily: fonts.regular, color: colors.navy, textAlignVertical: "top" }}
           />
-          <Pressable onPress={attach} accessibilityLabel="Send a photo" style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
-            <Ionicons name="add-circle-outline" size={28} color={colors.navy} />
+          <Pressable onPress={attach} accessibilityLabel="Send a photo" style={({ pressed }) => [{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.7 }]}>
+            <Ionicons name="add-circle-outline" size={28} color={colors.orangeDeep} />
           </Pressable>
           <Pressable
             onPress={() => {
@@ -476,7 +476,7 @@ export function ChatThread({
             }}
             disabled={!draft.trim() || !data}
             accessibilityLabel="Send"
-            style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.navy, opacity: !draft.trim() || !data ? 0.45 : 1 }}
+            style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.orangeDeep, opacity: !draft.trim() || !data ? 0.45 : 1 }, pressed && { opacity: 0.8 }]}
           >
             {sending ? <ActivityIndicator color="#fff" /> : <Ionicons name="arrow-up" size={22} color="#fff" />}
           </Pressable>

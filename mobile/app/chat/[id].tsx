@@ -125,7 +125,7 @@ export default function TeamConversation() {
     <View style={{ flex: 1, backgroundColor: colors.page }}>
       <View style={{ paddingTop: insets.top, backgroundColor: colors.page, borderBottomWidth: 1, borderBottomColor: colors.edge }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 4, paddingVertical: 6 }}>
-          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/chat"))} accessibilityLabel="Back" style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
+          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/chat"))} accessibilityLabel="Back" style={({ pressed }) => [{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.7 }]}>
             <Ionicons name="chevron-back" size={26} color={colors.navy} />
           </Pressable>
           {team || !conversation ? (

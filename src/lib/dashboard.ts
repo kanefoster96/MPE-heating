@@ -120,3 +120,26 @@ export async function bookedPerDay(todayISO: string, days = 14): Promise<{ day: 
   }
   return out;
 }
+
+/**
+ * What came in each month, oldest first, for the app's Finance screen:
+ * invoices and call-out fees paid in one go, plus monthly payments, as the
+ * site recorded them. Before Stripe's fees (those are in Stripe).
+ */
+export async function takenByMonth(todayISO: string, months = 6): Promise<{ month: string; takenPence: number; payments: number }[]> {
+  const admin = createAdminClient();
+  const from = monthStart(todayISO, months - 1);
+  const [paid, monthly] = await Promise.all([
+    admin.from("payment_requests").select("amount_pence, paid_at").eq("status", "paid").neq("paid_via", "instalments").gte("paid_at", from),
+    admin.from("instalment_payments").select("amount_pence, paid_at").gte("paid_at", from),
+  ]);
+  const out = Array.from({ length: months }, (_, i) => ({ month: monthStart(todayISO, months - 1 - i).slice(0, 7), takenPence: 0, payments: 0 }));
+  for (const r of [...(paid.data ?? []), ...(monthly.data ?? [])] as { amount_pence: number; paid_at: string }[]) {
+    const slot = out.find((m) => m.month === r.paid_at.slice(0, 7));
+    if (slot) {
+      slot.takenPence += r.amount_pence;
+      slot.payments++;
+    }
+  }
+  return out;
+}

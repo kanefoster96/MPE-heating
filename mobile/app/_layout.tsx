@@ -76,6 +76,9 @@ export default function RootLayout() {
           <Stack.Screen name="account" />
           <Stack.Screen name="notifications" />
           <Stack.Screen name="take-payment" />
+          <Stack.Screen name="finance" />
+          <Stack.Screen name="metrics" />
+          <Stack.Screen name="certificates" />
           <Stack.Screen name="sign-in" options={{ presentation: "modal" }} />
           <Stack.Screen name="app-sign-in" options={{ animation: "fade", gestureEnabled: false }} />
           <Stack.Screen name="open" options={{ animation: "none" }} />

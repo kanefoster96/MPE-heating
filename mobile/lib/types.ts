@@ -113,3 +113,52 @@ export type StaffDay = {
   strip: { day: string; count: number; closed: boolean }[];
   waiting: number;
 };
+
+/** Fergal's Menu (src/lib/app-menu.ts on the site). */
+export type MenuCard = {
+  id: string;
+  icon: string;
+  title: string;
+  value: string;
+  caption: string;
+  tone: "alert" | "good" | "plain";
+  /** How many things need him here (the row's count). */
+  count: number;
+  route?: string;
+  path?: string;
+};
+export type StaffOverview = { name: string; attention: number; cards: MenuCard[]; admin: boolean };
+
+export type StaffFinance = {
+  months: { month: string; label: string; takenPence: number; taken: string; payments: number }[];
+  thisMonth: string;
+  lastMonth: string;
+  owed: string;
+  unpaid: number;
+  overdue: number;
+  planMonthly: string;
+  planMembers: number;
+  quotesOut: string;
+  quotesOpen: number;
+};
+
+export type MonthNumbers = {
+  month: string;
+  takenPence: number;
+  payments: number;
+  jobsDone: number;
+  enquiries: number;
+  bySource: { source: string; count: number }[];
+  quotesSent: number;
+  quotesSentPence: number;
+  quotesWon: number;
+  quotesWonPence: number;
+  planMembers: number;
+  planJoined: number;
+  planLeft: number;
+  reviews: number;
+  reviewAverage: number | null;
+  toGoogle: number;
+  referrals: number;
+};
+export type StaffMetrics = { month: string; label: string; previous: string; previousLabel: string; now: MonthNumbers; before: MonthNumbers };

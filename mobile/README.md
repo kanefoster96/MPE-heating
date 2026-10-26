@@ -49,12 +49,20 @@ picked up.
   card, and their previous jobs underneath. For the team, the day's
   visits on a fortnight strip, with Call, Directions, Chat, On my way,
   Not in, Finish and Take payment.
+- **Menu** (`app/(tabs)/menu.tsx`, the team only, in Services' place):
+  cards that turn orange when something needs Fergal (requests, unread
+  messages, overdue invoices, failed monthly or plan payments, accepted
+  quotes to book in, certificates running out) and green when it's in
+  order, then every tool. Finance (`app/finance.tsx`), Metrics
+  (`app/metrics.tsx`) and Certificates (`app/certificates.tsx`) are in
+  the app; the rest opens the website's pages signed in. Money is for
+  admins only.
 - **Bell** (`app/notifications.tsx`): what's waiting on them (an invoice
   to pay, a quote, a plan payment that failed) and what's coming up. For
   the team, new bookings and requests.
 - **Account** (`app/account.tsx`): their visits, invoices, certificates,
   plan, cards and boiler (the website's account page, opened signed in),
-  Sign out and Delete account. The team get their tools here.
+  Sign out and Delete account. The team get a link to their Menu.
 - **Sign in** (`app/sign-in.tsx`, `app/app-sign-in.tsx`): their email,
   then a "Confirm my email" button in the email. Tapped on the phone, it
   opens the app signed in. No code to type and no password

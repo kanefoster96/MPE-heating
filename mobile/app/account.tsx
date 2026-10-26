@@ -48,7 +48,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 /**
  * Their account (the avatar, top left). The records themselves (visits,
  * invoices, cards, the boiler) live on the website's account page, which
- * opens here already signed in. The team get their tools instead. Sign out
+ * opens here already signed in. The team get a link to their Menu. Sign out
  * and Delete account are at the bottom, as Apple asks.
  */
 export default function AccountScreen() {
@@ -121,12 +121,7 @@ export default function AccountScreen() {
 
         {staff ? (
           <Section title="Running MPE">
-            <Row icon="card" label="Take payment" hint="Tap to Pay on this phone" onPress={() => router.push("/take-payment")} />
-            <Row icon="calendar" label="Schedule" hint="Today and the week ahead" onPress={() => openSignedIn("/staff/schedule")} />
-            <Row icon="speedometer" label="Dashboard" hint="Money, jobs and reviews" onPress={() => openSignedIn("/staff")} />
-            <Row icon="people" label="Customers" onPress={() => openSignedIn("/staff/customers")} />
-            <Row icon="document-text" label="Quotes" onPress={() => openSignedIn("/staff/quotes")} />
-            <Row icon="receipt" label="Invoices" onPress={() => openSignedIn("/staff/invoices")} last />
+            <Row icon="grid" label="Menu" hint="Everything to run MPE, in one place" onPress={() => router.push("/menu")} last />
           </Section>
         ) : (
           <Section title="Your account">

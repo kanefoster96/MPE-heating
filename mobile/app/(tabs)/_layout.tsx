@@ -57,14 +57,15 @@ function CentreIcon({ icon }: { icon: IconName }) {
 
 /**
  * Five tabs under the top bar: Home, Services, the call-out button, Chat
- * and Jobs. The avatar (top left) is the account and the bell (top right)
- * is notifications, so neither needs a tab.
+ * and Jobs. For the team, Services becomes their Menu and the call-out
+ * button Take payment. The avatar (top left) is the account and the bell
+ * (top right) is notifications, so neither needs a tab.
  */
 export default function TabsLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 8);
-  const { staff, unreadChats } = useAuth();
+  const { staff, unreadChats, waiting } = useAuth();
 
   return (
     <Tabs
@@ -79,7 +80,15 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ focused, color }) => <TabIcon name="home" focused={focused} color={color} /> }} />
-      <Tabs.Screen name="services" options={{ title: "Services", tabBarIcon: ({ focused, color }) => <TabIcon name="construct" focused={focused} color={color} /> }} />
+      <Tabs.Screen
+        name="services"
+        options={{ title: "Services", href: staff ? null : undefined, tabBarIcon: ({ focused, color }) => <TabIcon name="construct" focused={focused} color={color} /> }}
+      />
+      {/* The team's Menu, in Services' place: orange count when something needs them. */}
+      <Tabs.Screen
+        name="menu"
+        options={{ title: "Menu", href: staff ? undefined : null, tabBarIcon: ({ focused, color }) => <TabIcon name="grid" focused={focused} color={color} count={waiting} /> }}
+      />
       <Tabs.Screen
         name="callout"
         options={{

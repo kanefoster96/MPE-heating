@@ -17,6 +17,8 @@ export type Me = {
 type AuthState = {
   /** Whether sign-in and chat are switched on in this build (lib/supabase.ts). */
   on: boolean;
+  /** The saved session has been read: until then, nobody's known to be signed in or out. */
+  ready: boolean;
   session: Session | null;
   me: Me | null;
   /** Signed in with an email (not just chatting as a guest). */
@@ -49,6 +51,7 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [me, setMe] = useState<Me | null>(null);
+  const [ready, setReady] = useState(!supabase);
   const sessionRef = useRef<Session | null>(null);
 
   const refreshMe = useCallback(async () => {
@@ -71,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       sessionRef.current = data.session;
       setSession(data.session);
+      setReady(true);
       if (data.session) refreshMe();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
@@ -157,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthState>(
     () => ({
       on: !!supabase,
+      ready,
       session,
       me,
       signedIn: !!session && !session.user.is_anonymous,
@@ -170,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithPassword,
       signOut,
     }),
-    [session, me, refreshMe, ensureSession, sendLink, signInWithLink, signInWithPassword, signOut],
+    [ready, session, me, refreshMe, ensureSession, sendLink, signInWithLink, signInWithPassword, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

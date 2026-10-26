@@ -159,6 +159,8 @@ export type StaffJobDetail = {
   day: string;
   dayLabel: string;
   customerId?: string | null;
+  asked?: string | null;
+  change?: { label: string; note: string | null } | null;
   payments: {
     on: boolean;
     terminalLocation: string | null;

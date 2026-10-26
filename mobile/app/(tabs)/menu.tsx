@@ -118,7 +118,7 @@ export default function MenuTab() {
 
       <View style={{ height: 8 }} />
       <NavList title="Jobs and customers">
-        <NavRow icon="calendar-outline" title="Calendar" description="The month, the week, and adding visits." onPress={() => openSignedIn("/staff/schedule")} />
+        <NavRow icon="calendar-outline" title="Calendar" description="The month, the week, and adding visits." onPress={() => router.push("/calendar")} />
         <NavRow icon="clipboard-outline" title="Today's jobs" description="Who, where, on my way, finish." onPress={() => router.push("/jobs")} />
         <NavRow icon="time-outline" title="Requests" description="New bookings and visits to book in." badge={badge("requests")} onPress={() => router.push("/notifications")} />
         <NavRow icon="chatbubbles-outline" title="Messages" description="Every customer's chat, texts and emails." badge={badge("messages")} onPress={() => router.push("/chat")} />

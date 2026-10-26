@@ -98,7 +98,7 @@ async function staffNotices(): Promise<AppNotice[]> {
       text: [e.name, e.postcode].filter(Boolean).join(", ") || "From the website",
       at: e.createdAt,
       action: true,
-      ...(e.conversationId ? { route: `/chat/${e.conversationId}` } : { url: `${SITE}/staff/messages` }),
+      route: e.conversationId ? `/chat/${e.conversationId}` : "/chat",
     });
   }
   const names = new Map<string, string | null>();
@@ -107,11 +107,12 @@ async function staffNotices(): Promise<AppNotice[]> {
   );
   for (const v of waiting) {
     const who = (v.customerId && names.get(v.customerId)) || "A customer";
-    const url = `${SITE}/staff/schedule?view=day&date=${v.change?.day ?? v.day}`;
+    // Answered on the visit's page in the app: accept, pick a time, or keep it.
+    const route = `/job/${v.id}`;
     if (v.status === "requested") {
-      out.push({ id: `request-${v.id}`, icon: "time", title: `${who} asked for a ${KIND_LABEL[v.kind].toLowerCase()}`, text: requestedWhen(v.day, v.part), at: v.createdAt, action: true, url });
+      out.push({ id: `request-${v.id}`, icon: "time", title: `${who} asked for a ${KIND_LABEL[v.kind].toLowerCase()}`, text: requestedWhen(v.day, v.part), at: v.createdAt, action: true, route });
     } else if (v.change) {
-      out.push({ id: `change-${v.id}`, icon: "calendar", title: `${who} asked to move their visit`, text: `To ${requestedWhen(v.change.day, v.change.part)}${v.change.note ? `: "${v.change.note}"` : ""}`, at: v.change.at, action: true, url });
+      out.push({ id: `change-${v.id}`, icon: "calendar", title: `${who} asked to move their visit`, text: `To ${requestedWhen(v.change.day, v.change.part)}${v.change.note ? `: "${v.change.note}"` : ""}`, at: v.change.at, action: true, route });
     }
   }
   return sortNotices(out);

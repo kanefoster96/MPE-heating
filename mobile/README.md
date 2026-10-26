@@ -73,6 +73,14 @@ picked up.
   or cash, all of it or part, with the rest taken by card or the link
   (`src/lib/app-payments.ts` on the site). A new invoice or call-out fee
   opens the website's take-payment page for the visit.
+- **Calendar** (`app/calendar.tsx`): the month with a dot per visit
+  (orange for a request) and days off greyed; pick a day for its visits.
+  **Add a visit** (`app/visit-form.tsx`): find the customer or add a new
+  one, the kind, the day, morning/afternoon/all day or exact times, where,
+  notes, and "Let them know". The same form moves a visit or books a
+  request. On a job's page: book a request as asked or pick another time,
+  move it where they asked or keep the time, send the details again,
+  cancel (telling them or not) or remove (`src/lib/app-schedule.ts`).
 - **Menu** (`app/(tabs)/menu.tsx`, the team only, in Services' place):
   cards that turn orange when something needs Fergal (requests, unread
   messages, overdue invoices, failed monthly or plan payments, accepted

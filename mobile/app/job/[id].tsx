@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,10 +7,10 @@ import { ScreenHeader } from "@/components/screen-header";
 import { StaffJobCard } from "@/components/staff-job";
 import { PaymentSheet } from "@/components/payment-sheet";
 import { TapToPayProvider } from "@/components/tap-to-pay";
-import { AppText, Card, LoadError, PressableScale, PrimaryButton, Skeleton } from "@/components/ui";
-import { openSignedIn } from "@/lib/open-link";
+import { AppText, Card, LoadError, PressableScale, PrimaryButton, Skeleton, haptic } from "@/components/ui";
 import { useAuth } from "@/contexts/auth";
-import { apiFetch, readCached } from "@/lib/api";
+import { apiFetch, apiPost, readCached } from "@/lib/api";
+import { confirmAction, notify } from "@/lib/confirm";
 import { colors } from "@/lib/theme";
 import type { JobPayment, SheetContext, StaffJobDetail } from "@/lib/types";
 
@@ -58,6 +58,36 @@ function PaymentRow({ p, last }: { p: JobPayment; last: boolean }) {
   );
 }
 
+type IconName = ComponentProps<typeof Ionicons>["name"];
+
+function Pill({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  return (
+    <PressableScale onPress={onPress} accessibilityLabel={label} style={{ flex: 1 }}>
+      <View style={{ minHeight: 48, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 }}>
+        <Ionicons name={icon} size={18} color={colors.navy} />
+        <AppText weight="bold" style={{ fontSize: 14 }}>
+          {label}
+        </AppText>
+      </View>
+    </PressableScale>
+  );
+}
+
+function ActionRow({ icon, label, onPress, tone, last }: { icon: IconName; label: string; onPress: () => void; tone?: "danger"; last?: boolean }) {
+  const ink = tone === "danger" ? colors.danger : colors.navy;
+  return (
+    <PressableScale onPress={onPress} accessibilityLabel={label}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52, borderBottomWidth: last ? 0 : 1, borderBottomColor: colors.edge }}>
+        <Ionicons name={icon} size={20} color={ink} />
+        <AppText weight="semibold" style={{ flex: 1, fontSize: 15, color: ink }}>
+          {label}
+        </AppText>
+        <Ionicons name="chevron-forward" size={16} color={colors.text3} />
+      </View>
+    </PressableScale>
+  );
+}
+
 function Job() {
   const { id, pay } = useLocalSearchParams<{ id: string; pay?: string }>();
   const path = `/api/mobile/staff/jobs/${id}`;
@@ -68,6 +98,39 @@ function Job() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function act(action: string) {
+    if (!data || busy) return false;
+    setBusy(action);
+    try {
+      const res = await apiPost<{ message: string }>("/api/mobile/staff/schedule/visit/action", { id: data.job.id, action });
+      haptic.success();
+      notify("Done", res.message);
+      if (action === "remove") router.back();
+      else load();
+      return true;
+    } catch (err) {
+      haptic.warning();
+      notify("Not done", err instanceof Error ? err.message : "Please try again.");
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function cancelVisit() {
+    if (!data) return;
+    if (!(await confirmAction("Cancel this visit?", "It stays on their history as cancelled.", "Cancel it"))) return;
+    const name = data.job.customer?.name?.split(" ")[0];
+    const tell = data.job.customer && data.job.status !== "requested" ? await confirmAction(`Tell ${name ?? "them"}?`, "They're sent a message that it's cancelled, by text, email and their chat.", "Tell them") : false;
+    await act(tell ? "cancel" : "cancel_quietly");
+  }
+
+  async function removeVisit() {
+    if (!data) return;
+    if (await confirmAction("Remove this visit?", "It's taken off the calendar altogether. Nobody's told. To let them know, cancel it instead.", "Remove")) await act("remove");
+  }
 
   const load = useCallback(async () => {
     setError(null);
@@ -135,28 +198,31 @@ function Job() {
           >
             <StaffJobCard job={data.job} day={data.day} onChanged={load} onPay={() => setSheet(true)} />
 
+            {/* A request to answer: as they asked, or another time. */}
+            {data.asked && (
+              <Card style={{ gap: 10, borderColor: colors.orangeDeep }}>
+                <AppText weight="bold" style={{ fontSize: 16 }}>
+                  They asked for {data.asked}
+                </AppText>
+                <PrimaryButton title={busy === "accept" ? "Booking…" : "Book it as they asked"} icon="checkmark" size="medium" onPress={() => act("accept")} />
+                <Pill icon="calendar-outline" label="Pick another time" onPress={() => router.push(`/visit-form?id=${data.job.id}`)} />
+              </Card>
+            )}
+            {data.change && (
+              <Card style={{ gap: 10, borderColor: colors.orangeDeep }}>
+                <AppText weight="bold" style={{ fontSize: 16 }}>
+                  They asked to move it to {data.change.label}
+                </AppText>
+                {data.change.note ? <AppText style={{ color: colors.text2, fontSize: 14 }}>&ldquo;{data.change.note}&rdquo;</AppText> : null}
+                <PrimaryButton title="Move it" icon="calendar" size="medium" onPress={() => router.push(`/visit-form?id=${data.job.id}&usechange=1`)} />
+                <Pill icon="checkmark-outline" label={busy === "keep" ? "Saving…" : "Keep this time"} onPress={() => act("keep")} />
+              </Card>
+            )}
+
             {/* Move it, change it, or see everything about them. */}
             <View style={{ flexDirection: "row", gap: 10 }}>
-              {data.job.status !== "done" && (
-                <PressableScale onPress={() => openSignedIn(`/staff/schedule?view=day&date=${data.day}#visit-${data.job.id}`)} accessibilityLabel="Move or change this visit" style={{ flex: 1 }}>
-                  <View style={{ minHeight: 48, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 }}>
-                    <Ionicons name="calendar-outline" size={18} color={colors.navy} />
-                    <AppText weight="bold" style={{ fontSize: 14 }}>
-                      Move or change
-                    </AppText>
-                  </View>
-                </PressableScale>
-              )}
-              {data.customerId && (
-                <PressableScale onPress={() => router.push(`/customer/${data.customerId}`)} accessibilityLabel="Their details" style={{ flex: 1 }}>
-                  <View style={{ minHeight: 48, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 }}>
-                    <Ionicons name="person-outline" size={18} color={colors.navy} />
-                    <AppText weight="bold" style={{ fontSize: 14 }}>
-                      Their details
-                    </AppText>
-                  </View>
-                </PressableScale>
-              )}
+              {data.job.status !== "done" && <Pill icon="calendar-outline" label="Move or change" onPress={() => router.push(`/visit-form?id=${data.job.id}`)} />}
+              {data.customerId && <Pill icon="person-outline" label="Their details" onPress={() => router.push(`/customer/${data.customerId}`)} />}
             </View>
 
             <Card style={{ paddingVertical: 6 }}>
@@ -181,6 +247,15 @@ function Job() {
                 ))}
               </Card>
             )}
+            {/* The rest: the details again, back to booked, cancel, remove. */}
+            <Card style={{ paddingVertical: 4 }}>
+              {data.job.customer && data.job.status !== "requested" && (
+                <ActionRow icon="paper-plane-outline" label={busy === "send" ? "Sending…" : "Send them the details again"} onPress={() => act("send")} />
+              )}
+              {(data.job.status === "no_access" || data.job.status === "done") && <ActionRow icon="arrow-undo-outline" label="Back to booked" onPress={() => act("booked")} />}
+              {data.job.status !== "done" && <ActionRow icon="close-circle-outline" label="Cancel the visit" tone="danger" onPress={cancelVisit} />}
+              <ActionRow icon="trash-outline" label="Remove it from the calendar" tone="danger" onPress={removeVisit} last />
+            </Card>
           </ScrollView>
 
           {data.job.customer && (

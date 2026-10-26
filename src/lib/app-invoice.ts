@@ -6,12 +6,11 @@ import { planFor } from "@/lib/maintenance-plan";
 import {
   CALLOUT_FEE_PENCE,
   MAX_OFFERS,
+  calloutAskedFor,
   calloutCreditFor,
   createPaymentRequest,
   formatPence,
   parseLines,
-  paymentsForAppointments,
-  paymentsForCustomer,
   paymentsOn,
   savedCardFor,
 } from "@/lib/payments";
@@ -34,17 +33,18 @@ export async function invoiceContext(params: { visitId?: string | null; customer
   const customer = visit?.customerId ? await getCustomer(visit.customerId) : params.customerId ? await getCustomer(params.customerId) : null;
   if (!customer) return null;
   const online = paymentsOn();
-  const [existing, card, credit, plan, products, upsells, credits] = await Promise.all([
-    visit ? paymentsForAppointments([visit.id]).then((m) => m.get(visit.id) ?? []) : paymentsForCustomer(customer.id),
+  const [card, credit, feeAsked, plan, products, upsells, credits] = await Promise.all([
     online ? savedCardFor(customer) : Promise.resolve(null),
-    visit ? calloutCreditFor(visit.id) : Promise.resolve(0),
+    calloutCreditFor(visit ?? { id: null, followUpOf: null, customerId: customer.id }),
+    calloutAskedFor(visit ?? { id: null, followUpOf: null, customerId: customer.id }),
     planFor(customer.id).catch(() => null),
     listProducts().catch(() => []),
     upsellProducts().catch(() => []),
     availableCredits(customer.id).catch(() => []),
   ]);
   const onPlan = plan && (plan.status === "active" || plan.status === "past_due");
-  const calloutAsked = !!visit && existing.some((p) => p.kind === "callout_fee" && p.status !== "cancelled");
+  // One call-out fee a job, and none twice from the chat: with no visit, their last 60 days.
+  const calloutAsked = feeAsked;
   return {
     customer: { id: customer.id, name: customerLabel(customer), first: customer.name?.split(" ")[0] ?? null },
     visit: visit ? { id: visit.id, label: `${KIND_LABEL[visit.kind]} · ${longDate(visit.day)}, ${windowLabel(visit.start, visit.end)}` } : null,
@@ -112,10 +112,11 @@ export async function createInvoice(body: InvoiceBody, staffId: string): Promise
   if (!created.ok) return { ok: false, error: created.error };
   // Money off they were owed, now on this invoice: used.
   if (kind === "invoice" && body.creditIds?.length) await spendCredits(body.customerId, body.creditIds.filter((x) => typeof x === "string"), created.request.id);
-  const message = !send
+  const foldedLine = created.folded ? " Their unpaid call-out fee is dropped: it's part of this bill." : "";
+  const message = (!send
     ? "Saved. Take it now."
     : created.sentVia.length
       ? `Sent by ${viaPhrase(created.sentVia)}.`
-      : "Saved, but we couldn't reach them: add an email or mobile to their details.";
+      : "Saved, but we couldn't reach them: add an email or mobile to their details.") + foldedLine;
   return { ok: true, id: created.request.id, message };
 }

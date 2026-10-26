@@ -25,6 +25,10 @@ deployment.
 - [ ] Create a project at supabase.com, in the London region.
 - [ ] **SQL editor:** paste in all of `supabase/schema.sql` and run it.
       Run it again after every update that changes it: it's safe to re-run.
+- [ ] Re-run it after the return-visit update: it adds "Is it fixed?" to
+      finishing a job (fixed, or coming back), links a return visit to the
+      first, and remembers when a customer's been told their requested day
+      went by.
 - [ ] **Storage:** after running the schema, check there's a private
       bucket called `job-files` (photos and certificates) next to
       `chat-attachments`. The schema makes it; leave it private.

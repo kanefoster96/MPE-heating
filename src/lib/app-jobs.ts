@@ -1,7 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { CLUB_SITE_URL } from "@/lib/club";
 import { customerForUser, getCustomer, getCustomers, type Customer } from "@/lib/customers";
-import { appointmentsBetween, appointmentsForCustomer, getAppointment, waitingOnTeamCount, type Appointment } from "@/lib/appointments";
+import { appointmentsBetween, appointmentsForCustomer, getAppointment, returnVisitFor, returnsToBook, waitingOnTeamCount, type Appointment } from "@/lib/appointments";
 import { KIND_LABEL, addDays, longDate, windowLabel } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
@@ -55,6 +55,8 @@ export type JobCard = {
   report: string | null;
   actions: JobAction[];
   sortKey: string;
+  /** Not booked yet (the repair after a call-out): a dotted card with a timer. */
+  pending?: boolean;
 };
 
 const STATUS_LABEL: Record<JobCard["status"], string> = {
@@ -72,7 +74,7 @@ function paymentStep(payments: PaymentRequest[]): { step: JobStep; action?: JobA
   const open = live.find((p) => p.status === "open" && p.planStatus !== "active");
   if (open) {
     return {
-      step: { label: "Pay", detail: `${formatPence(open.amountPence)} (${invoiceNumber(open.number)})`, state: "now" },
+      step: { label: "Pay", detail: open.kind === "callout_fee" ? `${formatPence(open.amountPence)} call-out fee` : `${formatPence(open.amountPence)} (${invoiceNumber(open.number)})`, state: "now" },
       action: { label: `Pay ${formatPence(open.amountPence)}`, url: payLink(open), primary: true },
     };
   }
@@ -81,11 +83,19 @@ function paymentStep(payments: PaymentRequest[]): { step: JobStep; action?: JobA
   return { step: { label: "Paid", state: "done" }, action: { label: "Receipt", url: payLink(live[0]) } };
 }
 
-function visitCard(v: Appointment, today: string, payments: PaymentRequest[], hasFiles: boolean): JobCard {
+function visitCard(v: Appointment, today: string, payments: PaymentRequest[], hasFiles: boolean, returnVisit: Appointment | null = null): JobCard {
+  // Not fixed first time: we found the fault and we're coming back (a part to fit).
+  const comingBack = v.status === "done" && v.outcome === "return" && returnVisit?.status !== "done";
   const done = v.status === "done";
   const steps: JobStep[] = [];
   if (v.source !== "team" || v.status === "requested") steps.push({ label: "Requested", detail: longDate(v.createdAt.slice(0, 10)), state: "done" });
-  if (v.status === "requested") steps.push({ label: "Booking a time", detail: `You asked for ${requestedWhen(v.day, v.part)}. We'll confirm it.`, state: "now" });
+  if (v.status === "requested") {
+    steps.push({
+      label: "Booking a time",
+      detail: v.day < today ? `Sorry, we didn't get to you on ${requestedWhen(v.day, v.part)}. Pick another day that suits.` : `You asked for ${requestedWhen(v.day, v.part)}. We'll confirm it.`,
+      state: "now",
+    });
+  }
   else steps.push({ label: "Booked", detail: whenLine(v), state: "done" });
   if (v.status === "no_access") {
     steps.push({ label: "We couldn't get in", detail: "Pick another time and we'll come back.", state: "now" });
@@ -96,17 +106,29 @@ function visitCard(v: Appointment, today: string, payments: PaymentRequest[], ha
         : { label: "On the way", detail: done ? undefined : "We'll text you when we set off.", state: done ? "done" : v.day === today ? "now" : "next" },
     );
   }
-  steps.push(done ? { label: "Job done", detail: v.completedAt ? longDate(v.completedAt.slice(0, 10)) : undefined, state: "done" } : { label: "Job done", state: "next" });
+  if (comingBack) {
+    steps.push({ label: "We found the fault", detail: v.completedAt ? longDate(v.completedAt.slice(0, 10)) : undefined, state: "done" });
+    steps.push(
+      returnVisit
+        ? { label: "Coming back", detail: `${v.returnNote ? `To ${v.returnNote.replace(/\.$/, "")}: ` : ""}${whenLine(returnVisit)}`, state: "now" }
+        : { label: "Coming back", detail: `${v.returnNote ? `To ${v.returnNote.replace(/\.$/, "")}. ` : ""}We'll be in touch to book a time.`, state: "now" },
+    );
+  } else {
+    steps.push(done ? { label: "Job done", detail: v.completedAt ? longDate(v.completedAt.slice(0, 10)) : undefined, state: "done" } : { label: "Job done", state: "next" });
+  }
   const pay = done ? paymentStep(payments) : null;
   if (pay) steps.push(pay.step);
 
   const actions: JobAction[] = [];
   if (pay?.action) actions.push(pay.action);
   if (v.status === "no_access") actions.push({ label: "Pick another time", url: visitLink(v), primary: true });
+  if (v.status === "requested" && v.day < today) actions.push({ label: "Pick another day", url: `${visitLink(v)}#another-time`, primary: true });
   actions.push({ label: "Visit details", url: visitLink(v) });
   if (hasFiles) actions.push({ label: "Certificates and photos", url: `${SITE}/account#files` });
 
-  const status: JobCard["status"] = done
+  const status: JobCard["status"] = comingBack
+    ? "booked"
+    : done
     ? "done"
     : v.status === "no_access"
       ? "missed"
@@ -117,14 +139,37 @@ function visitCard(v: Appointment, today: string, payments: PaymentRequest[], ha
           : "booked";
   return {
     id: `visit-${v.id}`,
-    title: v.title?.trim() || KIND_LABEL[v.kind],
+    title: v.followUpOf ? `Return visit${v.title?.trim() ? `: ${v.title.trim()}` : ""}` : v.title?.trim() || KIND_LABEL[v.kind],
     when: v.status === "requested" ? `Asked for ${requestedWhen(v.day, v.part)}` : whenLine(v),
     status,
-    statusLabel: STATUS_LABEL[status],
+    statusLabel: comingBack ? "Coming back" : STATUS_LABEL[status],
     steps,
     report: v.jobReport,
     actions,
     sortKey: `${v.day}-${String(v.start).padStart(4, "0")}`,
+  };
+}
+
+/** After a call-out that found the fault: the repair, agreed but not booked yet (waiting on a part, say). */
+function repairToSchedule(v: Appointment, payments: PaymentRequest[]): JobCard {
+  const what = v.returnNote ? v.returnNote.replace(/\.$/, "") : "";
+  const pay = paymentStep(payments);
+  const owed = pay?.action && payments.some((p) => p.status === "open") ? [{ ...pay.action, primary: true }] : [];
+  return {
+    id: `repair-${v.id}`,
+    title: "Repair to be scheduled",
+    when: what ? `To ${what}` : "To finish the job",
+    status: "waiting",
+    statusLabel: "To be scheduled",
+    pending: true,
+    steps: [
+      { label: "Call-out", detail: `${longDate(v.day)}: we found the fault`, state: "done" },
+      { label: "Booking the repair", detail: "We'll be in touch to agree a day. Or message us with one that suits.", state: "now" },
+      { label: "Repair", state: "next" },
+    ],
+    report: v.jobReport,
+    actions: [...owed, { label: "Message us", url: `${SITE}/messages` }, { label: "Call-out details", url: visitLink(v) }],
+    sortKey: v.day,
   };
 }
 
@@ -148,9 +193,15 @@ export async function customerJobs(user: User): Promise<{ active: JobCard[]; pre
   const previous: JobCard[] = [];
   for (const v of visits) {
     if (v.status === "cancelled") continue;
-    const card = visitCard(v, today, byVisit.get(v.id) ?? [], filesByVisit.has(v.id));
+    const returnVisit = visits.find((r) => r.followUpOf === v.id && r.status !== "cancelled") ?? null;
+    const card = visitCard(v, today, byVisit.get(v.id) ?? [], filesByVisit.has(v.id), returnVisit);
+    // Not fixed first time: the call-out goes to history, and up top is the
+    // repair still to be scheduled (then, once booked, the return visit's own card).
+    const comingBack = v.status === "done" && v.outcome === "return";
+    if (comingBack && !returnVisit) active.push(repairToSchedule(v, byVisit.get(v.id) ?? []));
     // Finished today: stays up top for the rest of the day.
-    const isActive = v.status === "done" ? v.day >= today : v.day >= today || v.status === "no_access" || v.status === "requested";
+    if (v.status === "requested" && v.day < addDays(today, -7)) continue;
+    const isActive = !comingBack && (v.status === "done" ? v.day >= today : v.day >= today || v.status === "no_access" || v.status === "requested");
     (isActive ? active : previous).push(card);
   }
 
@@ -239,7 +290,11 @@ export type StaffDay = {
   jobs: StaffJob[];
   strip: { day: string; count: number; closed: boolean }[];
   waiting: number;
+  /** Repairs agreed after a call-out, not booked yet: oldest first. */
+  toSchedule: ToSchedule[];
 };
+
+export type ToSchedule = { id: string; name: string; what: string; found: string; since: string; waitingDays: number; conversationId: string | null };
 
 export async function staffDay(dayParam: string | null): Promise<StaffDay> {
   const today = londonNow().dateISO;
@@ -256,6 +311,8 @@ export async function staffDay(dayParam: string | null): Promise<StaffDay> {
     paymentsForAppointments(shown.map((v) => v.id)),
   ]);
   const dayClosed = (await closedDays(day, day).catch(() => new Map<string, string | null>())).get(day);
+  const returns = (await returnsToBook().catch(() => [])).reverse();
+  const returnCustomers = await getCustomers(returns.map((v) => v.customerId).filter((id): id is string => !!id));
   return {
     day,
     label: day === today ? "Today" : day === addDays(today, 1) ? "Tomorrow" : longDate(day),
@@ -263,6 +320,19 @@ export async function staffDay(dayParam: string | null): Promise<StaffDay> {
     waiting,
     strip: perDay.map((d) => ({ day: d.day, count: d.count, closed: closed.has(d.day) })),
     jobs: shown.map((v) => toStaffJob(v, v.customerId ? customers.get(v.customerId) : undefined, payments.get(v.id) ?? [])),
+    toSchedule: returns.map((v) => {
+      const c = v.customerId ? returnCustomers.get(v.customerId) : undefined;
+      const done = (v.completedAt ?? v.day).slice(0, 10);
+      return {
+        id: v.id,
+        name: c?.name || c?.email || "A customer",
+        what: v.returnNote ? v.returnNote.replace(/\.$/, "") : "finish the job",
+        found: v.jobReport ?? "",
+        since: longDate(v.day),
+        waitingDays: Math.max(0, Math.round((Date.parse(today) - Date.parse(done)) / 86_400_000)),
+        conversationId: c?.conversationId ?? null,
+      };
+    }),
   };
 }
 
@@ -336,8 +406,14 @@ export type StaffJobDetail = {
   customerId: string | null;
   /** A request: when they asked for. */
   asked: string | null;
+  /** That day's gone without it being booked: a new time, not "as they asked". */
+  askedPast?: boolean;
   /** They asked to move it: to when, and why. */
   change: { label: string; note: string | null } | null;
+  /** Finished as "coming back": what for, and the return visit once booked. */
+  comingBack: { note: string | null; returnVisit: { id: string; when: string } | null } | null;
+  /** A return visit: the first visit of the job. */
+  firstVisit: { id: string; when: string } | null;
   payments: {
     on: boolean;
     terminalLocation: string | null;
@@ -372,6 +448,13 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
     }),
   );
   const parts = await partPaymentsFor([...onJob, ...other].filter((p) => p.status === "open").map((p) => p.id));
+  const [returnVisit, firstVisit] = await Promise.all([
+    v.outcome === "return" ? returnVisitFor(v.id) : Promise.resolve(null),
+    v.followUpOf ? getAppointment(v.followUpOf) : Promise.resolve(null),
+  ]);
+  // A return visit: the call-out fee from the first visit shows here too (it comes off this bill).
+  const firstFees = firstVisit ? ((await paymentsForAppointments([firstVisit.id])).get(firstVisit.id) ?? []).filter((p) => p.kind === "callout_fee" && p.status !== "cancelled") : [];
+  if (firstVisit && firstFees.length) visits.set(firstVisit.id, `the first visit, ${longDate(firstVisit.day)}`);
   const shape = (p: PaymentRequest): JobPayment =>
     toJobPayment(
       p,
@@ -385,17 +468,21 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
     day: v.day,
     customerId: c?.id ?? null,
     asked: v.status === "requested" ? requestedWhen(v.day, v.part) : null,
+    askedPast: v.status === "requested" && v.day < today,
     change: v.change ? { label: requestedWhen(v.change.day, v.change.part), note: v.change.note } : null,
+    comingBack: v.status === "done" && v.outcome === "return" ? { note: v.returnNote, returnVisit: returnVisit ? { id: returnVisit.id, when: whenLine(returnVisit) } : null } : null,
+    firstVisit: firstVisit ? { id: firstVisit.id, when: `${KIND_LABEL[firstVisit.kind]} · ${longDate(firstVisit.day)}` } : null,
     dayLabel: v.day === today ? "Today" : v.day === addDays(today, 1) ? "Tomorrow" : longDate(v.day),
     payments: {
       on: paymentsOn(),
       terminalLocation: process.env.STRIPE_TERMINAL_LOCATION || null,
       savedCard: card ? { brand: card.brand, last4: card.last4 } : null,
-      forJob: onJob
+      forJob: [...onJob, ...firstFees.filter((p) => !onJob.some((x) => x.id === p.id))]
         .filter((p) => p.status !== "cancelled")
         .sort((a, b) => (a.status === "open" ? 0 : 1) - (b.status === "open" ? 0 : 1))
         .map(shape),
-      otherOpen: other.map(shape),
+      // The first visit's fee is listed with this job's, not again here.
+      otherOpen: other.filter((p) => !firstFees.some((f) => f.id === p.id)).map(shape),
     },
   };
 }

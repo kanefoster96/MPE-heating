@@ -82,8 +82,26 @@ export default async function FinishJobPage({ params, searchParams }: { params: 
       {error && <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{error}</p>}
 
       <form action={finishJob.bind(null, visit.id, visit.day)} className="mt-6 flex flex-col gap-6" data-finish-form>
+        {/* Fixed, or coming back to finish (a part to order): no review ask until it's fixed. */}
+        <fieldset className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4" data-outcome>
+          <legend className="px-1 text-sm font-semibold">Is it fixed?</legend>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3">
+            <input type="radio" name="outcome" value="fixed" defaultChecked={visit.outcome !== "return"} className="h-5 w-5 accent-[var(--color-accent)]" />
+            <span className="text-sm font-semibold">Yes, it&rsquo;s fixed</span>
+          </label>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3">
+            <input type="radio" name="outcome" value="return" defaultChecked={visit.outcome === "return"} className="h-5 w-5 accent-[var(--color-accent)]" />
+            <span className="text-sm font-semibold">Not yet: we&rsquo;re coming back (a part to order)</span>
+          </label>
+          <label className="flex flex-col gap-1 pl-8">
+            <span className="text-xs text-muted">Coming back to (the customer sees this)</span>
+            <input name="returnNote" defaultValue={visit.returnNote ?? ""} maxLength={300} placeholder="e.g. fit the new diverter valve" className={FIELD} />
+          </label>
+          <p className="pl-8 text-xs text-muted">Coming back: they&rsquo;re told what you found and that you&rsquo;ll be back, there&rsquo;s no review ask yet, and you book the return visit next.</p>
+        </fieldset>
+
         <label className="flex flex-col gap-2">
-          <span className="text-sm font-semibold">What we did</span>
+          <span className="text-sm font-semibold">What we did (or found)</span>
           <span className="-mt-1 text-xs text-muted">{customer ? `${first} sees this on their visit page and account.` : "For the record."}</span>
           <textarea
             name="report"
@@ -137,7 +155,7 @@ export default async function FinishJobPage({ params, searchParams }: { params: 
                 <span className="text-sm font-semibold">Ask {first} for a review</span>
               </label>
               <p className="pl-8 text-xs text-muted">
-                {review ? "They've already reviewed this job." : "Goes about two hours from now (daytime only), with one reminder after three days."}
+                {review ? "They've already reviewed this job." : "Goes about two hours from now (daytime only), with one reminder after three days. Not sent if you're coming back."}
               </p>
             </div>
           </>

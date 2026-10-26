@@ -49,7 +49,7 @@ function VisitRow({ a, review }: { a: Appointment; review?: JobReview & { appoin
           {STATUS_LABEL[a.status]}
           {review ? ` · ${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}` : ""}
         </span>
-        {a.jobReport && <span className="w-full text-xs text-muted">What we did: {a.jobReport}</span>}
+        {a.jobReport && <span className="w-full text-xs text-muted">{a.outcome === "return" ? "What we found" : "What we did"}: {a.jobReport}</span>}
         {review?.comment && <span className="w-full text-xs italic text-muted">“{review.comment}”{review.publicClickedAt ? " · went on to Google" : ""}</span>}
       </Link>
     </li>

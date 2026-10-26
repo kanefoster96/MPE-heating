@@ -31,6 +31,11 @@ export async function POST(request: Request) {
     to = callableUkNumber(typeof body.to === "string" ? body.to : null);
   }
   if (!to) return mobileJson({ error: "That isn't a UK number we can call." }, 400);
+  // Called from their customer page or the job: still logged in their chat, if they have one.
+  if (!conversationId) {
+    const { data } = await createAdminClient().from("chat_conversations").select("id").eq("phone", to).maybeSingle();
+    conversationId = (data?.id as string | undefined) ?? null;
+  }
   try {
     await startBridgedCall({ coach: caller.user, to, conversationId });
     return mobileJson({ ok: true });

@@ -61,7 +61,9 @@ async function sendAsMpe(admin: Admin, conversationId: string, body: string): Pr
 export async function ensureWelcome(conversationId: string): Promise<void> {
   try {
     const admin = createAdminClient();
-    if (await claimOnce(admin, conversationId, "welcome_sent_at")) {
+    // A chat that's already going (their booking, our texts): no "welcome" in the middle of it.
+    const { count } = await admin.from("chat_messages").select("id", { count: "exact", head: true }).eq("conversation_id", conversationId);
+    if ((await claimOnce(admin, conversationId, "welcome_sent_at")) && !count) {
       await sendAsMpe(admin, conversationId, WELCOME_BODY);
     }
   } catch (err) {

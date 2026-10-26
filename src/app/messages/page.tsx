@@ -3,6 +3,7 @@ import { CustomerChat } from "@/components/chat/customer-chat";
 import { GuestChatInit } from "@/components/chat/guest-chat-init";
 import { MessagesScreen } from "@/components/chat/messages-screen";
 import { ContactOptions } from "@/components/ContactOptions";
+import { adoptCustomerConversation } from "@/lib/account-claim";
 import { getOrCreateConversation, getConversationMessages, isGuestUser } from "@/lib/chat-db";
 import { appLinks } from "@/lib/chat-welcome-copy";
 import { ensureWelcome } from "@/lib/chat-welcome";
@@ -58,6 +59,8 @@ export default async function MessagesPage() {
     );
   }
 
+  // Their booking texts and their chat here are the one thread.
+  if (!user.is_anonymous) await adoptCustomerConversation(user.id, user.email);
   const conversation = await getOrCreateConversation(user.id);
   if (!conversation) {
     return (

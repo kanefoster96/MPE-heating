@@ -97,7 +97,8 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
         via.push("chat");
         await admin
           .from("chat_conversations")
-          .update({ last_message_at: now, completed_at: null, completed_by: null, coach_last_read_at: now })
+          // Read only when a person sent it: an automatic message mustn't hide a customer's unanswered one.
+          .update({ last_message_at: now, completed_at: null, completed_by: null, ...(d.staffId ? { coach_last_read_at: now } : {}) })
           .eq("id", conversationId);
       }
     }
@@ -176,6 +177,8 @@ export async function sendVisitNotice(
     part: appointment.part,
     address: appointment.address ?? customer.address,
     postcode: appointment.postcode ?? customer.postcode,
+    // A return visit says what it's for: what the first visit said, else its title.
+    returning: appointment.followUpOf ? ((await getAppointment(appointment.followUpOf))?.returnNote ?? appointment.title ?? "finish the job") : null,
   };
   const body = noticeBody(type, facts, { link, bookLink, engineer, phone: business.phoneDisplay, name: customer.name });
 
@@ -184,7 +187,8 @@ export async function sendVisitNotice(
     headline: noticeHeadline(type, facts),
     staffId,
     pushHref: type === "service_due" ? "/book/service" : `/visit/${appointment.publicToken}`,
-    email: type === "hour" ? "if-no-text" : "always",
+    // Reminders don't need an email as well as a text; confirmations and changes do.
+    email: type === "hour" || type === "reminder" ? "if-no-text" : "always",
     smsOptOut: type === "service_due",
     emailHtml: (canReplyByEmail) =>
       visitEmailHtml({
@@ -271,7 +275,7 @@ export async function sendOnMyWay(appointmentId: string, staffId: string, etaMin
   }
   const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "";
   const who = engineer ? `${engineer} from MPE` : hi ? "your MPE engineer" : "Your MPE engineer";
-  const what = appointment.kind === "other" ? "your visit" : `your ${KIND_LABEL[appointment.kind].toLowerCase()}`;
+  const what = appointment.followUpOf ? "your return visit" : appointment.kind === "other" ? "your visit" : `your ${KIND_LABEL[appointment.kind].toLowerCase()}`;
   const arrive = arrivalClock(now, eta);
   const body = `${hi}${who} is on the way for ${what} and should be with you in about ${eta} minutes (around ${arrive}). If anything's changed, call ${business.phoneDisplay}.`;
   const via = await deliverToCustomer(customer, {

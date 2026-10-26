@@ -127,6 +127,12 @@ export async function deliverCoachMessage({
       completed_by: null,
     })
     .eq("id", conversationId);
+  // Their new bookings have had a reply: contacted (the job's step in the chat).
+  await admin
+    .from("enquiries")
+    .update({ status: "contacted", updated_at: now, updated_by: user.id })
+    .eq("conversation_id", conversationId)
+    .eq("status", "new");
 
   // The name an admin chose for them, if any (lib/staff-identity.ts).
   const coachName = (await staffIdentity(user)).name;

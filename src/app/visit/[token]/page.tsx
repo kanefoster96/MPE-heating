@@ -8,7 +8,7 @@ import { ContactOptions } from "@/components/ContactOptions";
 import { DayPartFields } from "@/components/DayPartPicker";
 import { CalendarIcon, MapPinIcon } from "@/components/icons";
 import { enquiriesOn } from "@/lib/enquiries";
-import { getAppointmentByToken } from "@/lib/appointments";
+import { appointmentsForCustomer, getAppointment, getAppointmentByToken, returnVisitFor } from "@/lib/appointments";
 import { getCustomer } from "@/lib/customers";
 import { KIND_LABEL, longDate } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
@@ -56,14 +56,34 @@ export default async function VisitPage({
   const review = visit.status === "done" ? await getJobReview(visit.id) : null;
   const files = visit.status === "done" ? await sharedFilesForVisit(visit.id).catch(() => []) : [];
   const payments = ((await paymentsForAppointments([visit.id])).get(visit.id) ?? []).filter((x) => x.status !== "cancelled");
+  // Not fixed first time: what's next, and the return visit once it's booked.
+  const returnVisit = visit.status === "done" && visit.outcome === "return" ? await returnVisitFor(visit.id) : null;
+  // Until the return visit's done: after that, this first visit's page is simply done.
+  const comingBack = visit.status === "done" && visit.outcome === "return" && returnVisit?.status !== "done";
+  // A return visit: what it's for, from the first visit.
+  const firstVisit = visit.followUpOf ? await getAppointment(visit.followUpOf) : null;
+  const returning = firstVisit ? (firstVisit.returnNote ?? visit.title ?? "finish the job").replace(/\.$/, "") : null;
+  // Cancelled because a visit was booked for them instead (their request, answered): that visit.
+  const bookedInstead =
+    visit.status === "cancelled"
+      ? ((await appointmentsForCustomer(visit.customerId)).filter((a) => a.createdAt > visit.createdAt && (a.status === "booked" || a.status === "done")).sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0] ?? null)
+      : null;
+  // A request whose day has gone without us booking it.
+  const missedRequest = visit.status === "requested" && !upcoming;
 
   const heading =
-    visit.status === "requested"
+    missedRequest
+      ? { lead: "Sorry, we didn't get to you.", em: "Pick another day." }
+      : visit.status === "requested"
       ? { lead: "Request received.", em: "We'll confirm the time." }
       : visit.status === "no_access"
         ? { lead: "Sorry we missed you.", em: "Pick another time." }
+      : bookedInstead
+        ? { lead: "You're booked in.", em: "See your visit." }
       : visit.status === "cancelled"
         ? { lead: "This visit is", em: "cancelled." }
+        : comingBack
+          ? { lead: "We found the fault.", em: "We're coming back." }
         : visit.status === "done" || !upcoming
           ? { lead: "Thanks for", em: "choosing MPE." }
           : {
@@ -73,7 +93,8 @@ export default async function VisitPage({
 
   // A missed visit's day has gone, but they can still pick another.
   const canAsk =
-    (upcoming && (visit.status === "booked" || visit.status === "requested")) ||
+    (upcoming && visit.status === "booked") ||
+    visit.status === "requested" ||
     visit.status === "no_access";
 
   return (
@@ -97,6 +118,19 @@ export default async function VisitPage({
             </p>
           )}
 
+          {bookedInstead && (
+            <Link
+              href={`/visit/${bookedInstead.publicToken}`}
+              className="mt-8 flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-success/30 bg-success/10 px-5 py-4 font-semibold text-success"
+              data-booked-instead
+            >
+              <span>
+                {bookedInstead.followUpOf ? "Return visit" : KIND_LABEL[bookedInstead.kind]}: {whenLine(bookedInstead)}
+              </span>
+              <span aria-hidden="true">→</span>
+            </Link>
+          )}
+
           <section
             className={`mt-6 ${CARD}`}
             aria-label="Visit details"
@@ -105,7 +139,7 @@ export default async function VisitPage({
             <dl className="grid gap-4 sm:grid-cols-[8rem_1fr]">
               <dt className="text-sm text-text-2">Visit</dt>
               <dd className="font-semibold text-navy">
-                {KIND_LABEL[visit.kind]}
+                {returning ? `Return visit to ${returning}` : KIND_LABEL[visit.kind]}
               </dd>
               <dt className="text-sm text-text-2">
                 {visit.status === "requested" ? "You asked for" : "When"}
@@ -132,8 +166,43 @@ export default async function VisitPage({
             </dl>
             {visit.status === "done" && visit.jobReport && (
               <div className="mt-6 rounded-2xl bg-cream px-4 py-3" data-visit-report>
-                <p className="text-sm font-semibold text-navy">What we did</p>
+                <p className="text-sm font-semibold text-navy">{visit.outcome === "return" ? "What we found" : "What we did"}</p>
                 <p className="mt-1 whitespace-pre-wrap text-text-2">{visit.jobReport}</p>
+              </div>
+            )}
+            {returnVisit?.status === "done" && (
+              <Link
+                href={`/visit/${returnVisit.publicToken}`}
+                className="mt-4 inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40"
+                data-return-visit
+              >
+                See the return visit, where we finished the job
+              </Link>
+            )}
+            {comingBack && (
+              <div className="mt-4 rounded-2xl border border-terracotta/40 bg-terracotta/5 px-4 py-3" data-coming-back>
+                <p className="text-sm font-semibold text-navy">What&rsquo;s next</p>
+                <p className="mt-1 text-text-2">
+                  We&rsquo;ll be back to {(visit.returnNote ?? "finish the job").replace(/\.$/, "")}.{" "}
+                  {returnVisit && returnVisit.status !== "requested"
+                    ? null
+                    : "We'll be in touch to book a time, or message us with a day that suits."}
+                </p>
+                {!(returnVisit && returnVisit.status !== "requested") && (
+                  <Link href="/messages" className="mt-3 inline-flex min-h-11 items-center rounded-full border border-line bg-white px-4 text-sm font-semibold text-navy hover:border-navy/40">
+                    Message us
+                  </Link>
+                )}
+                {returnVisit && returnVisit.status !== "requested" && (
+                  <Link
+                    href={`/visit/${returnVisit.publicToken}`}
+                    className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-semibold text-navy hover:border-navy/40"
+                    data-return-visit
+                  >
+                    <CalendarIcon className="h-4 w-4" aria-hidden="true" />
+                    Return visit: {whenLine(returnVisit)}
+                  </Link>
+                )}
               </div>
             )}
             {files.length > 0 && (
@@ -152,7 +221,7 @@ export default async function VisitPage({
                 ))}
               </ul>
             )}
-            {visit.status === "done" && !review && (
+            {visit.status === "done" && visit.outcome !== "return" && !review && (
               <Link
                 href={`/visit/${token}/review`}
                 className="mt-5 inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40"
@@ -161,7 +230,7 @@ export default async function VisitPage({
                 ★ Rate your visit
               </Link>
             )}
-            {visit.status === "requested" && (
+            {visit.status === "requested" && !missedRequest && (
               <p className="mt-5 rounded-2xl bg-cream px-4 py-3 text-text-2">
                 We&rsquo;ll be in touch to confirm the time. You&rsquo;ll get
                 the details by message once it&rsquo;s booked.
@@ -208,7 +277,9 @@ export default async function VisitPage({
                     id="another-heading"
                     className="text-xl font-semibold text-navy"
                   >
-                    {visit.status === "requested"
+                    {missedRequest
+                      ? "Which day suits you?"
+                      : visit.status === "requested"
                       ? "Need a different time?"
                       : visit.status === "no_access"
                         ? "When suits you instead?"

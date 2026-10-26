@@ -168,7 +168,7 @@ export default async function PayPage({
                 </ul>
               </section>
             )}
-            {p.kind === "callout_fee" && !isPaid && (
+            {p.kind === "callout_fee" && (
               <p className="mt-4 text-sm text-text-2">If you go ahead with the repair, the call-out fee comes off your bill.</p>
             )}
 

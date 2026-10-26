@@ -6,6 +6,7 @@ import { business } from "@/lib/content";
 import { chatRecipientIds } from "@/lib/chat-routing";
 import { pushToUsers } from "@/lib/push";
 import { getCustomer, type Customer } from "@/lib/customers";
+import { getAppointment, visitChain, type Appointment } from "@/lib/appointments";
 import { deliverToCustomer } from "@/lib/visit-notify";
 import { invoiceEmailHtml } from "@/lib/emails/invoice";
 import { instalmentSchedule, scheduleSummary } from "@/lib/instalment-schedule";
@@ -263,16 +264,15 @@ export async function openPaymentRequests(limit = 50): Promise<PaymentRequest[]>
 }
 
 /**
- * The call-out fee already paid on this visit and not yet taken off an
- * invoice: the site's promise is that it comes off the repair.
+ * The call-out fee already paid for this job and not yet taken off an
+ * invoice: the site's promise is that it comes off the repair. A job is the
+ * visit and the ones before it (a return visit points back to the first),
+ * plus a fee they paid in the last 60 days that isn't on any visit.
  */
-export async function calloutCreditFor(appointmentId: string): Promise<number> {
-  const { data } = await createAdminClient()
-    .from("payment_requests")
-    .select("kind, status, amount_pence, lines")
-    .eq("appointment_id", appointmentId)
-    .neq("status", "cancelled");
-  const rows = (data ?? []) as Pick<Row, "kind" | "status" | "amount_pence" | "lines">[];
+type JobScope = { id: string | null; followUpOf: string | null; customerId: string | null };
+
+export async function calloutCreditFor(visit: JobScope): Promise<number> {
+  const rows = await jobPayments(visit);
   const paidFees = rows.filter((r) => r.kind === "callout_fee" && r.status === "paid").reduce((sum, r) => sum + r.amount_pence, 0);
   const credited = rows
     .filter((r) => r.kind === "invoice")
@@ -280,6 +280,52 @@ export async function calloutCreditFor(appointmentId: string): Promise<number> {
     .filter((l) => l.amount_pence < 0 && /call-out/i.test(l.description))
     .reduce((sum, l) => sum - l.amount_pence, 0);
   return Math.max(0, paidFees - credited);
+}
+
+/** Whether a call-out fee's already been asked for on this job (so there's never a second). */
+export async function calloutAskedFor(visit: JobScope): Promise<boolean> {
+  return (await jobPayments(visit)).some((r) => r.kind === "callout_fee");
+}
+
+/**
+ * An invoice for the repair, with the call-out fee still unpaid: the £50
+ * comes off the repair, so the fee's dropped rather than charged on top
+ * (and stops its reminders). A fee that's been paid is credited instead.
+ */
+export async function foldOpenCalloutFees(scope: { appointmentId: string } | { customerId: string }): Promise<number> {
+  const visit = "appointmentId" in scope ? await getAppointment(scope.appointmentId) : { id: null, followUpOf: null, customerId: scope.customerId };
+  if (!visit) return 0;
+  const open = (await jobPayments(visit)).filter((r) => r.kind === "callout_fee" && r.status === "open");
+  let folded = 0;
+  for (const fee of open) if ((await cancelPaymentRequest(fee.id)).ok) folded++;
+  return folded;
+}
+
+/** A job's payments: the visit and the ones before it, and their fees on no visit from the last 60 days. With no visit, the customer's last 60 days. */
+async function jobPayments(visit: JobScope) {
+  const ids = !visit.id ? [] : visit.followUpOf ? (await visitChain(visit as Appointment)).map((v) => v.id) : [visit.id];
+  const admin = createAdminClient();
+  const columns = "id, kind, status, amount_pence, lines";
+  type Slim = Pick<Row, "id" | "kind" | "status" | "amount_pence" | "lines">;
+  const since = new Date(Date.now() - 60 * 86_400_000).toISOString();
+  if (!ids.length) {
+    if (!visit.customerId) return [];
+    const { data } = await admin.from("payment_requests").select(columns).eq("customer_id", visit.customerId).neq("status", "cancelled").gte("created_at", since);
+    return (data ?? []) as Slim[];
+  }
+  const [onJob, loose] = await Promise.all([
+    admin.from("payment_requests").select(columns).in("appointment_id", ids).neq("status", "cancelled"),
+    visit.customerId
+      ? admin
+          .from("payment_requests")
+          .select(columns)
+          .eq("customer_id", visit.customerId)
+          .is("appointment_id", null)
+          .neq("status", "cancelled")
+          .gte("created_at", since)
+      : Promise.resolve({ data: [] }),
+  ]);
+  return [...((onJob.data ?? []) as Slim[]), ...((loose.data ?? []) as Slim[])];
 }
 
 // ---------------------------------------------------------------------------
@@ -368,7 +414,7 @@ function requestMessage(p: PaymentRequest, customer: Customer, paidPence = 0): s
     const what = p.kind === "callout_fee" ? "your call-out fee" : `invoice ${invoiceNumber(p.number)}`;
     return `${hi}here's the link for the rest of ${what}: ${formatPence(p.amountPence - paidPence)} left to pay (${formatPence(paidPence)} paid already). Pay by Apple Pay, Google Pay or card: ${payLink(p)}`;
   }
-  const what = p.kind === "callout_fee" ? `here's the link for your ${formatPence(p.amountPence)} call-out fee` : `here's invoice ${invoiceNumber(p.number)} for ${p.description.charAt(0).toLowerCase()}${p.description.slice(1)}: ${formatPence(p.amountPence)}`;
+  const what = p.kind === "callout_fee" ? `here's the link for your ${formatPence(p.amountPence)} call-out fee. If you go ahead with the repair, it comes off your bill` : `here's invoice ${invoiceNumber(p.number)} for ${p.description.charAt(0).toLowerCase()}${p.description.slice(1)}: ${formatPence(p.amountPence)}`;
   return `${hi}${what}.${offerLine(p)}${monthlyLine(p)} Pay by Apple Pay, Google Pay or card: ${payLink(p)}`;
 }
 
@@ -408,7 +454,7 @@ export async function createPaymentRequest(params: {
   instalments?: { months: number; depositPence: number } | null;
   /** A quote's deposit, or the invoice for the rest of a quote (lib/quotes.ts). */
   quoteId?: string | null;
-}): Promise<{ ok: true; request: PaymentRequest; sentVia: string[]; charge?: ChargeResult } | { ok: false; error: string }> {
+}): Promise<{ ok: true; request: PaymentRequest; sentVia: string[]; folded: number; charge?: ChargeResult } | { ok: false; error: string }> {
   const customer = await getCustomer(params.customerId);
   if (!customer) return { ok: false, error: "Customer not found." };
   const description = params.description.trim().replace(/\s+/g, " ").slice(0, 120) || "Your job";
@@ -446,6 +492,11 @@ export async function createPaymentRequest(params: {
     return { ok: false, error: "Couldn't save that. Please try again." };
   }
   let request = mapRow(data as Row);
+  // The repair's invoice, with the call-out fee still unpaid: the £50 comes
+  // off the repair, so the fee's dropped (and its reminders with it), and
+  // they're told so with this invoice.
+  const folded = params.kind === "invoice" && params.staffId && !params.quoteId ? await foldOpenCalloutFees(params.appointmentId ? { appointmentId: params.appointmentId } : { customerId: customer.id }) : 0;
+  const foldedLine = folded ? " Your call-out fee is part of this bill, so there's nothing else to pay." : "";
   const charge = params.chargeNow ? await chargeSavedCard(request.id) : undefined;
   if (charge?.ok) request = (await getPaymentRequest(request.id)) ?? request;
 
@@ -456,14 +507,18 @@ export async function createPaymentRequest(params: {
           body:
             request.status === "paid"
               ? `${customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, "}thanks, ${formatPence(request.amountPence)} paid by your saved card for ${request.kind === "callout_fee" ? "your call-out" : `invoice ${invoiceNumber(request.number)}`}. Your receipt: ${payLink(request)}`
-              : requestMessage(request, customer),
+              : requestMessage(request, customer) + foldedLine,
           headline: request.kind === "callout_fee" ? "Your call-out fee" : `Invoice ${invoiceNumber(request.number)}`,
           staffId: params.staffId,
           pushHref: `/pay/${request.publicToken}`,
           paymentRequestId: request.id,
           emailHtml: () => invoiceEmailHtml({ request, name: customer.name, link: payLink(request) }),
         });
-  return { ok: true, request, sentVia, ...(charge ? { charge } : {}) };
+  // Sending them a fee or an invoice is a reply: their new bookings are contacted.
+  if (sentVia.length && customer.conversationId && params.staffId) {
+    await createAdminClient().from("enquiries").update({ status: "contacted", updated_at: new Date().toISOString(), updated_by: params.staffId }).eq("conversation_id", customer.conversationId).eq("status", "new");
+  }
+  return { ok: true, request, sentVia, folded, ...(charge ? { charge } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -804,16 +859,17 @@ export async function handlePaymentIntent(intent: Stripe.PaymentIntent): Promise
     .filter(Boolean)
     .map(Number)
     .filter((i) => Number.isInteger(i) && i >= 0 && i < MAX_OFFERS);
-  // Tap to Pay is taken in person, so it gets the receipt an in-person
-  // payment on the website gets. Once: Stripe can send the event twice.
-  const wasOpen = (via === "tap_to_pay" || via === "card_reader") && (await getPaymentRequest(id))?.status === "open";
+  // An MPE receipt, in their conversation and by email, however they paid
+  // (a saved card charge sends its own, from where it's taken). Once:
+  // Stripe can send the event twice.
+  const wasOpen = via !== "saved_card" && (await getPaymentRequest(id))?.status === "open";
   await markPaid(id, intent.id, via, { offersTaken });
-  if (wasOpen) await sendReceipt(id, null).catch((err) => console.error("tap to pay receipt failed", err));
+  if (wasOpen) await sendReceipt(id, null).catch((err) => console.error("receipt failed", err));
   return true;
 }
 
 
-/** A receipt for a payment taken in person: in their conversation and by email, like everything else. */
+/** A receipt for a payment: in their conversation and by email, like everything else. */
 export async function sendReceipt(id: string, staffId: string | null): Promise<string[]> {
   const p = await getPaymentRequest(id);
   const customer = p?.customerId ? await getCustomer(p.customerId) : null;

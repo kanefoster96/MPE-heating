@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMobileUser } from "@/lib/supabase/mobile";
-import { claimGuestConversation } from "@/lib/account-claim";
+import { adoptCustomerConversation, claimGuestConversation } from "@/lib/account-claim";
 import { mobileCaller, mobileJson, readJson } from "@/lib/mobile-api";
 
 /**
@@ -17,5 +17,6 @@ export async function POST(request: Request) {
   if (typeof guestToken !== "string" || !guestToken) return mobileJson({ ok: true });
   const guest = await getMobileUser(new Request(request.url, { headers: { authorization: `Bearer ${guestToken}` } })).catch(() => null);
   if (guest?.is_anonymous) await claimGuestConversation(guest.id, caller.user.id);
+  if (!caller.staff) await adoptCustomerConversation(caller.user.id, caller.user.email);
   return mobileJson({ ok: true });
 }

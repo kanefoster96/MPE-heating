@@ -464,6 +464,15 @@ alter table public.appointments add column if not exists completed_by uuid refer
 alter table public.appointments add column if not exists review_due_at timestamptz;
 alter table public.appointments add column if not exists review_asked_at timestamptz;
 alter table public.appointments add column if not exists review_reminded_at timestamptz;
+-- A job that needs a second visit (a part to order): the first visit is
+-- finished as 'return' with what they're coming back for (the customer sees
+-- it), and the return visit points back to it. No review ask until it's fixed.
+alter table public.appointments add column if not exists outcome text check (outcome in ('fixed', 'return'));
+alter table public.appointments add column if not exists return_note text;
+alter table public.appointments add column if not exists follow_up_of uuid references public.appointments (id) on delete set null;
+create index if not exists appointments_follow_up_idx on public.appointments (follow_up_of);
+-- A request whose day passed before it was booked: the customer's told once.
+alter table public.appointments add column if not exists past_request_sent_at timestamptz;
 
 -- A customer's review of a job: their stars and words, for MPE. Everyone is
 -- also asked to post it publicly (the review link in Settings), whatever

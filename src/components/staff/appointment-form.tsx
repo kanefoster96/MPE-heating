@@ -20,6 +20,8 @@ export type AppointmentFormValues = {
   end: number;
   customer: { id: string; label: string } | null;
   enquiryId: string | null;
+  /** A return visit: the visit it finishes the job for. */
+  followUpOf?: string | null;
   title: string;
   address: string;
   postcode: string;
@@ -117,6 +119,7 @@ export function AppointmentForm({
   return (
     <form action={action} className="flex flex-col gap-5" data-appointment-form>
       <input type="hidden" name="enquiryId" value={initial.enquiryId ?? ""} />
+      {initial.followUpOf && <input type="hidden" name="followUpOf" value={initial.followUpOf} />}
       <input type="hidden" name="customerId" value={customer?.id ?? ""} />
 
       <fieldset className="flex flex-col gap-2">

@@ -10,7 +10,7 @@ import { apiFetch, readCached } from "@/lib/api";
 import { openInApp } from "@/lib/open-link";
 import { SITE_URL } from "@/lib/site";
 import { colors } from "@/lib/theme";
-import type { JobCard, StaffDay } from "@/lib/types";
+import type { JobCard, StaffDay, ToSchedule } from "@/lib/types";
 
 const PAD = 20;
 
@@ -160,6 +160,59 @@ function stripLabel(iso: string, i: number): { top: string; bottom: string } {
   return { top: d.toLocaleDateString("en-GB", { weekday: "short" }), bottom: String(d.getDate()) };
 }
 
+/**
+ * A repair agreed after a call-out but not booked yet (waiting on a part,
+ * say): dotted, with a timer, under every day so it can go straight onto
+ * the day being looked at once the part's in.
+ */
+function RepairToSchedule({ item, day, dayLabel }: { item: ToSchedule; day: string; dayLabel: string }) {
+  const router = useRouter();
+  const waited = item.waitingDays === 0 ? "Since today" : `Waiting ${item.waitingDays} day${item.waitingDays === 1 ? "" : "s"}`;
+  return (
+    <View style={{ borderRadius: 24, borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.orangeDeep, backgroundColor: colors.page, padding: 16, gap: 12 }}>
+      <PressableScale onPress={() => router.push(`/job/${item.id}`)} accessibilityLabel={`Repair to be scheduled for ${item.name}, to ${item.what}. ${waited}. Open the call-out`}>
+        <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}>
+          <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.orangeLight, alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name="timer-outline" size={22} color={colors.orangeDeep} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppText weight="bold" style={{ color: colors.orangeDeep, fontSize: 13 }}>
+              Repair to be scheduled · {waited.toLowerCase()}
+            </AppText>
+            <AppText weight="extrabold" style={{ fontSize: 18, marginTop: 2 }}>
+              {item.name}
+            </AppText>
+            <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 19, marginTop: 2 }}>
+              To {item.what}. Call-out {item.since}.
+            </AppText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.text3} />
+        </View>
+      </PressableScale>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <PressableScale onPress={() => router.push(`/visit-form?followUp=${item.id}&day=${day}`)} accessibilityLabel={`Book it for ${dayLabel}`} style={{ flex: 1 }}>
+          <View style={{ minHeight: 44, borderRadius: 999, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6, paddingHorizontal: 12 }}>
+            <Ionicons name="calendar" size={16} color="#fff" />
+            <AppText weight="bold" style={{ color: "#fff", fontSize: 14 }} numberOfLines={1}>
+              Book for {dayLabel.toLowerCase() === "today" || dayLabel.toLowerCase() === "tomorrow" ? dayLabel.toLowerCase() : dayLabel.split(" ").slice(0, 3).join(" ")}
+            </AppText>
+          </View>
+        </PressableScale>
+        {item.conversationId && (
+          <PressableScale onPress={() => router.push(`/chat/${item.conversationId}`)} accessibilityLabel={`Message ${item.name}`}>
+            <View style={{ minHeight: 44, borderRadius: 999, borderWidth: 1, borderColor: colors.edge, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6, paddingHorizontal: 16 }}>
+              <Ionicons name="chatbubble-outline" size={16} color={colors.navy} />
+              <AppText weight="bold" style={{ fontSize: 14 }}>
+                Message
+              </AppText>
+            </View>
+          </PressableScale>
+        )}
+      </View>
+    </View>
+  );
+}
+
 function TeamDay() {
   const router = useRouter();
   // Home's week strip opens a particular day.
@@ -287,6 +340,18 @@ function TeamDay() {
               <StaffJobCard job={job} day={data.day} onChanged={() => load()} />
             </FadeIn>
           ))
+        )}
+
+        {data && data.label !== "…" && (data.toSchedule?.length ?? 0) > 0 && (
+          <>
+            <AppText weight="bold" accessibilityRole="header" style={{ fontSize: 20, marginTop: 12 }}>
+              To be scheduled
+            </AppText>
+            <AppText style={{ color: colors.text2, fontSize: 14, marginTop: -6 }}>Repairs agreed at a call-out. Book one in once the part&apos;s here.</AppText>
+            {data.toSchedule!.map((item) => (
+              <RepairToSchedule key={item.id} item={item} day={data.day} dayLabel={data.label} />
+            ))}
+          </>
         )}
       </ScrollView>
     </View>

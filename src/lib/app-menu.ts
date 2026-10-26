@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { londonNow } from "@/lib/schedule-time";
 import { addDays } from "@/lib/day-plan";
 import { bookedPerDay, businessSnapshot, takenByMonth } from "@/lib/dashboard";
-import { waitingOnTeamCount } from "@/lib/appointments";
+import { returnsToBook, waitingOnTeamCount } from "@/lib/appointments";
 import { getNewEnquiryCount, getUnreadCountForCoach } from "@/lib/chat-db";
 import { formatPence } from "@/lib/payments";
 import { monthName, monthNumbers, previousMonth } from "@/lib/monthly-report";
@@ -35,7 +35,7 @@ export type MenuCard = {
 export async function staffOverview(user: User, admin: boolean): Promise<{ name: string; attention: number; cards: MenuCard[] }> {
   const today = londonNow().dateISO;
   const soon = addDays(today, 30);
-  const [identity, strip, waiting, enquiries, unread, certificates] = await Promise.all([
+  const [identity, strip, waiting, enquiries, unread, certificates, returns] = await Promise.all([
     staffIdentity(user).catch(() => ({ name: "", avatarUrl: null })),
     bookedPerDay(today, 1).catch(() => [{ day: today, count: 0, minutes: 0 }]),
     waitingOnTeamCount(today).catch(() => 0),
@@ -48,9 +48,20 @@ export async function staffOverview(user: User, admin: boolean): Promise<{ name:
       .gte("expires_on", today)
       .lte("expires_on", soon)
       .then((r) => r.count ?? 0, () => 0),
+    returnsToBook().then((r) => r.length, () => 0),
   ]);
   const jobsToday = strip[0]?.count ?? 0;
-  const requests = waiting + enquiries;
+  // A booking with its own request (its "when suits you") counts once.
+  const overlap = await (async () => {
+    const admin = createAdminClient();
+    const { data: asked } = await admin.from("appointments").select("enquiry_id").eq("status", "requested").gte("day", addDays(today, -7)).not("enquiry_id", "is", null);
+    const ids = (asked ?? []).map((r) => r.enquiry_id as string);
+    if (!ids.length) return 0;
+    const { count } = await admin.from("enquiries").select("id", { count: "exact", head: true }).eq("status", "new").in("id", ids);
+    return count ?? 0;
+  })().catch(() => 0);
+  const newBookings = Math.max(0, enquiries - overlap);
+  const requests = waiting + newBookings + returns;
 
   const cards: MenuCard[] = [
     { id: "today", icon: "clipboard", title: "Today's jobs", value: String(jobsToday), caption: jobsToday ? "Booked today" : "Nothing booked today", tone: "plain", count: 0, route: "/jobs" },
@@ -59,7 +70,9 @@ export async function staffOverview(user: User, admin: boolean): Promise<{ name:
       icon: "time",
       title: "Requests",
       value: String(requests),
-      caption: requests ? `${enquiries ? `${enquiries} new booking${enquiries === 1 ? "" : "s"}` : ""}${enquiries && waiting ? ", " : ""}${waiting ? `${waiting} to book in` : ""}` : "All answered",
+      caption: requests
+        ? [newBookings ? `${newBookings} new booking${newBookings === 1 ? "" : "s"}` : "", waiting ? `${waiting} to book in` : "", returns ? `${returns} return visit${returns === 1 ? "" : "s"} to book` : ""].filter(Boolean).join(", ")
+        : "All answered",
       tone: requests ? "alert" : "good",
       count: requests,
       route: "/notifications",

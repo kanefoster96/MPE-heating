@@ -88,6 +88,8 @@ export type InboxItem = {
   completed: boolean;
   /** Where the customer last wrote from: the app gets a phone on their avatar. */
   lastFrom?: "web" | "app" | null;
+  /** A same-day job no one has answered yet. */
+  sameDay?: boolean;
 };
 
 export type AppNotice = {
@@ -112,6 +114,8 @@ export type JobCard = {
   steps: JobStep[];
   report: string | null;
   actions: { label: string; url: string; primary?: boolean }[];
+  /** Not booked yet (the repair after a call-out): a dotted card with a timer. */
+  pending?: boolean;
 };
 
 /** One of the team's visits for a day. */
@@ -140,7 +144,11 @@ export type StaffDay = {
   jobs: StaffJob[];
   strip: { day: string; count: number; closed: boolean }[];
   waiting: number;
+  /** Repairs agreed after a call-out, not booked yet: oldest first. */
+  toSchedule?: ToSchedule[];
 };
+
+export type ToSchedule = { id: string; name: string; what: string; found: string; since: string; waitingDays: number; conversationId: string | null };
 
 /** An invoice or call-out fee on the Payment sheet (src/lib/app-jobs.ts on the site). */
 export type JobPayment = {
@@ -177,7 +185,12 @@ export type StaffJobDetail = {
   dayLabel: string;
   customerId?: string | null;
   asked?: string | null;
+  askedPast?: boolean;
   change?: { label: string; note: string | null } | null;
+  /** Finished as "coming back": what for, and the return visit once booked. */
+  comingBack?: { note: string | null; returnVisit: { id: string; when: string } | null } | null;
+  /** A return visit: the first visit of the job. */
+  firstVisit?: { id: string; when: string } | null;
   payments: {
     on: boolean;
     terminalLocation: string | null;

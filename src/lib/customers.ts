@@ -249,7 +249,7 @@ export async function listCustomers(q?: string, limit = 100): Promise<Customer[]
  */
 export async function findOrCreateCustomer(
   admin: SupabaseClient,
-  input: { name?: string | null; email?: string | null; phone?: string | null; postcode?: string | null; conversationId?: string | null },
+  input: { name?: string | null; email?: string | null; phone?: string | null; postcode?: string | null; address?: string | null; conversationId?: string | null },
 ): Promise<string | null> {
   const email = input.email?.trim().toLowerCase() || null;
   const e164 = input.phone ? normalizePhone(input.phone) : null;
@@ -274,6 +274,7 @@ export async function findOrCreateCustomer(
       fill.phone_e164 = e164;
     }
     if (!existing.postcode && input.postcode) fill.postcode = input.postcode;
+    if (!existing.address && input.address) fill.address = input.address;
     if (!existing.conversation_id && input.conversationId) fill.conversation_id = input.conversationId;
     if (Object.keys(fill).length) {
       const { error } = await admin.from("customers").update({ ...fill, updated_at: new Date().toISOString() }).eq("id", existing.id);
@@ -291,6 +292,7 @@ export async function findOrCreateCustomer(
       phone: e164 ? input.phone : null,
       phone_e164: e164,
       postcode: input.postcode || null,
+      address: input.address || null,
       conversation_id: input.conversationId ?? null,
     })
     .select("id")

@@ -27,6 +27,7 @@ export type FlowStep =
       question: string;
       help?: string;
       name: boolean; // ask for a name
+      address?: boolean; // ask for the first line of the address
       submit: string;
       sameDay?: boolean; // show the same-day tick
     };
@@ -126,7 +127,8 @@ export const flows: Record<FlowKey, Flow> = {
         id: "contact",
         question: "Where should we confirm your call-out?",
         help: "We'll be in touch to confirm a time before anyone sets off.",
-        name: false,
+        name: true,
+        address: true,
         submit: "Book my call-out",
         sameDay: true,
       },

@@ -1,7 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { londonNow } from "@/lib/schedule-time";
 import { addDays } from "@/lib/day-plan";
-import { recordNotice, remindersDue, type Appointment } from "@/lib/appointments";
+import { recordNotice, remindersDue, returnsToBook, type Appointment } from "@/lib/appointments";
+import { getCustomer } from "@/lib/customers";
 import { openEnquiriesSince } from "@/lib/enquiries";
 import { sendVisitNotice } from "@/lib/visit-notify";
 import { sendEnquiryFollowUp } from "@/lib/enquiry-follow-up";
@@ -61,6 +62,10 @@ const LAST_FOLLOW_UP_AFTER_DAYS = 3;
 /** A booking form older than this needs a conversation, not an automatic message. */
 const FOLLOW_UP_WITHIN_DAYS = 14;
 const STAFF_NUDGE_AFTER_HOURS = 2;
+/** A same-day job (the boiler's gone today) can't wait two hours: the team hear after 15 minutes, 7am to 9pm. */
+const SAME_DAY_NUDGE_AFTER_MINUTES = 15;
+const SAME_DAY_FROM = 7 * 60;
+const SAME_DAY_UNTIL = 21 * 60;
 const SERVICE_DUE_AFTER_DAYS = 335;
 const SERVICE_DUE_UNTIL_DAYS = 400;
 const QUOTE_FIRST_FOLLOW_UP_DAYS = 2;
@@ -111,7 +116,9 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
       .eq("day", today)
       .eq("status", "booked")
       .not("customer_id", "is", null)
-      .is("hour_reminded_at", null);
+      .is("hour_reminded_at", null)
+      // Already told "we're on the way": a "with you between…" after it would only confuse.
+      .is("on_my_way_at", null);
     for (const row of data ?? []) {
       const lead = (row.start_minute as number) - minutes;
       if (lead > HOUR_LEAD_EARLIEST || lead < HOUR_LEAD_LATEST) continue;
@@ -153,6 +160,35 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     for (const row of data ?? []) {
       if (!spend()) return;
       await sendVisitNotice(row.id as string, "missed", null);
+      result.missed++;
+    }
+  });
+
+  // 3b. A request whose day went by without us booking it: sorry, pick another day.
+  await stage("past-requests", async () => {
+    if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
+    const { data } = await admin
+      .from("appointments")
+      .select("id, customer_id, created_at")
+      .eq("status", "requested")
+      .lt("day", today)
+      .gte("day", addDays(today, -7))
+      .not("customer_id", "is", null)
+      .is("past_request_sent_at", null);
+    for (const row of data ?? []) {
+      // Booked or seen since they asked (a visit added rather than the request accepted): nothing to say sorry for.
+      const { count: since } = await admin
+        .from("appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("customer_id", row.customer_id as string)
+        .in("status", ["booked", "done", "no_access"])
+        .gte("created_at", row.created_at as string);
+      if (since) {
+        await recordNotice(row.id as string, "past_request", []);
+        continue;
+      }
+      if (!spend()) return;
+      await sendVisitNotice(row.id as string, "past_request", null);
       result.missed++;
     }
   });
@@ -231,15 +267,60 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     }
   });
 
+  // 5b. The team: a same-day job no one's answered in 15 minutes.
+  await stage("same-day", async () => {
+    if (minutes < SAME_DAY_FROM || minutes >= SAME_DAY_UNTIL) return;
+    const before = new Date(Date.now() - SAME_DAY_NUDGE_AFTER_MINUTES * 60_000).toISOString();
+    const { data } = await admin
+      .from("enquiries")
+      .select("id, category, postcode, name, conversation_id")
+      .eq("status", "new")
+      .eq("same_day", true)
+      .lte("created_at", before)
+      // Since midnight in London (the clock's minutes into today).
+      .gte("created_at", new Date(Date.now() - minutes * 60_000).toISOString())
+      .is("staff_nudged_at", null);
+    for (const row of data ?? []) {
+      await pushToUsers(await chatRecipientIds(), {
+        title: "Same-day job waiting",
+        body: `${[row.name, row.postcode].filter(Boolean).join(", ") || "A customer"} needs someone today and hasn't had a reply yet.`,
+        data: row.conversation_id ? { kind: "chat", conversationId: row.conversation_id as string } : { kind: "link", href: "/staff/messages?tab=jobs" },
+      });
+      await admin.from("enquiries").update({ staff_nudged_at: new Date().toISOString() }).eq("id", row.id as string);
+      result.staffNudged++;
+    }
+  });
+
+  // 5c. The team: a return visit still not booked a day after the first visit. Once.
+  await stage("returns", async () => {
+    if (minutes < STAFF_FROM || minutes >= STAFF_UNTIL) return;
+    const dayAgo = new Date(Date.now() - 24 * 3_600_000).toISOString();
+    for (const v of await returnsToBook()) {
+      if (!v.completedAt || v.completedAt > dayAgo) continue;
+      // Its nudge as a request, if it had one, was before it was done.
+      if (v.staffNudgedAt && v.staffNudgedAt > v.completedAt) continue;
+      const who = v.customerId ? ((await getCustomer(v.customerId))?.name ?? "A customer") : "A customer";
+      await pushToUsers(await chatRecipientIds(), {
+        title: "Return visit to book",
+        body: `${who}'s return visit${v.returnNote ? ` (to ${v.returnNote})` : ""} isn't booked yet. They were told we'd be in touch.`,
+        data: { kind: "link", href: `/staff/jobs/${v.id}` },
+      });
+      await admin.from("appointments").update({ staff_nudged_at: new Date().toISOString() }).eq("id", v.id);
+      result.staffNudged++;
+    }
+  });
+
   // 6. The team: new jobs and customers' requests waiting two hours.
   await stage("staff", async () => {
     if (minutes < STAFF_FROM || minutes >= STAFF_UNTIL) return;
     const before = new Date(Date.now() - STAFF_NUDGE_AFTER_HOURS * 3_600_000).toISOString();
     const [{ data: jobs }, { data: requests }] = await Promise.all([
       admin.from("enquiries").select("id").eq("status", "new").lte("created_at", before).is("staff_nudged_at", null),
-      admin.from("appointments").select("id").eq("status", "requested").lte("created_at", before).is("staff_nudged_at", null),
+      admin.from("appointments").select("id, enquiry_id").eq("status", "requested").lte("created_at", before).is("staff_nudged_at", null),
     ]);
-    const jobIds = (jobs ?? []).map((r) => r.id as string);
+    // A booking and its own request are one thing waiting, not two.
+    const asked = new Set((requests ?? []).map((r) => r.enquiry_id as string | null).filter(Boolean));
+    const jobIds = (jobs ?? []).map((r) => r.id as string).filter((id) => !asked.has(id));
     const requestIds = (requests ?? []).map((r) => r.id as string);
     if (!jobIds.length && !requestIds.length) return;
 
@@ -250,12 +331,12 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     await pushToUsers(await chatRecipientIds(), {
       title: "Waiting for a reply",
       body: `${parts.join(" and ")} ${jobIds.length + requestIds.length === 1 ? "has" : "have"} been waiting over two hours.`,
-      data: { kind: "link", href: requestIds.length ? "/staff/schedule" : "/staff/messages?tab=jobs" },
+      data: { kind: "link", href: requestIds.length ? "/staff/schedule?waiting=1#waiting" : "/staff/messages?tab=jobs" },
     });
     const now = new Date().toISOString();
     if (jobIds.length) await admin.from("enquiries").update({ staff_nudged_at: now }).in("id", jobIds);
     if (requestIds.length) await admin.from("appointments").update({ staff_nudged_at: now }).in("id", requestIds);
-    result.staffNudged = jobIds.length + requestIds.length;
+    result.staffNudged += jobIds.length + requestIds.length;
   });
 
   // 6b. Monthly payments due today, from 10am (London), so a failed one can be sorted the same day.
@@ -308,7 +389,7 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
     const { data } = await admin
       .from("payment_requests")
-      .select("id, number, kind, amount_pence, reminder_count, created_at, reminded_at")
+      .select("id, number, kind, amount_pence, reminder_count, created_at, reminded_at, customer_id")
       .eq("status", "open")
       // Being paid monthly: Stripe takes it, and chases a missed one itself.
       .is("plan_status", null)
@@ -326,10 +407,11 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
         await sendUnpaidReminder(row.id as string);
         result.unpaidReminders++;
       } else {
+        const who = row.customer_id ? (await getCustomer(row.customer_id as string))?.name : null;
         await pushToUsers(await chatRecipientIds(), {
           title: "Still unpaid",
-          body: `${row.kind === "callout_fee" ? "A call-out fee" : `MPE-${row.number}`} (£${((row.amount_pence as number) / 100).toFixed(2)}) is still unpaid after two reminders.`,
-          data: { kind: "link", href: "/staff/schedule" },
+          body: `${who ? `${who}: ` : ""}${row.kind === "callout_fee" ? "a call-out fee" : `MPE-${row.number}`} (£${((row.amount_pence as number) / 100).toFixed(2)}) is still unpaid after two reminders.`,
+          data: { kind: "link", href: `/staff/invoices?invoice=${row.id}` },
         });
       }
       await admin

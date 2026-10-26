@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireStaff } from "@/lib/staff-auth";
 import { formatLondonClock, londonNow } from "@/lib/schedule-time";
-import { appointmentsBetween, getAppointment, waitingOnTeam, type Appointment } from "@/lib/appointments";
+import { appointmentsBetween, getAppointment, pendingForCustomer, returnsToBook, waitingOnTeam, type Appointment } from "@/lib/appointments";
 import { business } from "@/lib/content";
 import { ON_MY_WAY_ETAS, viaPhrase } from "@/lib/visit-notify";
 import { remindersSent } from "@/lib/follow-up-sweep";
@@ -12,7 +12,7 @@ import { customerLabel, getCustomer, getCustomers, type Customer } from "@/lib/c
 import { onPlan } from "@/lib/maintenance-plan";
 import { closedDays } from "@/lib/days-off";
 import { QUOTE_STATUS_LABEL, quoteNumber, quotesForAppointments, type Quote } from "@/lib/quotes";
-import { getEnquiry, visitKindFor, CATEGORY_LABEL } from "@/lib/enquiries";
+import { enquiryNotes as enquiryNotes_, getEnquiry, visitKindFor } from "@/lib/enquiries";
 import {
   APPOINTMENT_STATUSES,
   DAY_VIEW,
@@ -85,6 +85,8 @@ type SearchParams = {
   end?: string;
   customer?: string;
   enquiry?: string;
+  /** Book the return visit for a job finished as "coming back". */
+  followUp?: string;
   /** Move a visit to the time its customer asked for. */
   to?: string;
   part?: string;
@@ -304,15 +306,32 @@ function KindKey() {
 // views so nothing sits unanswered.
 
 async function Waiting({ today }: { today: string }) {
-  const waiting = await waitingOnTeam(today);
-  if (waiting.length === 0) return null;
-  const customers = await getCustomers(waiting.map((a) => a.customerId).filter((id): id is string => !!id));
+  const [waiting, returns] = await Promise.all([waitingOnTeam(today), returnsToBook().catch(() => [])]);
+  if (waiting.length + returns.length === 0) return null;
+  const customers = await getCustomers([...waiting, ...returns].map((a) => a.customerId).filter((id): id is string => !!id));
   return (
     <section className="mt-6 rounded-2xl border border-accent/40 bg-accent/5 p-4 sm:p-5" aria-labelledby="waiting" data-waiting>
       <h2 id="waiting" className="font-semibold">
-        {waiting.length} waiting for you
+        {waiting.length + returns.length} waiting for you
       </h2>
       <ul className="mt-3 flex flex-col gap-2">
+        {/* Not fixed first time: the return visit to book. */}
+        {returns.map((a) => (
+          <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3" data-waiting-item="return">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{visitName(a, customers)} · Return visit to book</p>
+              <p className="text-sm text-muted">
+                {a.returnNote ? `To ${a.returnNote.replace(/\.$/, "")}. ` : ""}First visit {longDate(a.day)}
+              </p>
+            </div>
+            <Link
+              href={scheduleHref({ view: "day", date: today, add: "1", followUp: a.id }) + "#add"}
+              className="inline-flex min-h-11 items-center rounded-full bg-accent px-4 text-sm font-semibold text-accent-foreground hover:opacity-90"
+            >
+              Book the return visit
+            </Link>
+          </li>
+        ))}
         {waiting.map((a) => {
           const name = visitName(a, customers);
           const asked = a.status === "requested";
@@ -329,7 +348,7 @@ async function Waiting({ today }: { today: string }) {
                 </p>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {asked && (
+                {asked && a.day >= today && (
                   <form action={acceptVisitRequest.bind(null, a.id, a.day)}>
                     <button type="submit" className="min-h-11 rounded-full bg-accent px-4 text-sm font-semibold text-accent-foreground hover:opacity-90">
                       Accept
@@ -377,6 +396,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
   const payments = await paymentsForAppointments(appointments.map((a) => a.id));
   const members = await onPlan([...customers.keys()]).catch(() => new Set<string>());
   const quotes = await quotesForAppointments(appointments.filter((a) => a.kind === "quote" || a.kind === "install").map((a) => a.id)).catch(() => new Map<string, Quote[]>());
+  const toBook = appointments.some((a) => a.outcome === "return") ? new Set((await returnsToBook().catch(() => [])).map((a) => a.id)) : new Set<string>();
   const active = appointments.filter(live);
   const booked = active.filter(counts);
   const asks = active.length - booked.length;
@@ -384,14 +404,19 @@ async function DayView({ day, today, params }: { day: string; today: string; par
   // The timeline marks free time around requests too, so a request sits in
   // its window rather than on top of a "Free" label.
   const timelineGaps = dayLoad(active).gaps;
-  const editing = params.edit ? appointments.find((a) => a.id === params.edit) ?? (await getAppointment(params.edit)) : null;
-  const adding = !editing && (params.add === "1" || !!params.customer || !!params.enquiry);
+  // "Book it" for a customer who's already asked for a time (their request) or
+  // whose repair is waiting from a call-out: that one, not a second visit.
+  const forCustomer = !params.edit && !params.followUp ? (params.customer ?? (params.enquiry ? (await getEnquiry(params.enquiry))?.customerId : null)) : null;
+  const pending = forCustomer ? await pendingForCustomer(forCustomer, today) : null;
+  const followUp = params.followUp ?? pending?.returnOf?.id;
+  const editing = params.edit ? appointments.find((a) => a.id === params.edit) ?? (await getAppointment(params.edit)) : (pending?.request ?? null);
+  const adding = !editing && (params.add === "1" || !!params.customer || !!params.enquiry || !!followUp);
   // "Move it": start the form at the day and part of the day the customer asked for.
   const moveTo =
     editing && isISODate(params.to) && isPart(params.part)
       ? { day: params.to, start: PART_WINDOW[params.part].start, end: Math.min(PART_WINDOW[params.part].start + (editing.end - editing.start), PART_WINDOW[params.part].end) }
       : null;
-  const addInitial = adding ? await addFormValues(day, params) : null;
+  const addInitial = adding ? await addFormValues(day, { ...params, followUp }) : null;
   const dayOff = (await closedDays(day, day).catch(() => new Map<string, string | null>())).get(day);
   const isDayOff = dayOff !== undefined;
 
@@ -468,7 +493,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
           ) : (
             addInitial && (
               <AppointmentForm
-                key={[day, params.start, params.end, params.customer, params.enquiry].join("|")}
+                key={[day, params.start, params.end, params.customer, params.enquiry, followUp].join("|")}
                 action={addAppointment}
                 initial={addInitial}
                 phone={business.phoneDisplay}
@@ -538,7 +563,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
             </p>
           ) : (
             appointments.map((a) => (
-              <VisitCard key={a.id} appointment={a} customer={a.customerId ? customers.get(a.customerId) : undefined} payments={payments.get(a.id) ?? []} member={!!a.customerId && members.has(a.customerId)} today={today} quotes={quotes.get(a.id) ?? []} />
+              <VisitCard key={a.id} appointment={a} customer={a.customerId ? customers.get(a.customerId) : undefined} payments={payments.get(a.id) ?? []} member={!!a.customerId && members.has(a.customerId)} today={today} quotes={quotes.get(a.id) ?? []} returnToBook={toBook.has(a.id)} />
             ))
           )}
           <KindKey />
@@ -559,6 +584,7 @@ function VisitCard({
   member,
   today,
   quotes,
+  returnToBook,
 }: {
   appointment: Appointment;
   customer: Customer | undefined;
@@ -566,6 +592,7 @@ function VisitCard({
   member: boolean;
   today: string;
   quotes: Quote[];
+  returnToBook: boolean;
 }) {
   const place = [a.address, a.postcode].filter(Boolean).join(", ");
   const requested = a.status === "requested";
@@ -653,11 +680,26 @@ function VisitCard({
         {a.notes && <p className="whitespace-pre-wrap rounded-lg bg-background px-3 py-2 text-foreground">{a.notes}</p>}
         {a.status === "done" && customer && (
           <div className="rounded-lg border border-success/30 bg-success/5 px-3 py-2" data-job-report>
-            <p className="text-xs font-semibold text-success">What we did</p>
+            <p className="text-xs font-semibold text-success">{a.outcome === "return" ? "What we found" : "What we did"}</p>
             <p className="whitespace-pre-wrap text-foreground">{a.jobReport || "Not written yet."}</p>
             <Link href={`/staff/jobs/${a.id}/finish`} className="mt-1 inline-flex min-h-9 items-center text-xs font-semibold underline underline-offset-4">
               {a.jobReport ? "Edit" : "Add what we did"}
             </Link>
+          </div>
+        )}
+        {a.status === "done" && a.outcome === "return" && (
+          <div className="rounded-lg border border-accent/40 bg-accent/5 px-3 py-2" data-coming-back>
+            <p className="font-semibold">Coming back{a.returnNote ? ` to ${a.returnNote.replace(/\.$/, "")}` : ""}</p>
+            {returnToBook ? (
+              <Link
+                href={scheduleHref({ view: "day", date: today, add: "1", followUp: a.id }) + "#add"}
+                className="mt-1 inline-flex min-h-11 items-center rounded-full bg-accent px-4 text-sm font-semibold text-accent-foreground hover:opacity-90"
+              >
+                Book the return visit
+              </Link>
+            ) : (
+              <p className="text-muted">Return visit booked.</p>
+            )}
           </div>
         )}
       </div>
@@ -876,9 +918,11 @@ function NoticeLine({ appointment: a, firstName }: { appointment: Appointment; f
 
 async function addFormValues(day: string, params: SearchParams): Promise<AppointmentFormValues> {
   const enquiry = params.enquiry ? await getEnquiry(params.enquiry) : null;
-  const customerId = params.customer ?? enquiry?.customerId ?? null;
+  // A return visit: the same customer and place, a repair, coming back for what the first visit said.
+  const first = params.followUp && /^[0-9a-f-]{36}$/i.test(params.followUp) ? await getAppointment(params.followUp) : null;
+  const customerId = params.customer ?? enquiry?.customerId ?? first?.customerId ?? null;
   const customer = customerId ? await getCustomer(customerId) : null;
-  const kind: AppointmentKind = enquiry ? visitKindFor(enquiry.category) : "callout";
+  const kind: AppointmentKind = first ? "repair" : enquiry ? visitKindFor(enquiry.category) : "callout";
 
   const slotStart = Number(params.start);
   const slotEnd = Number(params.end);
@@ -886,13 +930,7 @@ async function addFormValues(day: string, params: SearchParams): Promise<Appoint
   const start = hasSlot ? slotStart : WORKDAY.start;
   const end = hasSlot ? Math.min(slotEnd, start + KIND_DEFAULT_MINUTES[kind]) : start + KIND_DEFAULT_MINUTES[kind];
 
-  const enquiryNotes = enquiry
-    ? [
-        `${CATEGORY_LABEL[enquiry.category]} booking${enquiry.sameDay ? " (same day requested)" : ""}`,
-        ...enquiry.answers.filter((a) => a.q !== "Postcode").map((a) => `${a.q}: ${a.a}`),
-        ...(enquiry.message && !enquiry.answers.some((a) => a.a === enquiry.message) ? [enquiry.message] : []),
-      ].join("\n")
-    : "";
+  const enquiryNotes = enquiry ? enquiryNotes_(enquiry) : "";
 
   return {
     kind,
@@ -900,19 +938,22 @@ async function addFormValues(day: string, params: SearchParams): Promise<Appoint
     start,
     end: Math.min(end, 24 * 60),
     customer: customer ? { id: customer.id, label: customerLabel(customer) } : null,
-    enquiryId: enquiry?.id ?? null,
-    title: "",
-    address: customer?.address ?? "",
-    postcode: customer?.postcode ?? enquiry?.postcode ?? "",
-    notes: enquiryNotes,
+    enquiryId: enquiry?.id ?? first?.enquiryId ?? null,
+    followUpOf: first?.id ?? null,
+    title: first?.returnNote ? first.returnNote.charAt(0).toUpperCase() + first.returnNote.slice(1) : "",
+    address: first?.address ?? customer?.address ?? "",
+    postcode: first?.postcode ?? customer?.postcode ?? enquiry?.postcode ?? "",
+    notes: first ? `Return visit to finish the ${KIND_LABEL[first.kind].toLowerCase()} on ${longDate(first.day)}.${first.jobReport ? `\nFound: ${first.jobReport}` : ""}` : enquiryNotes,
   };
 }
 
 async function editFormValues(a: Appointment): Promise<AppointmentFormValues> {
   const customer = a.customerId ? await getCustomer(a.customerId) : null;
+  // A request whose day has gone: the form starts from today.
+  const today = londonNow().dateISO;
   return {
     kind: a.kind,
-    day: a.day,
+    day: a.status === "requested" && a.day < today ? today : a.day,
     start: a.start,
     end: a.end,
     customer: customer ? { id: customer.id, label: customerLabel(customer) } : null,

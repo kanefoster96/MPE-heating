@@ -1,7 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { CLUB_SITE_URL } from "@/lib/club";
 import { customerForUser, getCustomer } from "@/lib/customers";
-import { appointmentsForCustomer, waitingOnTeam } from "@/lib/appointments";
+import { appointmentsForCustomer, returnsToBook, waitingOnTeam } from "@/lib/appointments";
 import { KIND_LABEL } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
@@ -59,7 +59,7 @@ async function customerNotices(user: User): Promise<AppNotice[]> {
     if (p.planStatus === "past_due") {
       out.push({ id: `pay-${p.id}`, icon: "card", title: "A monthly payment didn't go through", text: `${invoiceNumber(p.number)}: please check your card.`, at: p.createdAt, action: true, url: payLink(p) });
     } else if (p.planStatus !== "active") {
-      out.push({ id: `pay-${p.id}`, icon: "card", title: `${formatPence(p.amountPence)} to pay`, text: `${invoiceNumber(p.number)}: ${p.description}`, at: p.createdAt, action: true, url: payLink(p) });
+      out.push({ id: `pay-${p.id}`, icon: "card", title: `${formatPence(p.amountPence)} to pay`, text: p.kind === "callout_fee" ? "Your call-out fee. It comes off your repair bill if you go ahead." : `${invoiceNumber(p.number)}: ${p.description}`, at: p.createdAt, action: true, url: payLink(p) });
     }
   }
   for (const q of quotes) {
@@ -69,10 +69,30 @@ async function customerNotices(user: User): Promise<AppNotice[]> {
   if (plan?.status === "past_due") {
     out.push({ id: `plan-${plan.id}`, icon: "shield-checkmark", title: "Your plan payment didn't go through", text: "Update your card to stay covered.", at: plan.paymentFailedAt ?? plan.startedAt ?? new Date().toISOString(), action: true, url: `${SITE}/plan/${plan.publicToken}` });
   }
+  // Not fixed first time, and the return visit isn't booked yet: they know we're coming back.
+  const followed = new Set(visits.filter((v) => v.followUpOf && v.status !== "cancelled").map((v) => v.followUpOf));
   for (const v of visits) {
+    if (v.status !== "done" || v.outcome !== "return" || followed.has(v.id)) continue;
+    out.push({
+      id: `return-${v.id}`,
+      icon: "construct",
+      title: "We're coming back",
+      text: `${v.returnNote ? `To ${v.returnNote.replace(/\.$/, "")}. ` : ""}We'll be in touch to book a time.`,
+      at: v.completedAt ?? v.createdAt,
+      action: false,
+      url: `${SITE}/visit/${v.publicToken}`,
+    });
+  }
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+  for (const v of visits) {
+    // A request whose day went by unbooked: pick another day.
+    if (v.status === "requested" && v.day < today && v.day >= weekAgo) {
+      out.push({ id: `visit-${v.id}`, icon: "time", title: "Pick another day", text: `Sorry, we didn't get to your ${KIND_LABEL[v.kind].toLowerCase()} on ${requestedWhen(v.day, v.part)}.`, at: v.createdAt, action: true, url: `${SITE}/visit/${v.publicToken}#another-time` });
+      continue;
+    }
     if (v.day < today) continue;
     if (v.status === "booked") {
-      out.push({ id: `visit-${v.id}`, icon: "calendar", title: `${KIND_LABEL[v.kind]} booked`, text: whenLine(v), at: v.createdAt, action: false, url: `${SITE}/visit/${v.publicToken}` });
+      out.push({ id: `visit-${v.id}`, icon: "calendar", title: `${v.followUpOf ? "Return visit" : KIND_LABEL[v.kind]} booked`, text: whenLine(v), at: v.createdAt, action: false, url: `${SITE}/visit/${v.publicToken}` });
     } else if (v.status === "requested") {
       out.push({ id: `visit-${v.id}`, icon: "time", title: `${KIND_LABEL[v.kind]} requested`, text: `You asked for ${requestedWhen(v.day, v.part)}. We'll confirm the time.`, at: v.createdAt, action: false, url: `${SITE}/visit/${v.publicToken}` });
     }
@@ -87,10 +107,12 @@ async function customerNotices(user: User): Promise<AppNotice[]> {
 
 async function staffNotices(): Promise<AppNotice[]> {
   const today = londonNow().dateISO;
-  const [waiting, enquiries] = await Promise.all([waitingOnTeam(today), listEnquiries({ status: "new" }).catch(() => [])]);
+  const [waiting, enquiries, returns] = await Promise.all([waitingOnTeam(today), listEnquiries({ status: "new" }).catch(() => []), returnsToBook().catch(() => [])]);
   const out: AppNotice[] = [];
 
+  const requested = new Set(waiting.filter((v) => v.status === "requested" && v.enquiryId).map((v) => v.enquiryId));
   for (const e of enquiries) {
+    if (requested.has(e.id)) continue;
     out.push({
       id: `enquiry-${e.id}`,
       icon: "chatbubbles",
@@ -103,7 +125,7 @@ async function staffNotices(): Promise<AppNotice[]> {
   }
   const names = new Map<string, string | null>();
   await Promise.all(
-    [...new Set(waiting.map((v) => v.customerId).filter((id): id is string => !!id))].map(async (id) => names.set(id, (await getCustomer(id).catch(() => null))?.name ?? null)),
+    [...new Set([...waiting, ...returns].map((v) => v.customerId).filter((id): id is string => !!id))].map(async (id) => names.set(id, (await getCustomer(id).catch(() => null))?.name ?? null)),
   );
   for (const v of waiting) {
     const who = (v.customerId && names.get(v.customerId)) || "A customer";
@@ -114,6 +136,19 @@ async function staffNotices(): Promise<AppNotice[]> {
     } else if (v.change) {
       out.push({ id: `change-${v.id}`, icon: "calendar", title: `${who} asked to move their visit`, text: `To ${requestedWhen(v.change.day, v.change.part)}${v.change.note ? `: "${v.change.note}"` : ""}`, at: v.change.at, action: true, route });
     }
+  }
+  // Not fixed first time: the return visit still to book.
+  for (const v of returns) {
+    const who = (v.customerId && names.get(v.customerId)) || "A customer";
+    out.push({
+      id: `return-${v.id}`,
+      icon: "construct",
+      title: `Book ${who}'s return visit`,
+      text: v.returnNote ? `To ${v.returnNote.replace(/\.$/, "")}` : "To finish the job",
+      at: v.completedAt ?? v.createdAt,
+      action: true,
+      route: `/visit-form?followUp=${v.id}`,
+    });
   }
   return sortNotices(out);
 }

@@ -7,7 +7,7 @@ import { StaffJobCard } from "@/components/staff-job";
 import { AppText, Card, FadeIn, LoadError, PressableScale, PrimaryButton, SecondaryButton, Skeleton } from "@/components/ui";
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, readCached } from "@/lib/api";
-import { openInApp, openSignedIn } from "@/lib/open-link";
+import { openInApp } from "@/lib/open-link";
 import { SITE_URL } from "@/lib/site";
 import { colors } from "@/lib/theme";
 import type { JobCard, StaffDay } from "@/lib/types";
@@ -255,7 +255,7 @@ function TeamDay() {
           <AppText weight="extrabold" accessibilityRole="header" style={{ fontSize: 24 }}>
             {data?.label ?? "Today"}
           </AppText>
-          <PressableScale onPress={() => openSignedIn(`/staff/schedule?view=day${data ? `&date=${data.day}` : ""}`)} accessibilityLabel="Open the full calendar" style={{ height: 44, justifyContent: "center", paddingLeft: 12 }}>
+          <PressableScale onPress={() => router.push(`/calendar${data ? `?day=${data.day}` : ""}`)} accessibilityLabel="Open the full calendar" style={{ height: 44, justifyContent: "center", paddingLeft: 12 }}>
             <AppText weight="semibold" style={{ color: colors.orangeDeep, fontSize: 15 }}>
               Calendar
             </AppText>

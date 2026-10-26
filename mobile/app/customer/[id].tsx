@@ -229,12 +229,12 @@ function Customer() {
           <View style={{ flexDirection: "row", gap: 10 }}>
             {(
               [
-                ["calendar", "Book a visit", data.links.book],
+                ["calendar", "Book a visit", `app:/visit-form?customer=${data.id}`],
                 ["receipt", "Invoice", data.links.invoice],
                 ["document-text", "Quote", data.links.quote],
               ] as [IconName, string, string][]
             ).map(([icon, label, link]) => (
-              <PressableScale key={label} onPress={() => openSignedIn(link)} accessibilityLabel={label} style={{ flex: 1 }}>
+              <PressableScale key={label} onPress={() => (link.startsWith("app:") ? router.push(link.slice(4) as never) : openSignedIn(link))} accessibilityLabel={label} style={{ flex: 1 }}>
                 <View style={{ height: 80, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: colors.orangeLight, alignItems: "center", justifyContent: "center" }}>
                     <Ionicons name={icon} size={18} color={colors.orangeDeep} />

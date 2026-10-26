@@ -198,8 +198,9 @@ export function StaffJobCard({ job, day, onChanged, onPay }: { job: StaffJob; da
           Paid
         </AppText>
       )}
-      {(job.status === "requested" || job.status === "no_access") && (
-        <Big label="Open in the schedule" icon="calendar" tone="plain" onPress={() => openSignedIn(`/staff/schedule?view=day&date=${day}#visit-${job.id}`)} />
+      {/* On the job's own page, a request is answered further down. */}
+      {(job.status === "no_access" || (job.status === "requested" && !onPay)) && (
+        <Big label={job.status === "requested" ? "Answer the request" : "Pick a new time"} icon="calendar" tone="plain" onPress={() => router.push(job.status === "requested" ? `/job/${job.id}` : `/visit-form?id=${job.id}`)} />
       )}
     </View>
   );

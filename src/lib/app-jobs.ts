@@ -334,6 +334,10 @@ export type StaffJobDetail = {
   dayLabel: string;
   /** Their customer page in the app. */
   customerId: string | null;
+  /** A request: when they asked for. */
+  asked: string | null;
+  /** They asked to move it: to when, and why. */
+  change: { label: string; note: string | null } | null;
   payments: {
     on: boolean;
     terminalLocation: string | null;
@@ -380,6 +384,8 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
     job: toStaffJob(v, c ?? undefined, onJob),
     day: v.day,
     customerId: c?.id ?? null,
+    asked: v.status === "requested" ? requestedWhen(v.day, v.part) : null,
+    change: v.change ? { label: requestedWhen(v.change.day, v.change.part), note: v.change.note } : null,
     dayLabel: v.day === today ? "Today" : v.day === addDays(today, 1) ? "Tomorrow" : longDate(v.day),
     payments: {
       on: paymentsOn(),

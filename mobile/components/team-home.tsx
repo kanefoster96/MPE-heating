@@ -197,7 +197,7 @@ export function TeamHome() {
               <AppText weight="bold" style={{ color: colors.text2, fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase" }}>
                 This week
               </AppText>
-              <PressableScale onPress={() => openSignedIn("/staff/schedule")} accessibilityLabel="Open the calendar" style={{ height: 40, justifyContent: "center", paddingLeft: 12 }}>
+              <PressableScale onPress={() => router.push("/calendar")} accessibilityLabel="Open the calendar" style={{ height: 40, justifyContent: "center", paddingLeft: 12 }}>
                 <AppText weight="semibold" style={{ color: colors.orangeDeep, fontSize: 15 }}>
                   Calendar
                 </AppText>
@@ -227,7 +227,7 @@ export function TeamHome() {
           <View style={{ gap: 10 }}>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <Action icon="card" label="Take payment" onPress={() => router.push("/take-payment")} />
-              <Action icon="calendar" label="Add a visit" onPress={() => openSignedIn("/staff/schedule")} />
+              <Action icon="calendar" label="Add a visit" onPress={() => router.push("/visit-form")} />
             </View>
             {me?.admin ? (
               <View style={{ flexDirection: "row", gap: 10 }}>

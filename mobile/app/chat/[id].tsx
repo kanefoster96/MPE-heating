@@ -71,7 +71,7 @@ export default function TeamConversation() {
   };
 
   const actions: SheetAction[] = [
-    { key: "visit", label: "Book a visit", icon: "calendar", tone: "orange", onPress: withCustomer((c) => openSignedIn(`/staff/schedule?view=day&customer=${c}#add`)) },
+    { key: "visit", label: "Book a visit", icon: "calendar", tone: "orange", onPress: withCustomer((c) => router.push(`/visit-form?customer=${c}&conversation=${conversation?.id ?? ""}`)) },
     { key: "invoice", label: "Invoice or call-out fee", icon: "receipt", onPress: withCustomer((c) => openSignedIn(`/staff/payments/new?customer=${c}`)) },
     { key: "pay", label: "Take payment", icon: "card", onPress: withCustomer((c) => router.push(`/customer/${c}?pay=1`)) },
     { key: "quote", label: "New quote", icon: "document-text", onPress: withCustomer((c) => openSignedIn(`/staff/quotes/new?customer=${c}`)) },

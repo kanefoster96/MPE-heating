@@ -10,7 +10,7 @@ import { AppText, Card, FadeIn, LoadError, PressableScale, PrimaryButton, Skelet
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost, readCached } from "@/lib/api";
 import { notify } from "@/lib/confirm";
-import { openDirections, openExternal, openSignedIn } from "@/lib/open-link";
+import { openDirections, openExternal } from "@/lib/open-link";
 import { colors, fonts } from "@/lib/theme";
 import type { CustomerVisit, StaffCustomer } from "@/lib/types";
 
@@ -22,7 +22,7 @@ type IconName = ComponentProps<typeof Ionicons>["name"];
  * message, directions; jobs underway (each opens its job page to move,
  * finish or take payment); what they owe, taken from here; the team's
  * private notes, with a new one; their boiler; and what's been done
- * before. Book a visit, invoice or quote on the website, opened signed in.
+ * before. Book a visit, invoice or quote, all in the app.
  */
 export default function CustomerScreen() {
   return (
@@ -170,7 +170,7 @@ function Customer() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScreenHeader title={data?.name ?? "Customer"} right={data ? <PressableScale onPress={() => openSignedIn(data.links.page)} accessibilityLabel="Open on the website" style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Ionicons name="open-outline" size={21} color={colors.navy} /></PressableScale> : null} />
+      <ScreenHeader title={data?.name ?? "Customer"} right={data ? <PressableScale onPress={() => router.push(`/customer-form?id=${data.id}`)} accessibilityLabel="Change their details" style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Ionicons name="create-outline" size={22} color={colors.navy} /></PressableScale> : null} />
       {error && !data ? (
         <View style={{ padding: 20 }}>
           <LoadError message={error} onRetry={load} />
@@ -229,12 +229,12 @@ function Customer() {
           <View style={{ flexDirection: "row", gap: 10 }}>
             {(
               [
-                ["calendar", "Book a visit", `app:/visit-form?customer=${data.id}`],
-                ["receipt", "Invoice", `app:/new-payment?customer=${data.id}`],
-                ["document-text", "Quote", data.links.quote],
+                ["calendar", "Book a visit", `/visit-form?customer=${data.id}`],
+                ["receipt", "Invoice", `/new-payment?customer=${data.id}`],
+                ["document-text", "Quote", `/new-quote?customer=${data.id}`],
               ] as [IconName, string, string][]
             ).map(([icon, label, link]) => (
-              <PressableScale key={label} onPress={() => (link.startsWith("app:") ? router.push(link.slice(4) as never) : openSignedIn(link))} accessibilityLabel={label} style={{ flex: 1 }}>
+              <PressableScale key={label} onPress={() => router.push(link as never)} accessibilityLabel={label} style={{ flex: 1 }}>
                 <View style={{ height: 80, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: colors.orangeLight, alignItems: "center", justifyContent: "center" }}>
                     <Ionicons name={icon} size={18} color={colors.orangeDeep} />
@@ -291,7 +291,7 @@ function Customer() {
             <Section title="Quotes">
               <Card style={{ paddingVertical: 4 }}>
                 {data.quotes.map((q, i) => (
-                  <Row key={q.id} icon="document-text-outline" label={`${q.number} · ${q.status}`} value={`${q.title}, ${q.total}`} onPress={() => openSignedIn(`/staff/quotes/${q.id}`)} last={i === data.quotes.length - 1} />
+                  <Row key={q.id} icon="document-text-outline" label={`${q.number} · ${q.status}`} value={`${q.title}, ${q.total}`} onPress={() => router.push(`/quote/${q.id}`)} last={i === data.quotes.length - 1} />
                 ))}
               </Card>
             </Section>

@@ -74,7 +74,7 @@ export default function TeamConversation() {
     { key: "visit", label: "Book a visit", icon: "calendar", tone: "orange", onPress: withCustomer((c) => router.push(`/visit-form?customer=${c}&conversation=${conversation?.id ?? ""}`)) },
     { key: "invoice", label: "Invoice or call-out fee", icon: "receipt", onPress: withCustomer((c) => router.push(`/new-payment?customer=${c}`)) },
     { key: "pay", label: "Take payment", icon: "card", onPress: withCustomer((c) => router.push(`/customer/${c}?pay=1`)) },
-    { key: "quote", label: "New quote", icon: "document-text", onPress: withCustomer((c) => openSignedIn(`/staff/quotes/new?customer=${c}`)) },
+    { key: "quote", label: "New quote", icon: "document-text", onPress: withCustomer((c) => router.push(`/new-quote?customer=${c}`)) },
     { key: "details", label: "Their details", icon: "person", onPress: withCustomer((c) => router.push(`/customer/${c}`)) },
   ];
 

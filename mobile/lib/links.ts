@@ -10,6 +10,22 @@ import { SITE_URL } from "@/lib/site";
  */
 export type LinkTarget = { route: string } | { web: string };
 
+/** A section of the website's account page (/account#plan), as the app's own screen. */
+function accountRoute(section: string): string {
+  const screens: Record<string, string> = {
+    visits: "/jobs",
+    past: "/jobs",
+    payments: "/my-payments",
+    quotes: "/my-payments",
+    files: "/my-files",
+    plan: "/my-plan",
+    cards: "/my-cards",
+    details: "/my-details",
+    request: "/request-visit",
+  };
+  return screens[section] ?? "/account";
+}
+
 const ID = "([0-9a-f-]{36})";
 
 /**
@@ -65,7 +81,7 @@ export function targetFor(href: string, opts: { staff?: boolean } = {}): LinkTar
   // The "Confirm my email" button: signs the app in (app/app-sign-in.tsx), keeping its link.
   if (pathname === "/app-sign-in") return { route: path };
   if (pathname === "/messages") return { route: "/chat" };
-  if (pathname === "/account" || pathname.startsWith("/account/")) return opts.staff ? { web: `${SITE_URL}${path}` } : { route: "/account" };
+  if (pathname === "/account" || pathname.startsWith("/account/")) return opts.staff ? { route: "/menu" } : { route: accountRoute(path.split("#")[1] ?? "") };
   const guide = pathname.match(/^\/help\/([a-z0-9-]+)$/);
   if (guide) return { route: `/guide/${guide[1]}` };
   if (pathname === "/staff" || pathname.startsWith("/staff/")) {

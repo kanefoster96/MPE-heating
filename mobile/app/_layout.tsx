@@ -93,6 +93,12 @@ export default function RootLayout() {
           <Stack.Screen name="certificates" />
           <Stack.Screen name="customers" />
           <Stack.Screen name="new-chat" />
+          <Stack.Screen name="my-payments" />
+          <Stack.Screen name="my-files" />
+          <Stack.Screen name="my-plan" />
+          <Stack.Screen name="my-cards" />
+          <Stack.Screen name="my-details" />
+          <Stack.Screen name="request-visit" />
           <Stack.Screen name="plan" />
           <Stack.Screen name="days-off" />
           <Stack.Screen name="settings" />

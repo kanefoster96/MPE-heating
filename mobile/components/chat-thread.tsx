@@ -7,6 +7,7 @@ import { AppText, PressableScale, Skeleton, haptic } from "@/components/ui";
 import { Avatar } from "@/components/avatar";
 import { ImageViewer } from "@/components/image-viewer";
 import { apiFetch, apiPost } from "@/lib/api";
+import { useAuth } from "@/contexts/auth";
 import { supabase } from "@/lib/supabase";
 import { uploadChatPhoto } from "@/lib/upload";
 import { openInApp } from "@/lib/open-link";
@@ -83,9 +84,12 @@ export function ChatThread({ conversationId, header, onLoaded }: { conversationI
   const viewerId = data?.viewer.id ?? null;
   const staff = !!data?.viewer.staff && !!conversationId;
 
+  const { refreshMe } = useAuth();
   const markRead = useCallback(() => {
-    apiPost("/api/mobile/chat/read", conversationId ? { conversationId } : {}).catch(() => {});
-  }, [conversationId]);
+    apiPost("/api/mobile/chat/read", conversationId ? { conversationId } : {})
+      .then(() => refreshMe())
+      .catch(() => {});
+  }, [conversationId, refreshMe]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -261,7 +265,7 @@ export function ChatThread({ conversationId, header, onLoaded }: { conversationI
             const showDivider = !older || new Date(item.createdAt).getTime() - new Date(older.createdAt).getTime() > GAP_FOR_DIVIDER_MS;
             const firstOfRun = showDivider || older.senderId !== item.senderId;
             const fromTeam = item.senderIsCoach && !mine;
-            const name = item.senderId === null ? "MPE" : item.senderName || (fromTeam ? "MPE" : "Customer");
+            const name = item.senderId === null ? "MPE" : item.senderName || (fromTeam ? "MPE" : (data?.conversation.title ?? "Customer"));
             const photo = item.attachmentType === "image" ? (item.localUri ?? item.attachmentUrl ?? null) : null;
             const textColor = mine ? "#fff" : colors.navy;
             return (
@@ -290,6 +294,7 @@ export function ChatThread({ conversationId, header, onLoaded }: { conversationI
                     )}
                     <View
                       style={{
+                        width: photo ? 240 : undefined,
                         borderRadius: 20,
                         overflow: "hidden",
                         backgroundColor: mine ? colors.orangeDeep : colors.card,
@@ -301,7 +306,7 @@ export function ChatThread({ conversationId, header, onLoaded }: { conversationI
                     >
                       {photo && (
                         <Pressable onPress={() => setViewing(photo)} accessibilityLabel="Open photo" accessibilityRole="imagebutton">
-                          <Image source={{ uri: photo }} style={{ width: 220, height: 220, backgroundColor: colors.grey }} resizeMode="cover" accessibilityIgnoresInvertColors />
+                          <Image source={{ uri: photo }} style={{ width: "100%", height: 240, backgroundColor: colors.grey }} resizeMode="cover" accessibilityIgnoresInvertColors />
                           {item.pending && (
                             <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.25)" }}>
                               <ActivityIndicator color="#fff" />

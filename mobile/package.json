@@ -15,7 +15,7 @@
     "@expo/metro-runtime": "~57.0.0",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "^3.1.1",
-    "@stripe/stripe-terminal-react-native": "^0.0.1-beta.33",
+    "@stripe/stripe-terminal-react-native": "0.0.1-beta.33",
     "@supabase/supabase-js": "^2.118.0",
     "expo": "~57.0.13",
     "expo-constants": "^57.0.11",

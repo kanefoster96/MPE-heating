@@ -37,6 +37,10 @@ deployment.
   - [ ] Redirect URLs: add `<site>/auth/confirm`
   - [ ] Optional, for preview deployments:
         `https://*-kanvas1.vercel.app/auth/confirm`
+- [ ] **Authentication → Emails → Magic Link:** add the code to the email,
+      so the app can sign people in with it (the website keeps using the
+      link). For example, under the link: `Or enter this code in the MPE
+      app: {{ .Token }}`
 - [ ] **Authentication → Emails → SMTP:** optional, but set Resend as the
       SMTP sender so sign-in emails come from MPE's address, not Supabase's
       (and aren't limited to a few an hour).
@@ -154,14 +158,14 @@ money.
 - [ ] If MPE's account is **connected** to Kanvas One's, the webhook goes
       on Kanvas One's account as a **Connect** webhook ("Listen to events on
       connected accounts").
-- [ ] Optional, for Tap to Pay in the app later: **Terminal → Locations →
-      New**, MPE's address.
+- [ ] For Tap to Pay in the app: **Terminal → Locations → New**, MPE's
+      address. Its id (`tml_…`) goes in `STRIPE_TERMINAL_LOCATION`.
 
 | Variable | Where it comes from | Public? |
 | --- | --- | --- |
 | `STRIPE_SECRET_KEY` | **Developers → API keys**, secret key (`sk_live_…`) | **Secret** |
 | `STRIPE_WEBHOOK_SECRET` | The webhook's signing secret (`whsec_…`) | **Secret** |
-| `STRIPE_TERMINAL_LOCATION` | Optional: the location id (`tml_…`) | Config |
+| `STRIPE_TERMINAL_LOCATION` | The Terminal location id (`tml_…`), for Tap to Pay in the app | Config |
 | `STRIPE_CONNECT_ACCOUNT` | Only if connected to Kanvas One: MPE's `acct_…` | Config |
 | `PLATFORM_FEE_PERCENT` | Only if connected: Kanvas One's percentage | Config |
 
@@ -215,12 +219,48 @@ repair, servicing, new boilers and commercial pages), **Contact** (a tap
 on the phone number or WhatsApp) and **Lead** (a booking form sent, from
 the browser and the server, counted once).
 
-## 8. The app (later)
+## 8. The app (mobile/)
+
+The app's code is ready; these are the accounts and switches it needs.
+`mobile/README.md` has how to run and build it.
+
+- [ ] **Apple Developer account in MPE's name**
+      (developer.apple.com/programs). Apple rejects apps a business
+      publishes from someone else's account (guideline 4.2.6).
+- [ ] **Expo:** create the project at expo.dev (`npx eas init` in
+      `mobile/`); its id is `EAS_PROJECT_ID`.
+- [ ] **Push notifications:** `npx eas credentials` makes the Apple push
+      key for you. For Android, add a Firebase project's FCM V1 key in
+      expo.dev → the project → Credentials.
+- [ ] **Tap to Pay on iPhone:** request the entitlement at
+      developer.apple.com/tap-to-pay (as the account holder). Once Apple
+      grants it, set `TAP_TO_PAY_ENTITLEMENT=1` for the app's builds. On
+      Android nothing is needed beyond Stripe's location above.
+- [ ] **Links in emails and texts open the app:** once the app is on the
+      stores, set the two variables below on the website and redeploy.
+      Until then those links open the website, as now.
+- [ ] **App Review:** give Apple a test login (an email whose code you can
+      read) and say that Tap to Pay is for MPE's engineers only.
+
+On the website (Vercel):
 
 | Variable | Where it comes from | Public? |
 | --- | --- | --- |
 | `NEXT_PUBLIC_APP_STORE_URL` | The App Store listing | Public |
 | `NEXT_PUBLIC_PLAY_STORE_URL` | The Google Play listing | Public |
+| `APPLE_TEAM_ID` | developer.apple.com → Membership: the 10-character Team ID | Config |
+| `ANDROID_CERT_SHA256` | Play Console → the app → App integrity → App signing: the SHA-256 fingerprint (several, comma-separated) | Config |
+
+In the app's builds (expo.dev → the project → Environment variables):
+
+| Variable | Where it comes from | Public? |
+| --- | --- | --- |
+| `EXPO_PUBLIC_SITE_URL` | The website's address, e.g. `https://mpenortheast.co.uk` | Public |
+| `EXPO_PUBLIC_SUPABASE_URL` | The same as `NEXT_PUBLIC_SUPABASE_URL` | Public |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API keys: the **publishable** key (`sb_publishable_…`) | Public |
+| `EAS_PROJECT_ID` | expo.dev → the project | Config |
+| `TAP_TO_PAY_ENTITLEMENT` | `1`, only once Apple has granted Tap to Pay | Config |
+| `EXPO_PUBLIC_TAP_TO_PAY_SIMULATED` | `1` to test Tap to Pay with Stripe's pretend card (test keys only) | Config |
 
 ## Before going live
 

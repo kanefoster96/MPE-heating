@@ -35,9 +35,10 @@ export default function ChatTab() {
     }
   }, [ensureSession]);
 
+  // A guest session the first time, and again after signing out.
   useEffect(() => {
-    if (on) start();
-  }, [on, start]);
+    if (on && !session) start();
+  }, [on, session, start]);
 
   if (!on) return <ChatComingSoon />;
   if (error) {

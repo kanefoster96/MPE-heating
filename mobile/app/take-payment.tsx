@@ -141,7 +141,9 @@ function TakePayment() {
                   {item.amount}
                 </AppText>
               </View>
-              <PrimaryButton title={busyId === item.id ? "Hold the card to your phone…" : `Tap to Pay ${item.amount}`} icon="wifi" size="medium" onPress={() => (busyId ? undefined : takeIt(item))} />
+              {tap.supported && (
+                <PrimaryButton title={busyId === item.id ? "Hold the card to your phone…" : `Tap to Pay ${item.amount}`} icon="wifi" size="medium" onPress={() => (busyId ? undefined : takeIt(item))} />
+              )}
               <PressableScale onPress={() => openSignedIn("/staff/invoices")} accessibilityLabel="Other ways to take it" style={{ height: 40, alignItems: "center", justifyContent: "center" }}>
                 <AppText weight="semibold" style={{ color: colors.orangeDeep, fontSize: 14 }}>
                   Cash, bank transfer or a card on file

@@ -31,6 +31,12 @@ export const haptic = {
 
 const tap = haptic.tap;
 
+const OUTER_KEYS = new Set([
+  "flex", "flexGrow", "flexShrink", "flexBasis", "alignSelf", "width", "minWidth", "maxWidth",
+  "margin", "marginTop", "marginBottom", "marginLeft", "marginRight", "marginHorizontal", "marginVertical",
+  "position", "top", "left", "right", "bottom", "zIndex",
+]);
+
 /**
  * Anything tappable: it eases down a touch while pressed and springs back
  * (Kanvas Academy's press feel), with a light tap on the phone.
@@ -52,8 +58,17 @@ export function PressableScale({
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const to = (value: number) => Animated.spring(scale, { toValue: value, useNativeDriver: Platform.OS !== "web", speed: 40, bounciness: 6 }).start();
+  // How it sits in its row or column (flex, width, margins) belongs on the
+  // touchable itself; how it looks scales with the press.
+  const flat = StyleSheet.flatten(style) ?? {};
+  const outer: ViewStyle = {};
+  const inner: ViewStyle = {};
+  for (const [key, value] of Object.entries(flat)) {
+    (OUTER_KEYS.has(key) ? outer : inner)[key as keyof ViewStyle] = value as never;
+  }
   return (
     <Pressable
+      style={outer}
       onPress={() => {
         tap();
         onPress();
@@ -65,7 +80,7 @@ export function PressableScale({
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }, disabled && { opacity: 0.5 }]}>{children}</Animated.View>
+      <Animated.View style={[inner, { transform: [{ scale }] }, disabled && { opacity: 0.5 }]}>{children}</Animated.View>
     </Pressable>
   );
 }

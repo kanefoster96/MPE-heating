@@ -36,16 +36,14 @@ export function ServiceRow({ service, onPress }: { service: Service; onPress: ()
           <AppText weight="bold" style={{ fontSize: 16 }}>
             {service.title}
           </AppText>
-          <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 1 }} numberOfLines={1}>
+          <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 19, marginTop: 1 }} numberOfLines={2}>
             {service.headline}
           </AppText>
-        </View>
-        <View style={{ alignItems: "flex-end", gap: 4 }}>
-          <AppText weight="bold" style={{ fontSize: 13, color: colors.orangeDeep }}>
+          <AppText weight="bold" style={{ fontSize: 13, color: colors.orangeDeep, marginTop: 4 }}>
             {service.price}
           </AppText>
-          <Ionicons name="chevron-forward" size={18} color={colors.text3} />
         </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.text3} />
       </Card>
     </PressableScale>
   );

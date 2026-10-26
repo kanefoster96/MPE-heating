@@ -81,7 +81,7 @@ export default function HomeScreen() {
               </View>
               <View>
                 <AppText weight="extrabold" style={{ color: "#fff", fontSize: 20, lineHeight: 23 }}>
-                  Book a call-out
+                  Book a call{"\u2011"}out
                 </AppText>
                 <AppText weight="medium" style={{ color: "#fff", fontSize: 14, lineHeight: 19, marginTop: 4 }}>
                   Boiler broken down? £50, taken off the repair.

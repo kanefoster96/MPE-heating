@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { AppText, Card, FadeIn, LoadError, PressableScale, SecondaryButton } from "@/components/ui";
+import { AppText, Card, FadeIn, LoadError, PressableScale, SecondaryButton, Skeleton } from "@/components/ui";
+import { TeamHome } from "@/components/team-home";
 import { GuideRow, RowSkeleton, SectionTitle, ServiceRow } from "@/components/rows";
 import { CountBadge } from "@/components/count-badge";
 import { useAuth } from "@/contexts/auth";
@@ -27,9 +28,36 @@ function greeting(): string {
  * three more services and All services, the help guides with a search,
  * and live chat at the bottom. Prices and guides come from the website
  * (/api/mobile/home), so they're the same in both places; the two big
- * buttons work before it answers.
+ * buttons work before it answers. The team get their day instead
+ * (components/team-home.tsx).
  */
-export default function HomeScreen() {
+export default function HomeTab() {
+  const { staff, signedIn, me } = useAuth();
+  const [gaveUp, setGaveUp] = useState(false);
+  const waiting = signedIn && !me && !gaveUp;
+
+  // Signed in but we don't know who yet: wait a moment rather than flash the
+  // customer's Home at the team. With no signal, show it after a few seconds.
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setTimeout(() => setGaveUp(true), 4000);
+    return () => clearTimeout(timer);
+  }, [waiting]);
+
+  if (staff) return <TeamHome />;
+  if (waiting) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.cream, padding: 16, gap: 14 }}>
+        <Skeleton width="55%" height={30} radius={10} />
+        <Skeleton height={200} radius={22} />
+        <Skeleton height={140} radius={22} />
+      </View>
+    );
+  }
+  return <CustomerHome />;
+}
+
+function CustomerHome() {
   const router = useRouter();
   const { me, signedIn, unreadChats } = useAuth();
   const { data, error, load } = useHomeData();

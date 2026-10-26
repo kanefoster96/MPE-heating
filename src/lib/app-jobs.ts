@@ -210,6 +210,7 @@ export type StaffJob = {
   status: Appointment["status"];
   window: string;
   start: number;
+  end: number;
   customer: { name: string | null; phone: string | null; conversationId: string | null } | null;
   address: string | null;
   postcode: string | null;
@@ -261,6 +262,7 @@ export async function staffDay(dayParam: string | null): Promise<StaffDay> {
         status: v.status,
         window: windowLabel(v.start, v.end),
         start: v.start,
+        end: v.end,
         customer: c ? { name: c.name, phone: c.phoneE164 ?? c.phone, conversationId: c.conversationId } : null,
         address: v.address ?? c?.address ?? null,
         postcode: v.postcode ?? c?.postcode ?? null,

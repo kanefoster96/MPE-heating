@@ -1,6 +1,8 @@
 import {
   acceptRequest,
+  categoriesFor,
   clearReturn,
+  pendingForCustomer,
   appointmentFromForm,
   appointmentsBetween,
   clearChangeRequest,
@@ -11,7 +13,6 @@ import {
   setAppointmentStatus,
   updateAppointment,
 } from "@/lib/appointments";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createCustomer, customerFieldsFromForm, customerLabel, getCustomer, listCustomers } from "@/lib/customers";
 import { closedDays } from "@/lib/days-off";
 import { APPOINTMENT_KINDS, KIND_DEFAULT_MINUTES, KIND_LABEL, PART_LABEL, PART_WINDOW, addDays, longDate, toHHMM, type AppointmentKind } from "@/lib/day-plan";
@@ -84,8 +85,9 @@ export async function visitDraft(params: { id?: string | null; customerId?: stri
     if (!v) return null;
     const c = v.customerId ? await getCustomer(v.customerId) : null;
     // A request whose day has gone: the form starts from today.
-    const gone = v.status === "requested" && v.day < londonNow().dateISO;
-    const day = gone ? londonNow().dateISO : v.day;
+    const now = londonNow();
+    const gone = v.status === "requested" && (v.day < now.dateISO || (v.day === now.dateISO && v.start < now.minutes));
+    const day = gone ? now.dateISO : v.day;
     const slot = gone ? firstSlot(day, v.kind) : { start: toHHMM(v.start), end: toHHMM(v.end) };
     return {
       id: v.id,
@@ -139,17 +141,11 @@ export async function visitDraft(params: { id?: string | null; customerId?: stri
   }
   const c = params.customerId ? await getCustomer(params.customerId) : null;
   // They've asked for a visit already (the booking form's "when suits you"): book that, not a second one.
+  // Or a repair agreed at their call-out and not booked yet: that's the return visit, linked.
   if (c) {
-    const { data: open } = await createAdminClient()
-      .from("appointments")
-      .select("id")
-      .eq("customer_id", c.id)
-      .eq("status", "requested")
-      .gte("day", addDays(today, -14))
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (open?.id) return visitDraft({ id: open.id as string });
+    const pending = await pendingForCustomer(c.id, today);
+    if (pending.request) return visitDraft({ id: pending.request.id });
+    if (pending.returnOf) return visitDraft({ followUp: pending.returnOf.id, day: params.day });
   }
   // Else their latest booking still waiting in the chat: its kind, and the fault in their words.
   const conversationId = params.conversationId ?? c?.conversationId ?? null;
@@ -246,13 +242,14 @@ export async function saveVisit(
   const customer = input.customerId ? await getCustomer(input.customerId) : null;
 
   if (!id) {
+    if (input.day < londonNow().dateISO) return { ok: false, error: "That day's gone. Pick today or later." };
     const created = await createAppointment(input, staffId);
     if (!created) return { ok: false, error: "Couldn't add that visit." };
     // Their bookings waiting in the chat are booked now, from wherever the visit was added.
     const conversationId = body.conversationId ?? customer?.conversationId ?? null;
     if (!input.enquiryId && conversationId) {
       for (const e of await enquiriesForConversation(conversationId).catch(() => [])) {
-        if (e.status === "new" || e.status === "contacted") await markEnquiryBooked(e.id, staffId);
+        if ((e.status === "new" || e.status === "contacted") && categoriesFor(input.kind).includes(e.category)) await markEnquiryBooked(e.id, staffId);
       }
     }
     const sent = body.notify && input.customerId ? await sendVisitNotice(created, "booked", staffId) : null;

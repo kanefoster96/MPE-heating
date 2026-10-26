@@ -292,8 +292,8 @@ export async function calloutAskedFor(visit: JobScope): Promise<boolean> {
  * comes off the repair, so the fee's dropped rather than charged on top
  * (and stops its reminders). A fee that's been paid is credited instead.
  */
-export async function foldOpenCalloutFees(appointmentId: string): Promise<number> {
-  const visit = await getAppointment(appointmentId);
+export async function foldOpenCalloutFees(scope: { appointmentId: string } | { customerId: string }): Promise<number> {
+  const visit = "appointmentId" in scope ? await getAppointment(scope.appointmentId) : { id: null, followUpOf: null, customerId: scope.customerId };
   if (!visit) return 0;
   const open = (await jobPayments(visit)).filter((r) => r.kind === "callout_fee" && r.status === "open");
   let folded = 0;
@@ -454,7 +454,7 @@ export async function createPaymentRequest(params: {
   instalments?: { months: number; depositPence: number } | null;
   /** A quote's deposit, or the invoice for the rest of a quote (lib/quotes.ts). */
   quoteId?: string | null;
-}): Promise<{ ok: true; request: PaymentRequest; sentVia: string[]; charge?: ChargeResult } | { ok: false; error: string }> {
+}): Promise<{ ok: true; request: PaymentRequest; sentVia: string[]; folded: number; charge?: ChargeResult } | { ok: false; error: string }> {
   const customer = await getCustomer(params.customerId);
   if (!customer) return { ok: false, error: "Customer not found." };
   const description = params.description.trim().replace(/\s+/g, " ").slice(0, 120) || "Your job";
@@ -492,6 +492,11 @@ export async function createPaymentRequest(params: {
     return { ok: false, error: "Couldn't save that. Please try again." };
   }
   let request = mapRow(data as Row);
+  // The repair's invoice, with the call-out fee still unpaid: the £50 comes
+  // off the repair, so the fee's dropped (and its reminders with it), and
+  // they're told so with this invoice.
+  const folded = params.kind === "invoice" && params.staffId && !params.quoteId ? await foldOpenCalloutFees(params.appointmentId ? { appointmentId: params.appointmentId } : { customerId: customer.id }) : 0;
+  const foldedLine = folded ? " Your call-out fee is part of this bill, so there's nothing else to pay." : "";
   const charge = params.chargeNow ? await chargeSavedCard(request.id) : undefined;
   if (charge?.ok) request = (await getPaymentRequest(request.id)) ?? request;
 
@@ -502,14 +507,18 @@ export async function createPaymentRequest(params: {
           body:
             request.status === "paid"
               ? `${customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, "}thanks, ${formatPence(request.amountPence)} paid by your saved card for ${request.kind === "callout_fee" ? "your call-out" : `invoice ${invoiceNumber(request.number)}`}. Your receipt: ${payLink(request)}`
-              : requestMessage(request, customer),
+              : requestMessage(request, customer) + foldedLine,
           headline: request.kind === "callout_fee" ? "Your call-out fee" : `Invoice ${invoiceNumber(request.number)}`,
           staffId: params.staffId,
           pushHref: `/pay/${request.publicToken}`,
           paymentRequestId: request.id,
           emailHtml: () => invoiceEmailHtml({ request, name: customer.name, link: payLink(request) }),
         });
-  return { ok: true, request, sentVia, ...(charge ? { charge } : {}) };
+  // Sending them a fee or an invoice is a reply: their new bookings are contacted.
+  if (sentVia.length && customer.conversationId && params.staffId) {
+    await createAdminClient().from("enquiries").update({ status: "contacted", updated_at: new Date().toISOString(), updated_by: params.staffId }).eq("conversation_id", customer.conversationId).eq("status", "new");
+  }
+  return { ok: true, request, sentVia, folded, ...(charge ? { charge } : {}) };
 }
 
 // ---------------------------------------------------------------------------

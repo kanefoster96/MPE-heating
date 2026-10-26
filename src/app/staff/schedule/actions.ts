@@ -59,6 +59,7 @@ export async function addAppointment(formData: FormData) {
 
   const parsed = appointmentFromForm(formData);
   if (!parsed.ok) redirect(dayHref(day, { error: parsed.error, add: "1" }));
+  if (parsed.input.day < londonNow().dateISO) redirect(dayHref(day, { error: "That day's gone. Pick today or later.", add: "1" }));
   const id = await createAppointment(parsed.input, user.id);
   if (!id) redirect(dayHref(day, { error: "Couldn't add that visit.", add: "1" }));
   const sent = wantsNotice(formData) && parsed.input.customerId ? await sendVisitNotice(id, "booked", user.id) : null;

@@ -193,8 +193,32 @@ export async function returnVisitFor(id: string): Promise<Appointment | null> {
 
 /** A visit finished as "coming back" that won't need one after all: it's simply done. */
 export async function clearReturn(id: string): Promise<boolean> {
-  const { error } = await createAdminClient().from("appointments").update({ outcome: null, updated_at: new Date().toISOString() }).eq("id", id).eq("outcome", "return");
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("appointments").update({ outcome: null, updated_at: new Date().toISOString() }).eq("id", id).eq("outcome", "return").select("enquiry_id");
+  // Nothing more to do on it: its booking's done too.
+  const enquiryId = data?.[0]?.enquiry_id as string | null | undefined;
+  if (enquiryId) await admin.from("enquiries").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", enquiryId).in("status", ["new", "contacted", "booked"]);
   return !error;
+}
+
+/**
+ * What a new visit for this customer should really be: their open request
+ * (book that, not a second visit), else a repair agreed at a call-out and
+ * not booked yet (book it as the return visit, linked). Null for neither.
+ */
+export async function pendingForCustomer(customerId: string, today: string): Promise<{ request: Appointment | null; returnOf: Appointment | null }> {
+  const { data } = await createAdminClient()
+    .from("appointments")
+    .select("*")
+    .eq("customer_id", customerId)
+    .eq("status", "requested")
+    .gte("day", addDays(today, -7))
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (data) return { request: mapAppointment(data as Row), returnOf: null };
+  const returnOf = (await returnsToBook()).find((v) => v.customerId === customerId) ?? null;
+  return { request: null, returnOf };
 }
 
 /** The visits a job took, first to this one: a return visit points back to the one before. */
@@ -316,6 +340,14 @@ export async function createAppointment(input: AppointmentInput, staffId: string
   return data.id as string;
 }
 
+/** The booking forms a kind of visit answers (enquiries' categories): a call-out isn't a boiler quote. */
+export function categoriesFor(kind: AppointmentKind): string[] {
+  if (kind === "callout" || kind === "repair") return ["callout", "other"];
+  if (kind === "service") return ["service", "plan"];
+  if (kind === "quote" || kind === "install") return ["new_boiler", "commercial"];
+  return ["other", "commercial"];
+}
+
 /** Call-outs and repair visits are one kind of job: booking either answers a request for the other. */
 const FAMILY: Partial<Record<AppointmentKind, AppointmentKind[]>> = { callout: ["callout", "repair"], repair: ["callout", "repair"] };
 
@@ -342,6 +374,7 @@ async function settleRequests(input: AppointmentInput, newId: string, staffId: s
       .from("enquiries")
       .update({ status: "booked", updated_at: new Date().toISOString(), updated_by: staffId })
       .eq("conversation_id", customer.conversation_id as string)
+      .in("category", categoriesFor(input.kind))
       .in("status", ["new", "contacted"]);
   }
 }

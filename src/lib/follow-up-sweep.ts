@@ -316,9 +316,11 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     const before = new Date(Date.now() - STAFF_NUDGE_AFTER_HOURS * 3_600_000).toISOString();
     const [{ data: jobs }, { data: requests }] = await Promise.all([
       admin.from("enquiries").select("id").eq("status", "new").lte("created_at", before).is("staff_nudged_at", null),
-      admin.from("appointments").select("id").eq("status", "requested").lte("created_at", before).is("staff_nudged_at", null),
+      admin.from("appointments").select("id, enquiry_id").eq("status", "requested").lte("created_at", before).is("staff_nudged_at", null),
     ]);
-    const jobIds = (jobs ?? []).map((r) => r.id as string);
+    // A booking and its own request are one thing waiting, not two.
+    const asked = new Set((requests ?? []).map((r) => r.enquiry_id as string | null).filter(Boolean));
+    const jobIds = (jobs ?? []).map((r) => r.id as string).filter((id) => !asked.has(id));
     const requestIds = (requests ?? []).map((r) => r.id as string);
     if (!jobIds.length && !requestIds.length) return;
 

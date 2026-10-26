@@ -8,7 +8,6 @@ import {
   MAX_OFFERS,
   calloutAskedFor,
   calloutCreditFor,
-  foldOpenCalloutFees,
   createPaymentRequest,
   formatPence,
   parseLines,
@@ -111,10 +110,9 @@ export async function createInvoice(body: InvoiceBody, staffId: string): Promise
     instalments,
   });
   if (!created.ok) return { ok: false, error: created.error };
-  const folded = kind === "invoice" && typeof body.appointmentId === "string" ? await foldOpenCalloutFees(body.appointmentId) : 0;
   // Money off they were owed, now on this invoice: used.
   if (kind === "invoice" && body.creditIds?.length) await spendCredits(body.customerId, body.creditIds.filter((x) => typeof x === "string"), created.request.id);
-  const foldedLine = folded ? " Their unpaid call-out fee is dropped: it comes off this bill." : "";
+  const foldedLine = created.folded ? " Their unpaid call-out fee is dropped: it's part of this bill." : "";
   const message = (!send
     ? "Saved. Take it now."
     : created.sentVia.length

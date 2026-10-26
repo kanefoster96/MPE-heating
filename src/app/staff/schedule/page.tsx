@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireStaff } from "@/lib/staff-auth";
 import { formatLondonClock, londonNow } from "@/lib/schedule-time";
-import { appointmentsBetween, getAppointment, returnsToBook, waitingOnTeam, type Appointment } from "@/lib/appointments";
+import { appointmentsBetween, getAppointment, pendingForCustomer, returnsToBook, waitingOnTeam, type Appointment } from "@/lib/appointments";
 import { business } from "@/lib/content";
 import { ON_MY_WAY_ETAS, viaPhrase } from "@/lib/visit-notify";
 import { remindersSent } from "@/lib/follow-up-sweep";
@@ -404,14 +404,19 @@ async function DayView({ day, today, params }: { day: string; today: string; par
   // The timeline marks free time around requests too, so a request sits in
   // its window rather than on top of a "Free" label.
   const timelineGaps = dayLoad(active).gaps;
-  const editing = params.edit ? appointments.find((a) => a.id === params.edit) ?? (await getAppointment(params.edit)) : null;
-  const adding = !editing && (params.add === "1" || !!params.customer || !!params.enquiry || !!params.followUp);
+  // "Book it" for a customer who's already asked for a time (their request) or
+  // whose repair is waiting from a call-out: that one, not a second visit.
+  const forCustomer = !params.edit && !params.followUp ? (params.customer ?? (params.enquiry ? (await getEnquiry(params.enquiry))?.customerId : null)) : null;
+  const pending = forCustomer ? await pendingForCustomer(forCustomer, today) : null;
+  const followUp = params.followUp ?? pending?.returnOf?.id;
+  const editing = params.edit ? appointments.find((a) => a.id === params.edit) ?? (await getAppointment(params.edit)) : (pending?.request ?? null);
+  const adding = !editing && (params.add === "1" || !!params.customer || !!params.enquiry || !!followUp);
   // "Move it": start the form at the day and part of the day the customer asked for.
   const moveTo =
     editing && isISODate(params.to) && isPart(params.part)
       ? { day: params.to, start: PART_WINDOW[params.part].start, end: Math.min(PART_WINDOW[params.part].start + (editing.end - editing.start), PART_WINDOW[params.part].end) }
       : null;
-  const addInitial = adding ? await addFormValues(day, params) : null;
+  const addInitial = adding ? await addFormValues(day, { ...params, followUp }) : null;
   const dayOff = (await closedDays(day, day).catch(() => new Map<string, string | null>())).get(day);
   const isDayOff = dayOff !== undefined;
 
@@ -488,7 +493,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
           ) : (
             addInitial && (
               <AppointmentForm
-                key={[day, params.start, params.end, params.customer, params.enquiry, params.followUp].join("|")}
+                key={[day, params.start, params.end, params.customer, params.enquiry, followUp].join("|")}
                 action={addAppointment}
                 initial={addInitial}
                 phone={business.phoneDisplay}

@@ -9,7 +9,6 @@ import {
   cancelPaymentRequest,
   chargeSavedCard,
   createPaymentRequest,
-  foldOpenCalloutFees,
   markPaidInPerson,
   parseLines,
   resendPaymentLink,
@@ -59,8 +58,6 @@ export async function takePayment(ctx: Context, formData: FormData) {
     instalments: kind === "invoice" && intent === "send" ? instalmentsFrom(formData) : null,
   });
   if (!created.ok) redirect(pageHref(ctx, { error: created.error }));
-  // The call-out fee still unpaid: the £50 comes off this repair bill, so it's dropped.
-  if (kind === "invoice" && ctx.appointmentId) await foldOpenCalloutFees(ctx.appointmentId);
   // Money off they were owed, now on this invoice: used.
   const creditIds = String(formData.get("creditIds") ?? "").split(",").filter(Boolean);
   if (kind === "invoice" && creditIds.length) await spendCredits(ctx.customerId, creditIds, created.request.id);

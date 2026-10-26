@@ -54,7 +54,7 @@ export async function askForAnotherTime(token: string, formData: FormData) {
     await setChangeRequest(visit.id, { day, part, note });
     await postCustomerVisitMessage(
       customer,
-      `I can't make my ${KIND_LABEL[visit.kind].toLowerCase()} on ${longDate(visit.day)}, ${windowLabel(visit.start, visit.end)}. Could you do ${requestedWhen(day, part)}${part === "any" ? ", any time" : ""}?${note ? `\n${note}` : ""}`,
+      `I can't make my ${visit.followUpOf ? "return visit" : KIND_LABEL[visit.kind].toLowerCase()} on ${longDate(visit.day)}, ${windowLabel(visit.start, visit.end)}. Could you do ${requestedWhen(day, part)}${part === "any" ? ", any time" : ""}?${note ? `\n${note}` : ""}`,
     );
   }
   revalidatePath(`/visit/${token}`);

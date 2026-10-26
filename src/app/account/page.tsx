@@ -210,7 +210,7 @@ export default async function AccountPage({
                   <span
                     className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${v.status === "requested" ? "bg-navy/10 text-navy" : "bg-success/10 text-success"}`}
                   >
-                    {v.status === "requested" ? "Waiting to confirm" : STATUS_LABEL[v.status]}
+                    {v.status === "requested" ? (v.day < today ? "Pick another day" : "Waiting to confirm") : STATUS_LABEL[v.status]}
                   </span>
                 </Link>
               </li>
@@ -238,7 +238,7 @@ export default async function AccountPage({
                 <Link href={`/visit/${v.publicToken}`} className="block rounded-2xl border border-line bg-cream px-4 py-3 transition-colors hover:border-navy/40">
                   <span className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="font-semibold text-navy">
-                      {KIND_LABEL[v.kind]}
+                      {v.followUpOf ? "Return visit" : KIND_LABEL[v.kind]}
                       {v.outcome === "return" && !visits.some((f) => f.followUpOf === v.id && f.status === "done") ? (
                         <span className="ml-2 text-sm font-semibold text-terracotta-deep">We&rsquo;re coming back</span>
                       ) : null}

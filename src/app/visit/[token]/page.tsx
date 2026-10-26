@@ -8,7 +8,7 @@ import { ContactOptions } from "@/components/ContactOptions";
 import { DayPartFields } from "@/components/DayPartPicker";
 import { CalendarIcon, MapPinIcon } from "@/components/icons";
 import { enquiriesOn } from "@/lib/enquiries";
-import { getAppointment, getAppointmentByToken, returnVisitFor } from "@/lib/appointments";
+import { appointmentsForCustomer, getAppointment, getAppointmentByToken, returnVisitFor } from "@/lib/appointments";
 import { getCustomer } from "@/lib/customers";
 import { KIND_LABEL, longDate } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
@@ -63,6 +63,11 @@ export default async function VisitPage({
   // A return visit: what it's for, from the first visit.
   const firstVisit = visit.followUpOf ? await getAppointment(visit.followUpOf) : null;
   const returning = firstVisit ? (firstVisit.returnNote ?? visit.title ?? "finish the job").replace(/\.$/, "") : null;
+  // Cancelled because a visit was booked for them instead (their request, answered): that visit.
+  const bookedInstead =
+    visit.status === "cancelled"
+      ? ((await appointmentsForCustomer(visit.customerId)).filter((a) => a.createdAt > visit.createdAt && (a.status === "booked" || a.status === "done")).sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0] ?? null)
+      : null;
   // A request whose day has gone without us booking it.
   const missedRequest = visit.status === "requested" && !upcoming;
 
@@ -73,6 +78,8 @@ export default async function VisitPage({
       ? { lead: "Request received.", em: "We'll confirm the time." }
       : visit.status === "no_access"
         ? { lead: "Sorry we missed you.", em: "Pick another time." }
+      : bookedInstead
+        ? { lead: "You're booked in.", em: "See your visit." }
       : visit.status === "cancelled"
         ? { lead: "This visit is", em: "cancelled." }
         : comingBack
@@ -109,6 +116,19 @@ export default async function VisitPage({
               We&rsquo;re on the way
               {visit.onMyWayEta ? `: with you around ${arrivalClock(visit.onMyWayAt, visit.onMyWayEta)}` : ""}.
             </p>
+          )}
+
+          {bookedInstead && (
+            <Link
+              href={`/visit/${bookedInstead.publicToken}`}
+              className="mt-8 flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-success/30 bg-success/10 px-5 py-4 font-semibold text-success"
+              data-booked-instead
+            >
+              <span>
+                {bookedInstead.followUpOf ? "Return visit" : KIND_LABEL[bookedInstead.kind]}: {whenLine(bookedInstead)}
+              </span>
+              <span aria-hidden="true">→</span>
+            </Link>
           )}
 
           <section
@@ -168,6 +188,11 @@ export default async function VisitPage({
                     ? null
                     : "We'll be in touch to book a time, or message us with a day that suits."}
                 </p>
+                {!(returnVisit && returnVisit.status !== "requested") && (
+                  <Link href="/messages" className="mt-3 inline-flex min-h-11 items-center rounded-full border border-line bg-white px-4 text-sm font-semibold text-navy hover:border-navy/40">
+                    Message us
+                  </Link>
+                )}
                 {returnVisit && returnVisit.status !== "requested" && (
                   <Link
                     href={`/visit/${returnVisit.publicToken}`}

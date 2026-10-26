@@ -97,7 +97,8 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
         via.push("chat");
         await admin
           .from("chat_conversations")
-          .update({ last_message_at: now, completed_at: null, completed_by: null, coach_last_read_at: now })
+          // Read only when a person sent it: an automatic message mustn't hide a customer's unanswered one.
+          .update({ last_message_at: now, completed_at: null, completed_by: null, ...(d.staffId ? { coach_last_read_at: now } : {}) })
           .eq("id", conversationId);
       }
     }

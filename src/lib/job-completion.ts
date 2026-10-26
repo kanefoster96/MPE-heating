@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAppointment, visitChain, type Appointment } from "@/lib/appointments";
+import { categoriesFor, getAppointment, visitChain, type Appointment } from "@/lib/appointments";
 import { addCustomerNote, getCustomer, updateCustomer, type CustomerFields } from "@/lib/customers";
 import { deliverToCustomer, postCustomerVisitMessage, visitLink } from "@/lib/visit-notify";
 import { calloutAskedFor, calloutCreditFor, formatPence, invoiceNumber, payLink, paymentsForAppointments } from "@/lib/payments";
@@ -129,19 +129,27 @@ export async function completeJob(params: {
   // The call-out they paid comes off the repair, as the site says, however many visits it takes.
   const credit = coming ? await calloutCreditFor(visit) : 0;
   const feeOpen = coming && !credit && (await calloutAskedFor(visit));
-  const creditLine = credit ? ` The ${formatPence(credit)} call-out you paid comes off the final bill.` : feeOpen ? " The call-out fee comes off the final bill." : "";
-  const next = coming ? ` We'll be back to finish the job: ${lowerFirst(returnNote)}. We'll be in touch to book a time, or reply with a day that suits.${creditLine}` : "";
+  // Unpaid: it's due now (the site's "£50 on the day"), and comes off the bill later, said once, after the link.
+  const creditLine = credit ? ` The ${formatPence(credit)} call-out you paid comes off the final bill.` : feeOpen ? " Your call-out fee comes off the final bill." : "";
+  const next = coming ? ` We'll be back to finish the job: ${lowerFirst(returnNote)}. We'll be in touch to book a time, or reply with a day that suits.${feeOpen ? "" : creditLine}` : "";
+  const payText = pay ? ` ${pay.text}${feeOpen ? creditLine : ""}` : "";
+  const what = visitWord(visit);
   const body = coming
-    ? `${first ? `Hi ${first}, ` : "Hi, "}thanks for having us ${whenDone(visit.day)}.${report ? ` Here's what we found: ${endSentence(report)}` : ""}${next}${pay ? ` ${pay.text}` : ""}`
+    ? `${first ? `Hi ${first}, ` : "Hi, "}thanks for having us ${whenDone(visit.day)}.${report ? ` Here's what we found: ${endSentence(report)}` : ""}${next}${payText}`
     : `${first ? `Hi ${first}, ` : "Hi, "}thanks for having us ${whenDone(visit.day)}.${report ? ` Here's what we did: ${endSentence(report)}` : ""}${pay ? ` ${pay.text}` : ""} Any questions, just reply.`;
   const sentVia = await deliverToCustomer(customer, {
     body,
-    headline: coming ? `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we found, and what's next` : `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we did`,
+    headline: coming ? `Your ${what}: what we found, and what's next` : `Your ${what}: what we did`,
     staffId: params.staffId,
     pushHref: `/visit/${visit.publicToken}`,
     emailHtml: () => jobSummaryEmailHtml({ name: first, visit, report, pay, link: visitLink(visit), returnNote: coming ? returnNote : null, creditLine }),
   });
   return { ok: true, sentVia };
+}
+
+/** "call-out", or "return visit" for the visit that came back to finish a job. */
+function visitWord(visit: Appointment): string {
+  return visit.followUpOf ? "return visit" : KIND_LABEL[visit.kind].toLowerCase();
 }
 
 /** So the next sentence doesn't run on from the report. */
@@ -161,7 +169,7 @@ async function closeEnquiries(visit: Appointment, staffId: string): Promise<void
   const customer = visit.customerId ? await getCustomer(visit.customerId) : null;
   const update = { status: "done", updated_at: new Date().toISOString(), updated_by: staffId };
   if (ids.length) await admin.from("enquiries").update(update).in("id", ids).in("status", ["new", "contacted", "booked"]);
-  if (customer?.conversationId) await admin.from("enquiries").update(update).eq("conversation_id", customer.conversationId).eq("status", "booked");
+  if (customer?.conversationId) await admin.from("enquiries").update(update).eq("conversation_id", customer.conversationId).in("category", categoriesFor(chain[0].kind)).eq("status", "booked");
 }
 
 function escapeHtml(text: string): string {
@@ -180,7 +188,7 @@ ${returnNote ? `<p ${label}>What's next</p><p ${box}>We'll be back to finish the
 <p ${P}>Any questions, just reply or call ${escapeHtml(business.phoneDisplay)}.</p>`;
   return renderEmailLayout({
     previewText: returnNote ? "What we found, and what's next" : report ? `What we did: ${report.slice(0, 90)}` : "Thanks for having us",
-    heading: returnNote ? `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we found, and what's next` : `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we did`,
+    heading: returnNote ? `Your ${visitWord(visit)}: what we found, and what's next` : `Your ${visitWord(visit)}: what we did`,
     bodyHtml,
     ctaLabel: pay ? (pay.text.startsWith("Your receipt") ? "View receipt" : "View and pay") : "See your visit",
     ctaUrl: pay?.href ?? params.link,
@@ -264,7 +272,7 @@ export async function sendReviewAsk(appointmentId: string, stage: 1 | 2): Promis
   const body =
     stage === 1
       ? `${first ? `Hi ${first}, ` : "Hi, "}thanks for having us ${whenDone(visit.day)}. How did we do? It takes 30 seconds: ${link}`
-      : `${first ? `Hi ${first}, ` : "Hi, "}if you have a moment, we'd love to know how your ${KIND_LABEL[visit.kind].toLowerCase()} went: ${link}`;
+      : `${first ? `Hi ${first}, ` : "Hi, "}if you have a moment, we'd love to know how your ${visitWord(visit)} went: ${link}`;
   const via = await deliverToCustomer(customer, {
     body,
     headline: "How did we do?",

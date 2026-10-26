@@ -25,8 +25,9 @@ deployment.
 - [ ] Create a project at supabase.com, in the London region.
 - [ ] **SQL editor:** paste in all of `supabase/schema.sql` and run it.
       Run it again after every update that changes it: it's safe to re-run.
-- [ ] Re-run it after the texts update: it adds the record of texts sent
-      (for the monthly limit) and the once-only text after a first call.
+- [ ] Re-run it after the calls and texts allowance update: it adds the
+      record of call minutes and texts (for the £20 allowance), and the
+      once-only text after a first call.
 - [ ] Re-run it after the running-late update: it adds "won't be in" to
       visits and "how did they hear about us?" to customers.
 - [ ] Re-run it after the return-visit update: it adds "Is it fixed?" to
@@ -98,8 +99,9 @@ deployment.
   - [ ] **A message comes in:** `<site>/api/webhooks/twilio`
 - [ ] Optional: create an API key (**Account → API keys & tokens →
       Create**, Standard) for sending.
-- [ ] Calls to it ring Fergal's mobile first (or each admin's saved
-      mobile, from the app's call setup), showing the caller's number. Not
+- [ ] The number takes calls and texts **in** only. Calls to it ring
+      Fergal's mobile (07448 628 101, or each admin's saved mobile),
+      showing the caller's number. Not
       answered in 18 seconds: MPE's voicemail. Either way the call's logged
       in their chat, and after their first ever call they get one text
       (never again to that number, and not if they have the app) pointing
@@ -109,13 +111,23 @@ deployment.
       with the app gets those as free notifications instead. A booking, a
       cancellation or a failed payment is only texted if there's no email
       for them. Everything else goes by the app and email.
-- [ ] The month's texts stop at `SMS_MONTHLY_SEGMENTS` (default 200,
-      about £12 with VAT); after that, updates go by the app and email
-      and the team get one notification. The Menu shows "Texts this
-      month".
-- [ ] In the Twilio console, **Monitor → Usage triggers**: add one at
-      your monthly budget (say $25, about £20) to email you if calls and
-      texts together reach it.
+- [ ] **The £20 allowance** (excluding VAT): every call minute and text
+      is logged and priced at Twilio's UK rates, at a fixed exchange rate,
+      and checked every 30 minutes against Twilio's own month total (the
+      higher one counts), using the same Twilio keys. Admins get a
+      notification at £5, £10, £15 and £20, then every £5 over, with the
+      amount over and the expected overage for the month. The Menu's
+      "Calls and texts" card and **Settings → Calls and texts** show the
+      month so far, the breakdown and the prices. By default calls and
+      texts carry on after £20; the overage goes on Fergal's next
+      Kanvas One invoice (billed outside this site). In Settings he can
+      choose to pause once it's used: callers then hear a message pointing
+      them to the app and website, and no texts go out, until the 1st.
+- [ ] Put the prices from **Settings → Calls and texts** in the terms
+      and conditions. If Twilio's prices change, update `RATES_USD` in
+      `src/lib/twilio-usage.ts`.
+- [ ] Optional, as a backstop: in the Twilio console, **Monitor → Usage
+      triggers**, add one at about $40 to email you if something runs away.
 - [ ] **WhatsApp Business on the MPE number** (free calls and messages
       from it, so Twilio credit's only for what has to be a call or text):
       in the WhatsApp Business app on Fergal's phone, register the MPE
@@ -125,7 +137,13 @@ deployment.
       rings straight through; put it back after. Then set
       `NEXT_PUBLIC_WHATSAPP_NUMBER` and `EXPO_PUBLIC_WHATSAPP_NUMBER` to
       the MPE number, so the site's and app's WhatsApp links use it. In
-      the app, the team's Call buttons offer WhatsApp (free) first.
+      the app, the team's Call buttons offer **WhatsApp call**, **Send app
+      link on WhatsApp** (a message ready to send, pointing them to the
+      MPE app) and **Use my own phone**.
+- [ ] In WhatsApp Business (Settings → Business tools), turn on a
+      **greeting message** and an **away message** pointing customers to
+      the MPE app (`<site>/app`), so job chat stays in the app where the
+      rest of the job is.
 - [ ] Once it's working, show it everywhere instead of Fergal's own number:
       set `NEXT_PUBLIC_MPE_PHONE` on the site and `EXPO_PUBLIC_MPE_PHONE`
       for the app build (both as `+44…`), and redeploy.
@@ -138,23 +156,24 @@ deployment.
 | `TWILIO_API_KEY_SID` | Optional: the API key (`SK…`) | Config |
 | `TWILIO_API_KEY_SECRET` | Optional: the API key's secret | **Secret** |
 | `NEXT_PUBLIC_MPE_PHONE` | The same number: the site shows it instead of Fergal's | Public |
-| `SMS_MONTHLY_SEGMENTS` | Optional: the month's automatic texts, in segments (default 200) | Config |
+| `TWILIO_ALLOWANCE_PENCE` | Optional: the month's calls and texts allowance, excluding VAT (default 2000, £20) | Config |
+| `TWILIO_USD_TO_GBP` | Optional: the fixed exchange rate for Twilio's dollar prices (default 0.79) | Config |
+| `OUTBOUND_CALLS_ON` | Leave unset. `1` brings back "Call as MPE" from the Twilio number (paid calls out) | Config |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Optional: the WhatsApp number for the site's links, once WhatsApp Business is on the MPE number | Public |
 
 **Check:** text the number; it appears in the team inbox. Ring it: Fergal's
 phone rings with your number. Answer, then hang up: you get the "get the
 MPE app" text. Ring again and don't answer: voicemail, and no second text.
 
-Calls from the app: once the number's set, the team's Call buttons offer
-**Call as MPE**. The engineer's phone rings first, and when they answer
-they're put through; the customer sees the Twilio number. For now the phone
-that rings first is MPE's main number, 07448 628 101, unless an engineer
-saves their own mobile (Call → "Ring my own mobile instead"). Until the
-number's set, Call dials from the engineer's own phone.
+Calls from the app go on WhatsApp Business, or the engineer's own phone if
+that doesn't get through: the Twilio number doesn't make calls out. "Call
+as MPE" (the engineer's phone rings first, then they're put through and the
+customer sees the Twilio number) is built but off; `OUTBOUND_CALLS_ON=1`
+brings it back, for instance as a paid extra later.
 
-**Check:** in the app, open a chat with your own number and tap Call →
-Call as MPE. 07448 628 101 rings; answer it and your phone rings showing
-the Twilio number.
+**Check:** in the app, open a chat with your own number and tap Call. You
+get WhatsApp call, Send app link on WhatsApp and Use my own phone; no Call
+as MPE.
 
 ## 4. The follow-up job (reminders, follow-ups, monthly payments)
 

@@ -3,6 +3,7 @@ import { londonNow } from "@/lib/schedule-time";
 import { addDays } from "@/lib/day-plan";
 import { recordNotice, remindersDue, returnsToBook, type Appointment } from "@/lib/appointments";
 import { getCustomer } from "@/lib/customers";
+import { syncTwilioTotal, usageAlerts } from "@/lib/twilio-usage";
 import { openEnquiriesSince } from "@/lib/enquiries";
 import { sendVisitNotice } from "@/lib/visit-notify";
 import { sendEnquiryFollowUp } from "@/lib/enquiry-follow-up";
@@ -313,6 +314,12 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
   });
 
   // 6. The team: new jobs and customers' requests waiting two hours.
+  // 5d. The month's calls and texts: Twilio's own total (every half hour), and a heads-up at each £5 of the £20.
+  await stage("usage", async () => {
+    await syncTwilioTotal();
+    await usageAlerts();
+  });
+
   await stage("staff", async () => {
     if (minutes < STAFF_FROM || minutes >= STAFF_UNTIL) return;
     const before = new Date(Date.now() - STAFF_NUDGE_AFTER_HOURS * 3_600_000).toISOString();

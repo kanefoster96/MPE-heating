@@ -4,10 +4,11 @@ import { requireStaff } from "@/lib/staff-auth";
 import { isAdmin } from "@/lib/coach";
 import { MAX_UPSELLS, SUGGESTED_PRODUCTS, defaultUpsellPrice, listProducts, type Product } from "@/lib/products";
 import { formatPence } from "@/lib/payments";
-import { addProduct, removeProduct, saveProduct, savePlanPrices, saveReferralRewards, saveReviewLink, toggleUpsell } from "./actions";
+import { addProduct, removeProduct, saveProduct, savePlanPrices, saveReferralRewards, saveReviewLink, saveUsagePause, toggleUpsell } from "./actions";
 import { referralRewards } from "@/lib/referrals";
 import { PLAN_BENEFITS, planPrices } from "@/lib/maintenance-plan";
 import { getSetting } from "@/lib/settings";
+import { usageData } from "@/lib/app-business";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -23,12 +24,18 @@ const pounds = (pence: number | null | undefined) => (pence ? (pence / 100).toSt
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string; reviewDone?: string; reviewError?: string; planDone?: string; planError?: string; referralDone?: string; referralError?: string }>;
+  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string; reviewDone?: string; reviewError?: string; planDone?: string; planError?: string; referralDone?: string; referralError?: string; usageDone?: string; usageError?: string }>;
 }) {
   const params = await searchParams;
   const user = await requireStaff("/staff/settings");
   if (!(await isAdmin(user.id))) redirect("/staff/schedule");
-  const [products, googleReview, plan, referral] = await Promise.all([listProducts(), getSetting("review_url").catch(() => null), planPrices(), referralRewards()]);
+  const [products, googleReview, plan, referral, usage] = await Promise.all([
+    listProducts(),
+    getSetting("review_url").catch(() => null),
+    planPrices(),
+    referralRewards(),
+    usageData().catch(() => null),
+  ]);
   const upsellCount = products.filter((p) => p.upsell).length;
   const have = new Set(products.map((p) => p.name.toLowerCase()));
   const suggestions = SUGGESTED_PRODUCTS.filter((s) => !have.has(s.name.toLowerCase()));
@@ -38,6 +45,66 @@ export default async function SettingsPage({
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <p className="text-sm uppercase tracking-widest text-muted">MPE team</p>
       <h1 className="mt-1 text-3xl font-semibold tracking-tight">Settings</h1>
+
+      {usage && (
+        <section id="usage" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="usage-heading">
+          <h2 id="usage-heading" className="text-lg font-semibold">
+            Calls and texts
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Your plan includes {usage.allowance} a month of calls and texts on the MPE number, excluding VAT. Anything over goes on your next Kanvas One
+            invoice. These are estimates from the calls and texts this site handles.
+          </p>
+          {params.usageDone && <p className="mt-3 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">{params.usageDone}</p>}
+          {params.usageError && <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{params.usageError}</p>}
+          <p className="mt-4 text-2xl font-semibold">
+            {usage.spent} <span className="text-base font-normal text-muted">of {usage.allowance} this month</span>
+          </p>
+          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-border" role="img" aria-label={`${usage.percent}% of the allowance used`}>
+            <div className={`h-full ${usage.over || usage.percent >= 75 ? "bg-accent" : "bg-success"}`} style={{ width: `${usage.percent}%` }} />
+          </div>
+          <p className="mt-2 text-sm text-muted">
+            {usage.paused
+              ? "The allowance is used and you've chosen to pause: calls and texts are off until the 1st."
+              : usage.over
+                ? `${usage.over} over so far. At this rate, about ${usage.projectedOver ?? usage.over} goes on your next invoice.`
+                : `At this rate, about ${usage.projected} by the end of the month${usage.projectedOver ? `: about ${usage.projectedOver} over` : ""}.`}
+          </p>
+          <dl className="mt-4 grid gap-1 text-sm">
+            {usage.parts.map((p) => (
+              <div key={p.label} className="flex justify-between gap-3">
+                <dt>
+                  {p.label} <span className="text-muted">· {p.detail}</span>
+                </dt>
+                <dd className="font-semibold">{p.cost}</dd>
+              </div>
+            ))}
+          </dl>
+          {usage.twilioChecked && <p className="mt-1 text-xs text-muted">Checked against Twilio&rsquo;s own total for the month; the higher of the two is used.</p>}
+          <details className="mt-4 border-t border-border pt-3 text-sm">
+            <summary className="flex min-h-11 cursor-pointer items-center font-semibold">Prices, excluding VAT</summary>
+            <dl className="mt-1 grid gap-1 text-muted">
+              {usage.rates.map((r) => (
+                <div key={r.label} className="flex justify-between gap-3">
+                  <dt>{r.label}</dt>
+                  <dd>{r.price}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+          <form action={saveUsagePause.bind(null, !usage.pauseWhenUsed)} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <p className="flex-1 text-sm">
+              <strong>{usage.pauseWhenUsed ? `Pausing once the ${usage.allowance} is used.` : `Carrying on after the ${usage.allowance}.`}</strong>{" "}
+              <span className="text-muted">
+                Paused, callers hear a message pointing them to the app and website, and no texts go out, until the 1st.
+              </span>
+            </p>
+            <button type="submit" className="min-h-11 rounded-full border border-border px-5 text-sm font-semibold hover:bg-background">
+              {usage.pauseWhenUsed ? "Keep going after it" : "Pause once it's used"}
+            </button>
+          </form>
+        </section>
+      )}
 
       <section id="plan" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="plan-heading">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

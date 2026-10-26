@@ -14,9 +14,23 @@ type Settings = {
   plan: { includes: string; monthPrice: string; yearPrice: string; minMonths: string };
   referrals: { referrerReward: string; friendReward: string };
   reviewUrl: string;
+  usage: Usage | null;
   maxUpsells: number;
   products: Product[];
   suggestions: { name: string; description: string; price: string; from: string | null; why: string }[];
+};
+type Usage = {
+  spent: string;
+  allowance: string;
+  percent: number;
+  over: string | null;
+  projected: string;
+  projectedOver: string | null;
+  parts: { label: string; detail: string; cost: string }[];
+  twilioChecked: boolean;
+  pauseWhenUsed: boolean;
+  paused: boolean;
+  rates: { label: string; price: string }[];
 };
 type Draft = { name: string; description: string; price: string; upsellPrice: string };
 const PATH = "/api/mobile/staff/settings";
@@ -60,8 +74,76 @@ function Section({ title, intro, children }: { title: string; intro?: string; ch
   );
 }
 
+function UsageSection({ usage, onPause }: { usage: Usage; onPause: (pause: boolean) => void }) {
+  const tone = usage.over || usage.percent >= 75 ? colors.orangeDeep : colors.success;
+  return (
+    <Section
+      title="Calls and texts"
+      intro={`Your plan includes ${usage.allowance} a month of calls and texts on the MPE number, excluding VAT. Anything over goes on your next Kanvas One invoice. These are estimates from the calls and texts this site handles.`}
+    >
+      <View style={{ gap: 6 }}>
+        <AppText weight="extrabold" style={{ fontSize: 22 }}>
+          {usage.spent} <AppText style={{ color: colors.text2, fontSize: 15 }}>of {usage.allowance} this month</AppText>
+        </AppText>
+        <View style={{ height: 10, borderRadius: 999, backgroundColor: colors.edge, overflow: "hidden" }} accessibilityLabel={`${usage.percent}% of the allowance used`}>
+          <View style={{ width: `${usage.percent}%`, height: "100%", backgroundColor: tone }} />
+        </View>
+        <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 20 }}>
+          {usage.paused
+            ? "The allowance is used and you've chosen to pause: calls and texts are off until the 1st."
+            : usage.over
+              ? `${usage.over} over so far. At this rate, about ${usage.projectedOver ?? usage.over} goes on your next invoice.`
+              : `At this rate, about ${usage.projected} by the end of the month${usage.projectedOver ? `: about ${usage.projectedOver} over` : ""}.`}
+        </AppText>
+      </View>
+      <View style={{ gap: 6 }}>
+        {usage.parts.map((p) => (
+          <View key={p.label} style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
+            <AppText style={{ fontSize: 14, flex: 1 }}>
+              {p.label} <AppText style={{ color: colors.text2, fontSize: 13 }}>· {p.detail}</AppText>
+            </AppText>
+            <AppText weight="semibold" style={{ fontSize: 14 }}>
+              {p.cost}
+            </AppText>
+          </View>
+        ))}
+        {usage.twilioChecked && <AppText style={{ color: colors.text2, fontSize: 12 }}>Checked against Twilio&apos;s own total for the month; the higher of the two is used.</AppText>}
+      </View>
+      <View style={{ gap: 4, borderTopWidth: 1, borderTopColor: colors.edge, paddingTop: 10 }}>
+        <AppText weight="bold" style={{ fontSize: 14 }}>
+          Prices, excluding VAT
+        </AppText>
+        {usage.rates.map((r) => (
+          <View key={r.label} style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
+            <AppText style={{ color: colors.text2, fontSize: 13, flex: 1 }}>{r.label}</AppText>
+            <AppText style={{ color: colors.text2, fontSize: 13 }}>{r.price}</AppText>
+          </View>
+        ))}
+      </View>
+      <PressableScale
+        onPress={() => onPause(!usage.pauseWhenUsed)}
+        accessibilityLabel={`Pause calls and texts once the allowance is used: ${usage.pauseWhenUsed ? "on" : "off"}`}
+        accessibilityHint={usage.pauseWhenUsed ? "Turns it off" : "Turns it on"}
+      >
+        <View style={{ minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 16, borderWidth: 1, borderColor: usage.pauseWhenUsed ? colors.orangeDeep : colors.edge, backgroundColor: usage.pauseWhenUsed ? colors.orangeLight : colors.card, padding: 12 }}>
+          <Ionicons name={usage.pauseWhenUsed ? "checkbox" : "square-outline"} size={24} color={usage.pauseWhenUsed ? colors.orangeDeep : colors.text2} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <AppText weight="semibold" style={{ fontSize: 15 }}>
+              Pause once the {usage.allowance} is used
+            </AppText>
+            <AppText style={{ color: colors.text2, fontSize: 13, lineHeight: 18 }}>
+              Callers hear a message pointing them to the app and website, and no texts go out, until the 1st. Off by default.
+            </AppText>
+          </View>
+        </View>
+      </PressableScale>
+    </Section>
+  );
+}
+
 /**
- * Settings, in the app (admins only, as on the website): the plan's
+ * Settings, in the app (admins only, as on the website): calls and texts
+ * against the month's allowance, the plan's
  * prices, referral rewards, the Google review link, and MPE's products,
  * up to two of them offered at repairs.
  */
@@ -141,6 +223,8 @@ export default function SettingsScreen() {
             />
           }
         >
+          {data.usage && <UsageSection usage={data.usage} onPause={(pause) => send(PATH, { section: "usage", pauseWhenUsed: pause })} />}
+
           <Section
             title="Maintenance plan"
             intro={`What it includes, as the site says: ${data.plan.includes}. Set a monthly price, a yearly price or both. Leave one blank and it isn't offered. Members keep the price they joined at.`}

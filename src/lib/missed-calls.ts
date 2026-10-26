@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrCreateConversationByPhone } from "@/lib/chat-db";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { sendSms, smsAllowed, validateTwilioSignature } from "@/lib/twilio";
+import { billedMinutes, logUsage, usagePaused } from "@/lib/twilio-usage";
 import { SmsOptedOutError } from "@/lib/sms-opt-out";
 import { callableUkNumber, coachPhoneOf } from "@/lib/coach-calls";
 import { business } from "@/lib/content";
@@ -114,6 +115,9 @@ async function ringNumbers(): Promise<string[]> {
 export async function handleIncomingCall(from: string | undefined): Promise<Response> {
   const caller = from && from.startsWith("+") ? from : null; // withheld numbers arrive as "anonymous" etc.
   let conversationId: string | null = null;
+  // The month's calls and texts allowance is used and Settings says pause:
+  // a short message pointing at the app (about a penny), and it's logged.
+  const paused = await usagePaused().catch(() => false);
   if (caller) {
     try {
       const conversation = await getOrCreateConversationByPhone(caller);
@@ -124,7 +128,7 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
           sender_id: conversation.userId,
           sender_is_coach: false,
           channel: "sms",
-          body: "Called the MPE number",
+          body: paused ? "Called the MPE number (calls paused for the month)" : "Called the MPE number",
         });
         await bumpConversation(conversation.id);
       }
@@ -133,8 +137,17 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
     }
   }
 
+  if (paused) {
+    await logUsage("call_in", 1);
+    if (conversationId) {
+      await notifyStaffOfFamilyMessage({ conversationId, fromName: caller ? `Call from ${formatPhone(caller)}` : "A call", body: "Called while calls are paused" }).catch(() => {});
+    }
+    return twiml(`<Say ${VOICE}>Thanks for calling ${SPOKEN_NAME}. Please message us in the MPE app or at ${SPOKEN_DOMAIN}, and an engineer will get back to you.</Say><Hangup/>`);
+  }
+
   const numbers = await ringNumbers().catch(() => [] as string[]);
   if (!numbers.length) {
+    await logUsage("call_in", 1);
     if (conversationId && caller) await textAfterCall(conversationId, caller, MISSED_CALL_TEXT).catch(() => false);
     return voicemail(conversationId);
   }
@@ -152,6 +165,17 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
  */
 export async function handleAfterDial(conversationId: string | null, caller: string | null, params: Record<string, string>, outbound = false): Promise<Response> {
   const answered = params.DialCallStatus === "completed";
+  const seconds = Number(params.DialCallDuration) || 0;
+  // The minutes, for the calls and texts allowance: an outbound call is two calls out
+  // (his phone, then theirs); one in is the call in, plus the minutes put through to him.
+  if (outbound) {
+    if (answered) await logUsage("call_forward", 2 * billedMinutes(seconds));
+  } else if (answered) {
+    await logUsage("call_in", billedMinutes(seconds + RING_SECONDS));
+    await logUsage("call_forward", billedMinutes(seconds));
+  } else {
+    await logUsage("call_in", 1);
+  }
   // Fergal's own call from the MPE number (lib/coach-calls.ts): already logged; they get the app text if they picked up.
   if (outbound) {
     if (answered && conversationId && caller) await textAfterCall(conversationId, caller, AFTER_CALL_TEXT).catch(() => false);
@@ -200,12 +224,12 @@ async function textAfterCall(conversationId: string, caller: string, body: strin
     const { count } = await admin.from("push_tokens").select("token", { count: "exact", head: true }).eq("user_id", conversation.user_id as string);
     if (count) return false;
   }
-  if (!(await smsAllowed(body))) return false;
+  if (!(await smsAllowed())) return false;
   // Claimed first, so two calls close together can't both send it.
   const { data: claimed } = await admin.from("chat_conversations").update({ call_text_sent_at: new Date().toISOString() }).eq("id", conversationId).is("call_text_sent_at", null).select("id");
   if (!claimed?.length) return false;
   try {
-    await sendSms(caller, body, "call");
+    await sendSms(caller, body);
     await admin.from("chat_messages").insert({ conversation_id: conversationId, sender_id: null, sender_is_coach: true, channel: "sms", body });
     return true;
   } catch (err) {
@@ -263,6 +287,11 @@ function voicemailPath(conversationId: string, recordingSid: string) {
 export async function handleRecording(conversationId: string | null, params: Record<string, string>): Promise<void> {
   const { RecordingUrl: recordingUrl, RecordingSid: recordingSid, RecordingStatus: status } = params;
   const duration = Number(params.RecordingDuration ?? 0);
+  // The voicemail's minutes on the call, and written out (the calls and texts allowance).
+  if (status === "completed" && duration > 0) {
+    await logUsage("call_in", billedMinutes(duration));
+    await logUsage("transcription", billedMinutes(duration));
+  }
   // Under two seconds is a hang-up at the beep, not a message.
   if (!conversationId || !recordingUrl || !recordingSid || status !== "completed" || duration < 2) return;
 

@@ -17,7 +17,7 @@ import {
   savedCardFor,
   type PaymentRequest,
 } from "@/lib/payments";
-import { quoteLink, quoteNumber, quoteOpen, quotesForCustomer } from "@/lib/quotes";
+import { quoteLink, quoteNumber, quoteOpen, quotesForCustomer, type Quote } from "@/lib/quotes";
 import { filesForCustomer } from "@/lib/job-files";
 import { CATEGORY_LABEL, enquiriesForCustomer } from "@/lib/enquiries";
 import { arrivalClock, visitLink } from "@/lib/visit-notify";
@@ -97,6 +97,7 @@ function visitCard(v: Appointment, today: string, payments: PaymentRequest[], ha
     });
   }
   else steps.push({ label: "Booked", detail: whenLine(v), state: "done" });
+  if (v.status === "booked" && v.cantMakeAt) steps.push({ label: "You won't be in", detail: "Pick another time, or chat with us.", state: "now" });
   if (v.status === "no_access") {
     steps.push({ label: "We couldn't get in", detail: "Pick another time and we'll come back.", state: "now" });
   } else if (v.status !== "requested") {
@@ -123,6 +124,9 @@ function visitCard(v: Appointment, today: string, payments: PaymentRequest[], ha
   if (pay?.action) actions.push(pay.action);
   if (v.status === "no_access") actions.push({ label: "Pick another time", url: visitLink(v), primary: true });
   if (v.status === "requested" && v.day < today) actions.push({ label: "Pick another day", url: `${visitLink(v)}#another-time`, primary: true });
+  // Booked and still to come: they can say they won't be in (the team's told, and it's rebooked).
+  if (v.status === "booked" && v.day >= today && !v.cantMakeAt) actions.push({ label: "I won't be in", url: `${visitLink(v)}#wont-be-in` });
+  if (v.status === "booked" && v.cantMakeAt) actions.push({ label: "Pick another time", url: `${visitLink(v)}#another-time`, primary: true });
   actions.push({ label: "Visit details", url: visitLink(v) });
   if (hasFiles) actions.push({ label: "Certificates and photos", url: `${SITE}/account#files` });
 
@@ -151,10 +155,18 @@ function visitCard(v: Appointment, today: string, payments: PaymentRequest[], ha
 }
 
 /** After a call-out that found the fault: the repair, agreed but not booked yet (waiting on a part, say). */
-function repairToSchedule(v: Appointment, payments: PaymentRequest[]): JobCard {
+function repairToSchedule(v: Appointment, payments: PaymentRequest[], quote: Quote | null): JobCard {
   const what = v.returnNote ? v.returnNote.replace(/\.$/, "") : "";
   const pay = paymentStep(payments);
   const owed = pay?.action && payments.some((p) => p.status === "open") ? [{ ...pay.action, primary: true }] : [];
+  // The repair's price, when it's been sent: part of this card, not a card of its own.
+  const priced = quote && quote.status === "accepted";
+  const priceStep: JobStep[] = !quote
+    ? []
+    : priced
+      ? [{ label: "Price agreed", detail: formatPence(quote.totalPence), state: "done" }]
+      : [{ label: "Your price", detail: `${formatPence(quote.totalPence)}: see what's included and accept it.`, state: "now" }];
+  const priceAction = quote ? [{ label: priced ? "Your quote" : `See your price, ${formatPence(quote.totalPence)}`, url: quoteLink(quote), primary: !priced && !owed.length }] : [];
   return {
     id: `repair-${v.id}`,
     title: "Repair to be scheduled",
@@ -164,11 +176,12 @@ function repairToSchedule(v: Appointment, payments: PaymentRequest[]): JobCard {
     pending: true,
     steps: [
       { label: "Call-out", detail: `${longDate(v.day)}: we found the fault`, state: "done" },
-      { label: "Booking the repair", detail: "We'll be in touch to agree a day. Or message us with one that suits.", state: "now" },
+      ...priceStep,
+      { label: "Booking the repair", detail: "We'll be in touch to agree a day. Or message us with one that suits.", state: quote && !priced ? "next" : "now" },
       { label: "Repair", state: "next" },
     ],
     report: v.jobReport,
-    actions: [...owed, { label: "Message us", url: `${SITE}/messages` }, { label: "Call-out details", url: visitLink(v) }],
+    actions: [...owed, ...priceAction, { label: "Message us", url: `${SITE}/messages` }, { label: "Call-out details", url: visitLink(v) }],
     sortKey: v.day,
   };
 }
@@ -191,6 +204,7 @@ export async function customerJobs(user: User): Promise<{ active: JobCard[]; pre
 
   const active: JobCard[] = [];
   const previous: JobCard[] = [];
+  const absorbed = new Set<string>();
   for (const v of visits) {
     if (v.status === "cancelled") continue;
     const returnVisit = visits.find((r) => r.followUpOf === v.id && r.status !== "cancelled") ?? null;
@@ -198,7 +212,10 @@ export async function customerJobs(user: User): Promise<{ active: JobCard[]; pre
     // Not fixed first time: the call-out goes to history, and up top is the
     // repair still to be scheduled (then, once booked, the return visit's own card).
     const comingBack = v.status === "done" && v.outcome === "return";
-    if (comingBack && !returnVisit) active.push(repairToSchedule(v, byVisit.get(v.id) ?? []));
+    // The repair's quote belongs to this job: shown on its card, not as its own.
+    const repairQuote = comingBack ? (quotes.find((q) => q.appointmentId === v.id && q.status !== "cancelled") ?? null) : null;
+    if (repairQuote) absorbed.add(repairQuote.id);
+    if (comingBack && !returnVisit) active.push(repairToSchedule(v, byVisit.get(v.id) ?? [], repairQuote));
     // Finished today: stays up top for the rest of the day.
     if (v.status === "requested" && v.day < addDays(today, -7)) continue;
     const isActive = !comingBack && (v.status === "done" ? v.day >= today : v.day >= today || v.status === "no_access" || v.status === "requested");
@@ -234,6 +251,7 @@ export async function customerJobs(user: User): Promise<{ active: JobCard[]; pre
 
   // A quote waiting on their answer, or accepted and waiting for the install to be booked.
   for (const q of quotes) {
+    if (absorbed.has(q.id)) continue;
     const accepted = q.status === "accepted" && !!q.acceptedAt && q.acceptedAt.slice(0, 10) >= monthAgo;
     const installBooked = accepted && visits.some((v) => v.kind === "install" && v.status !== "cancelled" && v.createdAt >= q.acceptedAt!);
     if (!quoteOpen(q) && !(accepted && !installBooked)) continue;
@@ -279,6 +297,8 @@ export type StaffJob = {
   notes: string | null;
   onMyWay: string | null;
   changeRequested: boolean;
+  /** The customer said they won't be in: rebook or cancel it. */
+  cantMake: boolean;
   openPayment: { id: string; amount: string } | null;
   paid: boolean;
 };
@@ -353,6 +373,7 @@ function toStaffJob(v: Appointment, c: Customer | undefined, payments: PaymentRe
     notes: v.notes,
     onMyWay: v.onMyWayAt ? arrivalClock(v.onMyWayAt, v.onMyWayEta ?? 30) : null,
     changeRequested: !!v.change,
+    cantMake: !!v.cantMakeAt && v.status === "booked",
     openPayment: open ? { id: open.id, amount: formatPence(open.amountPence) } : null,
     paid: ps.length > 0 && !open,
   };

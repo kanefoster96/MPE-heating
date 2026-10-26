@@ -40,11 +40,11 @@ export function coachPhoneOf(user: User | null | undefined): string | null {
 
 /**
  * The phone a call from the MPE number rings first: their own mobile if
- * they've saved one, else MPE's main number (Fergal's, 07448 628 101) for
- * now, so no one's asked for a number before their first call.
+ * they've saved one, else Fergal's, so no one's asked for a number before
+ * their first call.
  */
 export function ringPhoneOf(user: User | null | undefined): string | null {
-  return coachPhoneOf(user) ?? callableUkNumber(business.phoneHref.replace(/^tel:/, ""));
+  return coachPhoneOf(user) ?? callableUkNumber(business.engineerMobile);
 }
 
 /** Whether calls can go out from the MPE number: Twilio's set up, with a number. */
@@ -91,7 +91,7 @@ export async function startBridgedCall(params: { coach: User; to: string; conver
 
   const twiml =
     `<Response><Say voice="Polly.Amy-Neural" language="en-GB">${escapeXml(CLUB.name)}. Connecting your call.</Say>` +
-    `<Dial callerId="${escapeXml(businessNumber)}" timeout="30">${escapeXml(params.to)}</Dial></Response>`;
+    `<Dial callerId="${escapeXml(businessNumber)}" timeout="30" action="${(await import("@/lib/missed-calls")).callbackUrl("/after", params.conversationId ?? null, params.to, { out: "1" })}">${escapeXml(params.to)}</Dial></Response>`;
 
   // Short ring on the coach's side, so an unanswered call gives up before
   // their own voicemail picks up and gets connected to the family.

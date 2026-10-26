@@ -10,13 +10,13 @@ import { CountBadge } from "@/components/count-badge";
 import { useAuth } from "@/contexts/auth";
 import { useHomeData } from "@/lib/use-home";
 import { openExternal, openInApp } from "@/lib/open-link";
-import { SITE_URL } from "@/lib/site";
+import { MPE_PHONE, SITE_URL } from "@/lib/site";
 import { colors, fonts } from "@/lib/theme";
 
 const PAD = 20;
 /** The call-out tile: the deep end of the site's orange, so its small white text stays at 4.5:1 or better. */
 const TILE_GRADIENT = [colors.orangeDeep, "#c44a22"] as const;
-const PHONE = { display: "07448 628 101", href: "tel:07448628101", whatsapp: "https://wa.me/447448628101" };
+const PHONE = { display: MPE_PHONE.display, href: MPE_PHONE.href, whatsapp: "https://wa.me/447448628101" };
 
 function greeting(): string {
   const hour = new Date().getHours();

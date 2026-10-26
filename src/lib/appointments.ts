@@ -64,6 +64,8 @@ export type Appointment = {
   /** A return visit: the visit it finishes the job for. */
   followUpOf: string | null;
   pastRequestSentAt: string | null;
+  /** They said they won't be in: rebook them. */
+  cantMakeAt: string | null;
   /** The customer asked to move it: to this day and part of the day. */
   change: { day: string; part: Part | null; note: string | null; at: string } | null;
 };
@@ -106,6 +108,7 @@ type Row = {
   return_note: string | null;
   follow_up_of: string | null;
   past_request_sent_at: string | null;
+  cant_make_at: string | null;
   change_day: string | null;
   change_part: Part | null;
   change_note: string | null;
@@ -151,6 +154,7 @@ function mapAppointment(r: Row): Appointment {
     returnNote: r.return_note ?? null,
     followUpOf: r.follow_up_of ?? null,
     pastRequestSentAt: r.past_request_sent_at ?? null,
+    cantMakeAt: r.cant_make_at ?? null,
     change:
       r.change_day && r.change_requested_at
         ? { day: r.change_day, part: r.change_part ?? null, note: r.change_note ?? null, at: r.change_requested_at }
@@ -219,6 +223,25 @@ export async function pendingForCustomer(customerId: string, today: string): Pro
   if (data) return { request: mapAppointment(data as Row), returnOf: null };
   const returnOf = (await returnsToBook()).find((v) => v.customerId === customerId) ?? null;
   return { request: null, returnOf };
+}
+
+/** "I won't be in", from the customer: reminders stop, and the team rebooks or cancels it. */
+export async function markCantMake(id: string): Promise<boolean> {
+  const { data } = await createAdminClient().from("appointments").update({ cant_make_at: new Date().toISOString() }).eq("id", id).eq("status", "booked").is("cant_make_at", null).select("id");
+  return !!data?.length;
+}
+
+/** Running late: the arrival window moves on by this many minutes (same length), and no "an hour before" text after it. */
+export async function shiftWindow(id: string, minutes: number): Promise<Appointment | null> {
+  const v = await getAppointment(id);
+  if (!v || v.status !== "booked") return null;
+  const start = Math.min(v.start + minutes, 23 * 60);
+  const end = Math.min(v.end + minutes, 23 * 60 + 59);
+  const { error } = await createAdminClient()
+    .from("appointments")
+    .update({ start_minute: start, end_minute: end, hour_reminded_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", id);
+  return error ? null : { ...v, start, end };
 }
 
 /** The visits a job took, first to this one: a return visit points back to the one before. */
@@ -398,7 +421,7 @@ export async function updateAppointment(
     .update({
       ...toColumns(input),
       ...(opts.status ? { status: opts.status } : {}),
-      ...(opts.clearChange ? { change_day: null, change_part: null, change_note: null, change_requested_at: null } : {}),
+      ...(opts.clearChange ? { change_day: null, change_part: null, change_note: null, change_requested_at: null, cant_make_at: null } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
@@ -562,6 +585,8 @@ export async function remindersDue(dayISO: string): Promise<Appointment[]> {
     .eq("day", dayISO)
     .eq("status", "booked")
     .not("customer_id", "is", null)
-    .is("reminded_at", null);
+    .is("reminded_at", null)
+    // They've said they won't be in: no reminder for it.
+    .is("cant_make_at", null);
   return ((data ?? []) as Row[]).map(mapAppointment);
 }

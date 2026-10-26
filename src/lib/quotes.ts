@@ -8,7 +8,8 @@ import { chatRecipientIds } from "@/lib/chat-routing";
 import { pushToUsers } from "@/lib/push";
 import { londonNow } from "@/lib/schedule-time";
 import { addDays, longDate } from "@/lib/day-plan";
-import { checkoutUrl, createPaymentRequest, formatPence, parseLines, paymentsOn, type PaymentLine } from "@/lib/payments";
+import { calloutCreditFor, checkoutUrl, createPaymentRequest, formatPence, parseLines, paymentsOn, type PaymentLine } from "@/lib/payments";
+import { getAppointment } from "@/lib/appointments";
 
 /**
  * Quotes, mostly for new boilers (Kanvas One's "quotes they accept online,
@@ -404,7 +405,16 @@ export async function invoiceBalance(quoteId: string, staffId: string, opts: { a
     const { data } = await createAdminClient().from("payment_requests").select("status, amount_pence").eq("id", quote.depositRequestId).maybeSingle();
     if (data?.status === "paid") depositPaid = data.amount_pence as number;
   }
-  const lines = [...quote.lines, ...(depositPaid ? [{ description: `Deposit paid (quote ${quoteNumber(quote.number)})`, amountPence: -depositPaid }] : [])];
+  // The call-out they paid for this job comes off, as the site says (the
+  // repair's price was quoted after the call-out found the fault).
+  const visitId = opts.appointmentId ?? quote.appointmentId;
+  const visit = visitId ? await getAppointment(visitId) : null;
+  const calloutPaid = await calloutCreditFor(visit ?? { id: null, followUpOf: null, customerId: quote.customerId });
+  const lines = [
+    ...quote.lines,
+    ...(depositPaid ? [{ description: `Deposit paid (quote ${quoteNumber(quote.number)})`, amountPence: -depositPaid }] : []),
+    ...(calloutPaid ? [{ description: "Call-out fee already paid", amountPence: -calloutPaid }] : []),
+  ];
   const created = await createPaymentRequest({
     staffId,
     customerId: quote.customerId,

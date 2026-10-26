@@ -118,7 +118,9 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
       .not("customer_id", "is", null)
       .is("hour_reminded_at", null)
       // Already told "we're on the way": a "with you between…" after it would only confuse.
-      .is("on_my_way_at", null);
+      .is("on_my_way_at", null)
+      // Or they've said they won't be in.
+      .is("cant_make_at", null);
     for (const row of data ?? []) {
       const lead = (row.start_minute as number) - minutes;
       if (lead > HOUR_LEAD_EARLIEST || lead < HOUR_LEAD_LATEST) continue;

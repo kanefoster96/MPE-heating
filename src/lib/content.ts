@@ -2,6 +2,7 @@
 // Swap placeholder values (phone, Gas Safe number, reviews) for the real thing before launch.
 
 import type { ContentBlock } from "./richContent";
+import { formatPhone, normalizePhone } from "./phone";
 import type { EnquiryType } from "./enquiry";
 
 // Single source of truth for the towns served — backs both the prose
@@ -49,11 +50,20 @@ function joinWithAnd(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
+// The number customers see and call: the MPE (Twilio) number once
+// NEXT_PUBLIC_MPE_PHONE is set, so every call rings Fergal through it and is
+// logged in their chat. Until then, Fergal's own mobile.
+const ENGINEER_MOBILE = "+447448628101";
+const MPE_PHONE = (process.env.NEXT_PUBLIC_MPE_PHONE && normalizePhone(process.env.NEXT_PUBLIC_MPE_PHONE)) || ENGINEER_MOBILE;
+
 export const business = {
   name: "MPE",
   fullName: "MPE Gas, Heating, Plumbing & Electrics",
-  phoneDisplay: "07448 628 101",
-  phoneHref: "tel:07448628101",
+  phoneDisplay: formatPhone(MPE_PHONE),
+  phoneHref: `tel:${MPE_PHONE}`,
+  phoneE164: MPE_PHONE,
+  /** Fergal's own mobile: what a call to the MPE number rings. Never shown to customers once the MPE number is set. */
+  engineerMobile: ENGINEER_MOBILE,
   whatsappHref: "https://wa.me/447448628101",
   email: "fergal@mpenortheast.co.uk",
   gasSafeNumber: "552052",

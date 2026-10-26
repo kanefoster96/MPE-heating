@@ -25,6 +25,8 @@ deployment.
 - [ ] Create a project at supabase.com, in the London region.
 - [ ] **SQL editor:** paste in all of `supabase/schema.sql` and run it.
       Run it again after every update that changes it: it's safe to re-run.
+- [ ] Re-run it after the running-late update: it adds "won't be in" to
+      visits and "how did they hear about us?" to customers.
 - [ ] Re-run it after the return-visit update: it adds "Is it fixed?" to
       finishing a job (fixed, or coming back), links a return visit to the
       first, and remembers when a customer's been told their requested day
@@ -94,9 +96,15 @@ deployment.
   - [ ] **A message comes in:** `<site>/api/webhooks/twilio`
 - [ ] Optional: create an API key (**Account → API keys & tokens →
       Create**, Standard) for sending.
-- [ ] Decide how calls reach it: put the Twilio number on the site, or
-      forward Fergal's number to it when unanswered (missed-call texts only
-      work for calls to the Twilio number).
+- [ ] Calls to it ring Fergal's mobile first (or each admin's saved
+      mobile, from the app's call setup), showing the caller's number. Not
+      answered in 18 seconds: MPE's voicemail. Either way the call's logged
+      in their chat, and they get one text after it (at most every 12
+      hours, and not if they already have the app) pointing them at the app
+      and live chat, so later updates don't cost a text.
+- [ ] Once it's working, show it everywhere instead of Fergal's own number:
+      set `NEXT_PUBLIC_MPE_PHONE` on the site and `EXPO_PUBLIC_MPE_PHONE`
+      for the app build (both as `+44…`), and redeploy.
 
 | Variable | Where it comes from | Public? |
 | --- | --- | --- |
@@ -105,9 +113,12 @@ deployment.
 | `TWILIO_PHONE_NUMBER` | The number, as `+447…` | Config |
 | `TWILIO_API_KEY_SID` | Optional: the API key (`SK…`) | Config |
 | `TWILIO_API_KEY_SECRET` | Optional: the API key's secret | **Secret** |
+| `NEXT_PUBLIC_MPE_PHONE` | The same number: the site shows it instead of Fergal's | Public |
 
-**Check:** text the number; it appears in the team inbox. Ring it and hang
-up; you get a text back with the chat link.
+**Check:** text the number; it appears in the team inbox. Ring it: Fergal's
+phone rings with your number. Answer, then hang up: you get the "track it
+in the MPE app" text. Ring again another day and don't answer: voicemail,
+and the "sorry we missed you" text.
 
 Calls from the app: once the number's set, the team's Call buttons offer
 **Call as MPE**. The engineer's phone rings first, and when they answer

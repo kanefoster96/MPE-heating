@@ -133,6 +133,8 @@ export type StaffJob = {
   notes: string | null;
   onMyWay: string | null;
   changeRequested: boolean;
+  /** The customer said they won't be in: rebook or cancel it. */
+  cantMake?: boolean;
   openPayment: { id: string; amount: string } | null;
   paid: boolean;
 };

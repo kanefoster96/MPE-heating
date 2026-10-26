@@ -354,6 +354,8 @@ create table if not exists public.customers (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- How they found MPE, asked when a phone call's booked ("Google", "Recommended", a name).
+alter table public.customers add column if not exists heard_from text;
 create unique index if not exists customers_email_idx on public.customers (email) where email is not null;
 create unique index if not exists customers_phone_idx on public.customers (phone_e164) where phone_e164 is not null;
 create index if not exists customers_conversation_idx on public.customers (conversation_id);
@@ -473,6 +475,8 @@ alter table public.appointments add column if not exists follow_up_of uuid refer
 create index if not exists appointments_follow_up_idx on public.appointments (follow_up_of);
 -- A request whose day passed before it was booked: the customer's told once.
 alter table public.appointments add column if not exists past_request_sent_at timestamptz;
+-- The customer said they won't be in (from their visit page or the app): reminders stop, the team rebooks.
+alter table public.appointments add column if not exists cant_make_at timestamptz;
 
 -- A customer's review of a job: their stars and words, for MPE. Everyone is
 -- also asked to post it publicly (the review link in Settings), whatever

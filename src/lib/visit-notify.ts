@@ -8,13 +8,13 @@ import { SmsOptedOutError } from "@/lib/sms-opt-out";
 import { pushToUsers } from "@/lib/push";
 import { CLUB, CLUB_SITE_URL } from "@/lib/club";
 import { business } from "@/lib/content";
-import { getAppointment, recordNotice, type Appointment } from "@/lib/appointments";
+import { getAppointment, recordNotice, shiftWindow, type Appointment } from "@/lib/appointments";
 import { getCustomer, type Customer } from "@/lib/customers";
 import { visitEmailHtml } from "@/lib/emails/visit";
 import { noticeBody, noticeHeadline, smsText, type NoticeType } from "@/lib/visit-copy";
 import { staffIdentity } from "@/lib/staff-identity";
 import { renderEmailLayout } from "@/lib/emails/layout";
-import { KIND_LABEL } from "@/lib/day-plan";
+import { KIND_LABEL, windowLabel } from "@/lib/day-plan";
 import { formatLondonClock } from "@/lib/schedule-time";
 
 /**
@@ -65,6 +65,8 @@ export type Delivery = {
   staffId: string | null;
   /** "if-no-text": the hour-before message, where an email would arrive too late to matter. */
   email?: "always" | "if-no-text";
+  /** Adds the MPE app link to the text, for the messages that start a job (a booking). */
+  appNudge?: boolean;
   /** Adds "Reply STOP to opt out." to the text: for anything not about a booked visit. */
   smsOptOut?: boolean;
   /** A payment request: the chat shows it as a Pay card (lib/payments.ts). */
@@ -106,18 +108,30 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
     console.error("deliverToCustomer: chat failed", err);
   }
 
-  // 2. Text, to a UK mobile.
-  if (TWILIO_ON && customer.phoneE164?.startsWith("+447")) {
+  // 2. The app: free, so it comes first. Someone with the app (notifications
+  // on) gets it there instead of a text, which costs per message.
+  let inApp = false;
+  if (customer.userId) {
+    const { count } = await admin.from("push_tokens").select("token", { count: "exact", head: true }).eq("user_id", customer.userId);
+    inApp = !!count;
+    await pushToUsers([customer.userId], { title: d.headline, body: d.body, data: { kind: "link", href: d.pushHref } });
+    if (inApp) via.push("app");
+  }
+
+  // 3. Text, to a UK mobile, when the app can't reach them. The ones that
+  // matter (a booking) point them at the app, so the next one's free.
+  if (TWILIO_ON && !inApp && customer.phoneE164?.startsWith("+447")) {
     try {
-      await sendSms(customer.phoneE164, smsText(d.body, CLUB.name, d.smsOptOut));
+      const nudge = d.appNudge ? ` Get updates and chat free in the MPE app: ${CLUB_SITE_URL.replace(/\/$/, "")}/app` : "";
+      await sendSms(customer.phoneE164, smsText(d.body + nudge, CLUB.name, d.smsOptOut));
       via.push("text");
     } catch (err) {
       if (!(err instanceof SmsOptedOutError)) console.error("deliverToCustomer: text failed", err);
     }
   }
 
-  // 3. Email.
-  if (RESEND_ON && customer.email && (d.email !== "if-no-text" || !via.includes("text"))) {
+  // 4. Email: always for what they'll want to keep, else only if nothing else reached them.
+  if (RESEND_ON && customer.email && (d.email !== "if-no-text" || (!via.includes("text") && !inApp))) {
     try {
       const replyTo = conversationId ? await replyToForConversation(conversationId) : null;
       const { error } = await resend.emails.send({
@@ -135,10 +149,6 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
     }
   }
 
-  // 4. The app.
-  if (customer.userId) {
-    await pushToUsers([customer.userId], { title: d.headline, body: d.body, data: { kind: "link", href: d.pushHref } });
-  }
   return via;
 }
 
@@ -168,7 +178,12 @@ export async function sendVisitNotice(
 
   const link = visitLink(appointment);
   const bookLink = `${CLUB_SITE_URL.replace(/\/$/, "")}/book/service`;
-  const engineer = type === "hour" ? await engineerName(appointment) : null;
+  const engineer = await engineerName(appointment);
+  // A call-out's fee, said when it's booked: not for someone on the maintenance plan (theirs are free).
+  // (Loaded here, not at the top: payments and the plan reach back into this file.)
+  const { CALLOUT_FEE_PENCE, formatPence } = await import("@/lib/payments");
+  const { planFor } = await import("@/lib/maintenance-plan");
+  const onPlan = appointment.kind === "callout" && type === "booked" ? await planFor(customer.id).then((p) => p?.status === "active" || p?.status === "past_due", () => false) : false;
   const facts = {
     kind: appointment.kind,
     day: appointment.day,
@@ -177,6 +192,7 @@ export async function sendVisitNotice(
     part: appointment.part,
     address: appointment.address ?? customer.address,
     postcode: appointment.postcode ?? customer.postcode,
+    calloutFee: appointment.kind === "callout" && !onPlan ? formatPence(CALLOUT_FEE_PENCE) : null,
     // A return visit says what it's for: what the first visit said, else its title.
     returning: appointment.followUpOf ? ((await getAppointment(appointment.followUpOf))?.returnNote ?? appointment.title ?? "finish the job") : null,
   };
@@ -190,6 +206,7 @@ export async function sendVisitNotice(
     // Reminders don't need an email as well as a text; confirmations and changes do.
     email: type === "hour" || type === "reminder" ? "if-no-text" : "always",
     smsOptOut: type === "service_due",
+    appNudge: type === "booked" || type === "requested",
     emailHtml: (canReplyByEmail) =>
       visitEmailHtml({
         type,
@@ -210,7 +227,7 @@ export async function sendVisitNotice(
 
 /** "by message, email and text". */
 export function viaPhrase(via: string[]): string {
-  const words = via.map((v) => (v === "chat" ? "message" : v));
+  const words = via.map((v) => (v === "chat" ? "message" : v === "app" ? "the app" : v));
   if (words.length <= 1) return words.join("");
   return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
 }
@@ -273,14 +290,14 @@ export async function sendOnMyWay(appointmentId: string, staffId: string, etaMin
   } catch {
     engineer = null;
   }
-  const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "";
-  const who = engineer ? `${engineer} from MPE` : hi ? "your MPE engineer" : "Your MPE engineer";
+  const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, ";
+  const who = engineer ? `your MPE engineer, ${engineer},` : "your MPE engineer";
   const what = appointment.followUpOf ? "your return visit" : appointment.kind === "other" ? "your visit" : `your ${KIND_LABEL[appointment.kind].toLowerCase()}`;
   const arrive = arrivalClock(now, eta);
-  const body = `${hi}${who} is on the way for ${what} and should be with you in about ${eta} minutes (around ${arrive}). If anything's changed, call ${business.phoneDisplay}.`;
+  const body = `${hi}${who} is on the way for ${what} and should be with you in about ${eta} minutes (around ${arrive}). If you won't be in, let us know: ${visitLink(appointment)}`;
   const via = await deliverToCustomer(customer, {
     body,
-    headline: engineer ? `${engineer} is on the way` : "We're on the way",
+    headline: "Your MPE engineer is on the way",
     staffId,
     pushHref: `/visit/${appointment.publicToken}`,
     email: "if-no-text",
@@ -295,4 +312,21 @@ export async function sendOnMyWay(appointmentId: string, staffId: string, etaMin
   });
   await createAdminClient().from("appointments").update({ on_my_way_at: now, on_my_way_eta: eta }).eq("id", appointment.id);
   return via;
+}
+
+/** "Running late" choices: the arrival window moves on by this much. */
+export const LATE_MINUTES = [30, 60, 90, 120] as const;
+
+/**
+ * Running late: the visit's arrival window moves on (same length), the
+ * calendar with it, and the customer's told the new window, with the link
+ * to say they won't be in. The window's a safety net, so this is for when
+ * even that won't be met.
+ */
+export async function sendRunningLate(appointmentId: string, staffId: string, minutes: number): Promise<{ via: string[]; window: string } | null> {
+  const by = (LATE_MINUTES as readonly number[]).includes(minutes) ? minutes : 60;
+  const moved = await shiftWindow(appointmentId, by);
+  if (!moved || !moved.customerId) return null;
+  const via = await sendVisitNotice(appointmentId, "late", staffId);
+  return { via, window: windowLabel(moved.start, moved.end) };
 }

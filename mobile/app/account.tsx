@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/auth";
 import { apiPost } from "@/lib/api";
 import { openExternal, openInApp } from "@/lib/open-link";
 import { useMyAccount } from "@/lib/my-account";
-import { SITE_URL } from "@/lib/site";
+import { MPE_PHONE, SITE_URL } from "@/lib/site";
 import { colors } from "@/lib/theme";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -164,7 +164,7 @@ export default function AccountScreen() {
         <Section title="App">
           <Row icon="notifications" label="Notifications" hint="Turn them on or off in Settings" onPress={() => Linking.openSettings().catch(() => {})} />
           <Row icon="chatbubbles" label="Chat with us" onPress={() => router.push("/chat")} />
-          <Row icon="call" label="Call MPE" hint="07448 628 101" onPress={() => openExternal("tel:07448628101")} last />
+          <Row icon="call" label="Call MPE" hint={MPE_PHONE.display} onPress={() => openExternal(MPE_PHONE.href)} last />
         </Section>
 
         <Section title="About">

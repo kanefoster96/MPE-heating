@@ -3,21 +3,21 @@ import { getOrCreateConversationByPhone } from "@/lib/chat-db";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { sendSms, validateTwilioSignature } from "@/lib/twilio";
 import { SmsOptedOutError } from "@/lib/sms-opt-out";
-import { coachPhoneOf } from "@/lib/coach-calls";
+import { callableUkNumber, coachPhoneOf } from "@/lib/coach-calls";
+import { business } from "@/lib/content";
+import { formatPhone } from "@/lib/phone";
 import { CLUB, clubLink } from "@/lib/club";
 
-/* Read aloud inside TwiML <Say>, so XML-escaped. */
-const xml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const SPOKEN_NAME = xml(CLUB.name);
-const SPOKEN_DOMAIN = xml(CLUB.domainSpoken);
-
 /**
- * Calls to the Twilio number. Nobody answers live: the caller hears a short
- * greeting, can leave a voicemail, and a UK mobile gets a text pointing them
- * at the live chat. All of it lands in that number's conversation in the
- * chat inbox, so a coach picks it up from the app like any other message:
+ * Calls to the MPE (Twilio) number. It rings Fergal first (every admin's
+ * saved mobile, else his), so customers only ever see the MPE number.
+ * Answered or not, the call is logged in that number's conversation, and
+ * the caller gets one text after it pointing them at the app and live
+ * chat, where updates are free: texts and calls cost per use, so the aim
+ * is that they lead back to the app or the website.
  *
- *   /api/webhooks/twilio/voice               "A call comes in"
+ *   /api/webhooks/twilio/voice               "A call comes in": ring Fergal
+ *   /api/webhooks/twilio/voice/after         the ringing ended: answered, or voicemail
  *   /api/webhooks/twilio/voice/done          after the voicemail, hang up
  *   /api/webhooks/twilio/voice/recording     voicemail audio is ready
  *   /api/webhooks/twilio/voice/transcription voicemail text is ready
@@ -26,14 +26,22 @@ const SPOKEN_DOMAIN = xml(CLUB.domainSpoken);
  * console points at the first of those.
  */
 
-// Our engineers are on jobs, so a call often goes unanswered: the text
-// says we'll call back, and offers the live chat (/messages, where a guest
-// can type straight away with no account) as the quicker route.
-export const MISSED_CALL_TEXT =
-  `Thanks for calling ${CLUB.name}. Our engineers are busy on a job right now, but we'll call you back as soon as we can. Or start a live chat and we'll reply there: ${clubLink("/messages")}`;
+/* Read aloud inside TwiML <Say>, so XML-escaped. */
+const xml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const SPOKEN_NAME = xml(CLUB.name);
+const SPOKEN_DOMAIN = xml(CLUB.domainSpoken);
+
+/** After a call Fergal answered: the app, for tracking the job and chatting for free. */
+export const AFTER_CALL_TEXT = `Thanks for calling ${CLUB.name}. Track your appointment, manage your account and live chat with your engineer in the MPE app: ${clubLink("/app")}`;
+
+/** After a call nobody answered: someone will call back, and the app or website is quicker. */
+export const MISSED_CALL_TEXT = `Thanks for calling ${CLUB.name}. Sorry we missed you: an engineer will get back to you as soon as they're free. For a quicker reply, live chat with us in the MPE app or on our website: ${clubLink("/app")}`;
 
 /** Don't text the same number twice for calls close together. */
 const TEXT_BACK_COOLDOWN_HOURS = 12;
+
+/** Rings before going to MPE's voicemail: short, so Fergal's own voicemail never picks it up. */
+const RING_SECONDS = 18;
 
 const VOICE = 'voice="Polly.Amy-Neural" language="en-GB"';
 
@@ -64,10 +72,10 @@ export function twiml(inner: string, status = 200) {
   });
 }
 
-function callbackUrl(path: string, conversationId: string | null): string {
+export function callbackUrl(path: string, conversationId: string | null, caller: string | null = null, extra: Record<string, string> = {}): string {
   const base = `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/webhooks/twilio/voice${path}`;
-  const url = conversationId ? `${base}?c=${encodeURIComponent(conversationId)}` : base;
-  return url.replace(/&/g, "&amp;");
+  const query = new URLSearchParams({ ...(conversationId ? { c: conversationId } : {}), ...(caller ? { from: caller } : {}), ...extra }).toString();
+  return (query ? `${base}?${query}` : base).replace(/&/g, "&amp;");
 }
 
 export function formatDuration(seconds: number): string {
@@ -90,77 +98,137 @@ async function textedRecently(conversationId: string): Promise<boolean> {
     .select("id")
     .eq("conversation_id", conversationId)
     .eq("sender_is_coach", true)
-    .eq("body", MISSED_CALL_TEXT)
+    .in("body", [MISSED_CALL_TEXT, AFTER_CALL_TEXT])
     .gte("created_at", since)
     .limit(1);
   return (data?.length ?? 0) > 0;
 }
 
+/** The phones a call to the MPE number rings: every admin's saved mobile, else Fergal's. */
+async function ringNumbers(): Promise<string[]> {
+  const admin = createAdminClient();
+  const { data: roles } = await admin.from("user_roles").select("email").eq("role", "admin");
+  const adminEmails = new Set((roles ?? []).map((r) => String(r.email).toLowerCase()));
+  const { data: page } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const numbers = (page?.users ?? [])
+    .filter((u) => u.email && adminEmails.has(u.email.toLowerCase()))
+    .map((u) => coachPhoneOf(u))
+    .filter((n): n is string => !!n);
+  const fallback = callableUkNumber(business.engineerMobile);
+  return [...new Set(numbers.length ? numbers : fallback ? [fallback] : [])];
+}
+
 /**
- * The incoming call: file it in the chat, text a mobile back, and answer
- * with the greeting and a voicemail prompt. Each step is best-effort, so a
- * hiccup filing the call never leaves the caller in silence.
+ * The incoming call: logged in the caller's chat, then Fergal's phone
+ * rings (showing the caller's number). What happens next is in
+ * handleAfterDial, once the ringing ends.
  */
 export async function handleIncomingCall(from: string | undefined): Promise<Response> {
   const caller = from && from.startsWith("+") ? from : null; // withheld numbers arrive as "anonymous" etc.
   let conversationId: string | null = null;
-  let texted = false;
-
   if (caller) {
     try {
       const conversation = await getOrCreateConversationByPhone(caller);
       conversationId = conversation?.id ?? null;
       if (conversation) {
-        const admin = createAdminClient();
-        await admin.from("chat_messages").insert({
+        await createAdminClient().from("chat_messages").insert({
           conversation_id: conversation.id,
           sender_id: conversation.userId,
           sender_is_coach: false,
           channel: "sms",
-          body: "Missed call",
+          body: "Called the MPE number",
         });
-
-        if (isUkMobile(caller) && !(await textedRecently(conversation.id))) {
-          try {
-            await sendSms(caller, MISSED_CALL_TEXT);
-            texted = true;
-            await admin.from("chat_messages").insert({
-              conversation_id: conversation.id,
-              sender_id: null,
-              sender_is_coach: true,
-              channel: "sms",
-              body: MISSED_CALL_TEXT,
-            });
-          } catch (err) {
-            // Opted out with STOP: respect it quietly. Anything else is logged.
-            if (!(err instanceof SmsOptedOutError)) console.error("missed call: text back failed", err);
-          }
-        }
-
         await bumpConversation(conversation.id);
-        await notifyStaffOfFamilyMessage({
-          conversationId: conversation.id,
-          fromName: conversation.guestName ? `${conversation.guestName} (call)` : `Call from ${caller}`,
-          body: "Missed call",
-        });
       }
     } catch (err) {
-      console.error("missed call: failed to file the call", err);
+      console.error("incoming call: failed to file the call", err);
     }
   }
 
-  // A withheld number has no conversation to file a voicemail in, and no
-  // way to be called or texted back, so point them at the website instead.
+  const numbers = await ringNumbers().catch(() => [] as string[]);
+  if (!numbers.length) return voicemail(conversationId, caller);
+  return twiml(
+    `<Dial timeout="${RING_SECONDS}" answerOnBridge="true" action="${callbackUrl("/after", conversationId, caller)}">` +
+      numbers.map((n) => `<Number>${n}</Number>`).join("") +
+      `</Dial>`,
+  );
+}
+
+/**
+ * The ringing ended. Answered: logged with how long it took, then the
+ * "track it in the app" text. Not answered: the team's told, the caller
+ * gets the "we'll call you back" text, and can leave a voicemail.
+ */
+export async function handleAfterDial(conversationId: string | null, caller: string | null, params: Record<string, string>, outbound = false): Promise<Response> {
+  const answered = params.DialCallStatus === "completed";
+  // Fergal's own call from the MPE number (lib/coach-calls.ts): already logged; they get the app text if they picked up.
+  if (outbound) {
+    if (answered && conversationId && caller) await textAfterCall(conversationId, caller, AFTER_CALL_TEXT).catch(() => false);
+    return twiml("<Hangup/>");
+  }
+  if (conversationId && caller) {
+    try {
+      const admin = createAdminClient();
+      const { data: conversation } = await admin.from("chat_conversations").select("id, user_id, guest_name").eq("id", conversationId).maybeSingle();
+      if (conversation) {
+        await admin.from("chat_messages").insert({
+          conversation_id: conversationId,
+          sender_id: conversation.user_id,
+          sender_is_coach: false,
+          channel: "sms",
+          body: answered ? `Call answered (${formatDuration(Number(params.DialCallDuration) || 0)})` : "Missed call",
+        });
+        await bumpConversation(conversationId);
+        if (!answered) {
+          await notifyStaffOfFamilyMessage({
+            conversationId,
+            fromName: conversation.guest_name ? `${conversation.guest_name} (call)` : `Call from ${formatPhone(caller)}`,
+            body: "Missed call",
+          });
+        }
+        await textAfterCall(conversationId, caller, answered ? AFTER_CALL_TEXT : MISSED_CALL_TEXT);
+      }
+    } catch (err) {
+      console.error("after call: failed to file it", err);
+    }
+  }
+  return answered ? twiml("<Hangup/>") : voicemail(conversationId, caller);
+}
+
+/**
+ * One text after a call, to a UK mobile, at most every 12 hours, and not
+ * to someone who already has the app (they get everything there for free).
+ */
+async function textAfterCall(conversationId: string, caller: string, body: string): Promise<boolean> {
+  if (!isUkMobile(caller) || (await textedRecently(conversationId))) return false;
+  const admin = createAdminClient();
+  const { data: conversation } = await admin.from("chat_conversations").select("user_id").eq("id", conversationId).maybeSingle();
+  if (conversation?.user_id) {
+    const { count } = await admin.from("push_tokens").select("token", { count: "exact", head: true }).eq("user_id", conversation.user_id as string);
+    if (count) return false;
+  }
+  try {
+    await sendSms(caller, body);
+    await admin.from("chat_messages").insert({ conversation_id: conversationId, sender_id: null, sender_is_coach: true, channel: "sms", body });
+    return true;
+  } catch (err) {
+    // Opted out with STOP: respect it quietly. Anything else is logged.
+    if (!(err instanceof SmsOptedOutError)) console.error("after call: text failed", err);
+    return false;
+  }
+}
+
+/** Nobody picked up: MPE's voicemail, filed in their chat. A withheld number is pointed at the website. */
+function voicemail(conversationId: string | null, caller: string | null): Response {
   if (!conversationId) {
     return twiml(
-      `<Say ${VOICE}>Thanks for calling ${SPOKEN_NAME}. We can't take your call right now. Please visit ${SPOKEN_DOMAIN} to get in touch.</Say><Hangup/>`,
+      `<Say ${VOICE}>Thanks for calling ${SPOKEN_NAME}. Sorry, nobody can get to the phone right now. Please visit ${SPOKEN_DOMAIN} to live chat with us.</Say><Hangup/>`,
     );
   }
-
-  const greeting = texted
-    ? `Thanks for calling ${SPOKEN_NAME}. We can't take your call right now, but we've just sent you a text with the quickest way to reach us. Or leave a message after the tone.`
-    : `Thanks for calling ${SPOKEN_NAME}. We can't take your call right now. Please leave a message after the tone, or visit ${SPOKEN_DOMAIN}.`;
-
+  const greeting =
+    caller && isUkMobile(caller)
+      ? `Thanks for calling ${SPOKEN_NAME}. Sorry, our engineer can't get to the phone right now. We've sent you a text with the quickest way to reach us, or leave a message after the tone.`
+      : `Thanks for calling ${SPOKEN_NAME}. Sorry, our engineer can't get to the phone right now. Please leave a message after the tone, or visit ${SPOKEN_DOMAIN} to live chat with us.`;
   // Twilio's built-in transcription caps the recording at two minutes.
   return twiml(
     `<Say ${VOICE}>${greeting}</Say>` +
@@ -178,15 +246,7 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
  * a robot reads out a code the moment the line is answered.
  */
 export async function forwardToAdmins(): Promise<Response> {
-  const admin = createAdminClient();
-  const { data: roles } = await admin.from("user_roles").select("email").eq("role", "admin");
-  const adminEmails = new Set((roles ?? []).map((r) => String(r.email).toLowerCase()));
-  const { data: page } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  const numbers = (page?.users ?? [])
-    .filter((u) => u.email && adminEmails.has(u.email.toLowerCase()))
-    .map((u) => coachPhoneOf(u))
-    .filter((n): n is string => !!n);
-
+  const numbers = await ringNumbers();
   if (numbers.length === 0) {
     return twiml(`<Say ${VOICE}>Sorry, there's nobody to put you through to.</Say><Hangup/>`);
   }

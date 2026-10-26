@@ -1,4 +1,4 @@
-import { getAppointment } from "@/lib/appointments";
+import { getAppointment, pendingForCustomer } from "@/lib/appointments";
 import { customerLabel, getCustomer, getCustomers } from "@/lib/customers";
 import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
 import { formatPence, getPaymentRequest, invoiceNumber, paymentsOn } from "@/lib/payments";
@@ -43,16 +43,23 @@ export async function quoteList(tab: QuoteTab) {
 }
 
 export async function quoteContext(params: { visitId?: string | null; customerId?: string | null }) {
-  const visit = params.visitId ? await getAppointment(params.visitId) : null;
+  let visit = params.visitId ? await getAppointment(params.visitId) : null;
   const customer = visit?.customerId ? await getCustomer(visit.customerId) : params.customerId ? await getCustomer(params.customerId) : null;
   if (!customer) return null;
+  // A repair agreed at their call-out and not booked yet: this is its price, so it's on that job.
+  if (!visit) visit = (await pendingForCustomer(customer.id, londonNow().dateISO).catch(() => null))?.returnOf ?? null;
   const products = await listProducts().catch(() => []);
   return {
     customer: { id: customer.id, name: customerLabel(customer), first: customer.name?.split(" ")[0] ?? null },
     visit: visit ? { id: visit.id, label: `${KIND_LABEL[visit.kind]} · ${longDate(visit.day)}, ${windowLabel(visit.start, visit.end)}` } : null,
     where: [customer.address, customer.postcode].filter(Boolean).join(", "),
     boiler: [customer.boilerMake, customer.boilerModel, customer.boilerAge].filter(Boolean).join(" · ") + (customer.boilerNotes ? ` · “${customer.boilerNotes}”` : ""),
-    defaultTitle: visit?.kind === "install" || visit?.kind === "quote" ? "New boiler, supplied and fitted" : "",
+    defaultTitle:
+      visit?.kind === "install" || visit?.kind === "quote"
+        ? "New boiler, supplied and fitted"
+        : visit?.outcome === "return" && visit.returnNote
+          ? `${visit.returnNote.charAt(0).toUpperCase()}${visit.returnNote.slice(1)}`
+          : "",
     products: products.map((p) => ({ id: p.id, name: p.name, pricePence: p.pricePence })),
     online: paymentsOn(),
   };

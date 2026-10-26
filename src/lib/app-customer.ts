@@ -9,13 +9,15 @@ import { formatPence, partPaymentsFor, paymentsForCustomer, paymentsOn, savedCar
 import { planFor } from "@/lib/maintenance-plan";
 import { QUOTE_STATUS_LABEL, quoteNumber, quotesForCustomer } from "@/lib/quotes";
 import { toJobPayment, type JobPayment } from "@/lib/app-jobs";
+import { customerPlan } from "@/lib/app-business";
 
 /**
  * A customer for the team, in the app (mobile/app/customer/[id].tsx),
  * opened from their name at the top of a chat: everything in one place.
  * Their details and boiler, the team's private notes, jobs underway (each
  * opens its job page), what they owe (taken from here), open quotes, and
- * what's been done before. The rest is the website's customer page.
+ * what's been done before, their maintenance plan, and their photos and
+ * certificates (lib/app-business.ts).
  */
 
 export type CustomerVisit = { id: string; when: string; kind: string; title: string | null; status: string; report: string | null };
@@ -30,6 +32,8 @@ export type StaffCustomer = {
   address: string | null;
   postcode: string | null;
   plan: string | null;
+  /** Their maintenance plan, and what can be done with it. */
+  planCard: Awaited<ReturnType<typeof customerPlan>>;
   boiler: { label: string; value: string }[];
   accessNotes: string | null;
   notes: { id: string; body: string; when: string; author: string | null }[];
@@ -45,8 +49,6 @@ export type StaffCustomer = {
   };
   /** Everything the edit form changes, as saved. */
   fields: Record<string, string>;
-  /** The website's pages for the rest, opened signed in. */
-  links: { book: string; invoice: string; quote: string; page: string };
 };
 
 const SHORT = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", month: "long", year: "numeric" });
@@ -60,12 +62,13 @@ function dayLabel(day: string, today: string): string {
 export async function staffCustomer(id: string, viewerId: string): Promise<StaffCustomer | null> {
   const customer = await getCustomer(id);
   if (!customer) return null;
-  const [notes, visits, payments, plan, quotes] = await Promise.all([
+  const [notes, visits, payments, plan, quotes, planCard] = await Promise.all([
     listCustomerNotes(id),
     appointmentsForCustomer(id),
     paymentsForCustomer(id),
     planFor(id).catch(() => null),
     quotesForCustomer(id).catch(() => []),
+    customerPlan(id),
   ]);
   const open = payments.filter((p) => p.status === "open");
   const [parts, card] = await Promise.all([partPaymentsFor(open.map((p) => p.id)), paymentsOn() ? savedCardFor(customer) : Promise.resolve(null)]);
@@ -117,6 +120,7 @@ export async function staffCustomer(id: string, viewerId: string): Promise<Staff
     address: customer.address,
     postcode: customer.postcode,
     plan: onPlan ? (onPlan.status === "past_due" ? "Maintenance plan: last payment failed" : "On the maintenance plan") : null,
+    planCard,
     boiler,
     accessNotes: customer.accessNotes,
     notes: notes.slice(0, 6).map((n) => ({
@@ -157,12 +161,6 @@ export async function staffCustomer(id: string, viewerId: string): Promise<Staff
       lastService: customer.lastService ?? "",
       boilerNotes: customer.boilerNotes ?? "",
       accessNotes: customer.accessNotes ?? "",
-    },
-    links: {
-      book: `/staff/schedule?view=day&date=${today}&customer=${customer.id}#add`,
-      invoice: `/staff/payments/new?customer=${customer.id}`,
-      quote: `/staff/quotes/new?customer=${customer.id}`,
-      page: `/staff/customers/${customer.id}`,
     },
   };
 }

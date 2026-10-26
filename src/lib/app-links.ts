@@ -34,6 +34,9 @@ const COMPONENTS: Record<string, unknown>[] = [
   { "/": "/visit/*" },
   { "/": "/request/*" },
   { "/": "/help/*" },
+  // The team's pages: on the phone, the app has them all (mobile/lib/links.ts).
+  { "/": "/staff" },
+  { "/": "/staff/*" },
 ];
 
 const TEAM_ID = /^[A-Z0-9]{10}$/;

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText, PressableScale } from "@/components/ui";
@@ -120,6 +121,59 @@ export function MonthGrid({
           })}
         </View>
       ))}
+    </View>
+  );
+}
+
+function short(day: string): string {
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+/** A date as a field that opens a month to pick from (certificates, days off). */
+export function DateField({
+  label,
+  value,
+  onChange,
+  today,
+  past = true,
+  stacked = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  today: string;
+  past?: boolean;
+  /** One under another (days off), rather than side by side (certificates). */
+  stacked?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState(value.slice(0, 7));
+  return (
+    <View style={stacked ? { gap: 6 } : { gap: 6, flex: 1 }}>
+      <PressableScale onPress={() => setOpen((v) => !v)} accessibilityLabel={`${label}: ${short(value)}. Change it`}>
+        <View style={{ height: 50, borderRadius: 14, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.card, paddingHorizontal: 12, justifyContent: "center" }}>
+          <AppText style={{ fontSize: 11, color: colors.text2 }}>{label}</AppText>
+          <AppText weight="bold" style={{ fontSize: 15 }}>
+            {short(value)}
+          </AppText>
+        </View>
+      </PressableScale>
+      {open && (
+        <View style={{ position: "relative" }}>
+          <MonthGrid
+            month={month}
+            days={bareMonth(month)}
+            today={today}
+            selected={value}
+            onPick={(d) => {
+              onChange(d);
+              setOpen(false);
+            }}
+            onMonth={setMonth}
+            past={past}
+          />
+        </View>
+      )}
     </View>
   );
 }

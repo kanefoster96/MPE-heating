@@ -71,8 +71,7 @@ picked up.
   (recorded automatically), their saved card once he's checked with them,
   the payment link to their chat, text and email (Apple Pay from there),
   or cash, all of it or part, with the rest taken by card or the link
-  (`src/lib/app-payments.ts` on the site). A new invoice or call-out fee
-  opens the website's take-payment page for the visit.
+  (`src/lib/app-payments.ts` on the site).
 - **Calendar** (`app/calendar.tsx`): the month with a dot per visit
   (orange for a request) and days off greyed; pick a day for its visits.
   **Add a visit** (`app/visit-form.tsx`): find the customer or add a new
@@ -100,14 +99,24 @@ picked up.
   products, what's included, a deposit, how long it's open, the rest
   monthly); and on one: send it again, withdraw it, book the work in,
   invoice the rest.
+- **Customers** (`app/customers.tsx`): everyone, with a search, and New
+  customer. A customer's page (`app/customer/[id].tsx`) also has their
+  maintenance plan (send it, cancel it at the end of what's paid for or
+  today, keep it going) and their photos and certificates (add, show them
+  or hide them, delete). **Maintenance plan** (`app/plan.tsx`): members,
+  what it brings in, failed payments and who's leaving. **Days off**
+  (`app/days-off.tsx`). **Settings** (`app/settings.tsx`, admins): plan
+  prices, referral rewards, the Google review link, products and the two
+  offered at repairs (`src/lib/app-business.ts` on the site).
 - **Menu** (`app/(tabs)/menu.tsx`, the team only, in Services' place):
   cards that turn orange when something needs Fergal (requests, unread
   messages, overdue invoices, failed monthly or plan payments, accepted
   quotes to book in, certificates running out) and green when it's in
-  order, then every tool. Finance (`app/finance.tsx`), Metrics
-  (`app/metrics.tsx`) and Certificates (`app/certificates.tsx`) are in
-  the app; the rest opens the website's pages signed in. Money is for
-  admins only.
+  order, then every tool, all in the app: Finance (`app/finance.tsx`),
+  Metrics (`app/metrics.tsx`), Certificates (`app/certificates.tsx`) and
+  the rest above. Nothing the team does needs the website, and a link to
+  one of its team pages (in a push, an email or a text) opens the app's
+  own screen (`lib/links.ts`). Money is for admins only.
 - **Bell** (`app/notifications.tsx`): what's waiting on them (an invoice
   to pay, a quote, a plan payment that failed) and what's coming up. For
   the team, new bookings and requests.

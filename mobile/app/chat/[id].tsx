@@ -9,7 +9,7 @@ import { AppText, PressableScale, haptic } from "@/components/ui";
 import type { SheetAction } from "@/components/action-sheet";
 import { apiPost } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/confirm";
-import { openExternal, openSignedIn } from "@/lib/open-link";
+import { openExternal } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 import type { ConversationResponse } from "@/lib/types";
 

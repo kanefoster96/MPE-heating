@@ -231,6 +231,17 @@ export type StaffCustomer = {
   address: string | null;
   postcode: string | null;
   plan: string | null;
+  /** Their maintenance plan, and what can be done with it. */
+  planCard: {
+    on: boolean;
+    line: string;
+    detail: string | null;
+    failed: boolean;
+    leaving: boolean;
+    cancelLabel: string | null;
+    /** The button to send them the plan, when it can be joined. */
+    send: string | null;
+  };
   boiler: { label: string; value: string }[];
   accessNotes: string | null;
   notes: { id: string; body: string; when: string; author: string | null }[];
@@ -245,5 +256,4 @@ export type StaffCustomer = {
     paidCount: number;
   };
   fields: Record<string, string>;
-  links: { book: string; invoice: string; quote: string; page: string };
 };

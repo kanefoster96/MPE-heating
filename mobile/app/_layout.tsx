@@ -91,6 +91,10 @@ export default function RootLayout() {
           <Stack.Screen name="finance" />
           <Stack.Screen name="metrics" />
           <Stack.Screen name="certificates" />
+          <Stack.Screen name="customers" />
+          <Stack.Screen name="plan" />
+          <Stack.Screen name="days-off" />
+          <Stack.Screen name="settings" />
           <Stack.Screen name="sign-in" options={{ presentation: "modal" }} />
           <Stack.Screen name="app-sign-in" options={{ animation: "fade", gestureEnabled: false }} />
           <Stack.Screen name="open" options={{ animation: "none" }} />

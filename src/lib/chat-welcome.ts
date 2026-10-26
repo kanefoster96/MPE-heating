@@ -79,10 +79,16 @@ async function sendAppPrompt(admin: Admin, conversationId: string): Promise<void
  * Step 2, after each customer message: ask for whatever we can't reach
  * them on yet, once. Someone we can already reach (a signed-in account
  * with an email, or details given) goes straight to the app suggestion.
+ * Someone writing from the app gets neither.
  */
-export async function afterCustomerMessage(conversationId: string, accountEmail: string | null): Promise<void> {
+export async function afterCustomerMessage(conversationId: string, accountEmail: string | null, source: "web" | "app" = "web"): Promise<void> {
   try {
     const admin = createAdminClient();
+    // In the app they get a push when we reply, and are already in the app.
+    if (source === "app") {
+      await claimOnce(admin, conversationId, "app_prompt_sent_at");
+      return;
+    }
     const { data: c } = await admin
       .from("chat_conversations")
       .select("guest_email, phone, details_asked_at")

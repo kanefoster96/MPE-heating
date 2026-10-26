@@ -125,7 +125,7 @@ async function logPushes(rows: { device: Device; message: PushMessage; status: "
  * An app deleted from an iPhone usually only shows up here, as
  * DeviceNotRegistered, so without reading receipts those tokens stayed
  * forever: the family counted as "has the app" and lost the texts that
- * stand in for a push. Run hourly (api/cron/push-receipts): reads receipts
+ * stand in for a push. Run hourly by the follow-up sweep (lib/follow-up-sweep.ts): reads receipts
  * for pushes sent 15 minutes to a day ago, records each on its push_log
  * row, and deletes the tokens that died.
  */

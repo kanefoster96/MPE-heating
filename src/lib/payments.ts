@@ -212,6 +212,18 @@ export async function paymentsForCustomer(customerId: string): Promise<PaymentRe
   return ((data ?? []) as Row[]).map(mapRow);
 }
 
+/** Open payments, newest first: what the team can take by Tap to Pay in the app. Monthly plans are left out. */
+export async function openPaymentRequests(limit = 50): Promise<PaymentRequest[]> {
+  const { data } = await createAdminClient()
+    .from("payment_requests")
+    .select("*")
+    .eq("status", "open")
+    .is("plan_status", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return ((data ?? []) as Row[]).map(mapRow);
+}
+
 /**
  * The call-out fee already paid on this visit and not yet taken off an
  * invoice: the site's promise is that it comes off the repair.

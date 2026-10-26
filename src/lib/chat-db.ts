@@ -459,6 +459,26 @@ export async function getConversationMessagesAsCoach(
 }
 
 /**
+ * A conversation's messages for the app (/api/mobile/chat/conversation),
+ * newest thousand oldest first, or only those after `afterIso` when it's
+ * polling. The caller has already checked this is their conversation, or
+ * that they're on the team, so this reads with the admin client (the app
+ * has no cookie session for RLS).
+ */
+export async function getMessagesForApp(conversationId: string, afterIso?: string | null): Promise<ChatMessage[]> {
+  try {
+    const admin = createAdminClient();
+    let query = admin.from("chat_messages").select("*").eq("conversation_id", conversationId);
+    if (afterIso) query = query.gt("created_at", afterIso);
+    const { data } = await query.order("created_at", { ascending: false }).limit(1000);
+    const messages = (data ?? []).reverse().map(mapMessage);
+    return attachSenderInfo(await resolveAttachmentUrls(messages, admin));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Messages sent after a given timestamp — the polling fallback ChatThread
  * uses alongside its Realtime subscription, so new replies still show up
  * on their own even if a Realtime event is ever missed or misconfigured.
@@ -655,8 +675,9 @@ export async function getUnreadCountForUser(userId: string): Promise<number> {
     const conversation = await getConversationForUser(userId);
     if (!conversation) return 0;
 
-    const supabase = await createClient();
-    let query = supabase
+    // The admin client: this is called from pushes and the app too, where
+    // there's no signed-in cookie to read RLS against.
+    let query = createAdminClient()
       .from("chat_messages")
       .select("id", { count: "exact", head: true })
       .eq("conversation_id", conversation.id)

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isDayOff } from "@/lib/days-off";
 import { revalidatePath } from "next/cache";
 import { getEnquiryByToken, visitKindFor } from "@/lib/enquiries";
 import { createRequest } from "@/lib/appointments";
@@ -25,6 +26,7 @@ export async function pickTimeForEnquiry(token: string, formData: FormData) {
   if (!isISODate(day) || day < today || day > addDays(today, 60) || !isPart(part)) {
     redirect(`/request/${token}?error=${encodeURIComponent("Pick a day and a time of day.")}`);
   }
+  if (await isDayOff(day)) redirect(`/request/${token}?error=${encodeURIComponent("We're not working that day. Please pick another.")}`);
   const customer = await getCustomer(enquiry.customerId);
   if (!customer) redirect(`/request/${token}`);
   const kind = visitKindFor(enquiry.category);

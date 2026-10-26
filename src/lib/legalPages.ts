@@ -41,6 +41,10 @@ const PRIVACY_COOKIES: ContentBlock[] = META_PIXEL_ID
       },
       {
         type: "p",
+        text: "If you open a customer's referral link, we keep a small cookie (mpe_ref, for up to 60 days) saying whose link it was, so the booking you send gets the referral offer and they get their thank-you. It's only set when you open one of those links, and it's never shared.",
+      },
+      {
+        type: "p",
         text: `If you allow it, we also use the Meta (Facebook and Instagram) Pixel. It tells Meta which of our pages you visit, when you tap to call or WhatsApp us, and when you send a booking form. Your browser sends Meta your IP address and browser details as it does this. ${
           // Only said when the server-side copy (lib/meta-capi.ts) is switched on.
           process.env.META_CONVERSIONS_API_ACCESS_TOKEN
@@ -57,6 +61,10 @@ const PRIVACY_COOKIES: ContentBlock[] = META_PIXEL_ID
       {
         type: "p",
         text: "We don't currently use tracking or advertising cookies. If that changes — for example, if we add analytics in future — we'll update this policy and, where required, ask for your consent first.",
+      },
+      {
+        type: "p",
+        text: "If you open a customer's referral link, we keep a small cookie (mpe_ref, for up to 60 days) saying whose link it was, so the booking you send gets the referral offer and they get their thank-you. It's only set when you open one of those links, and it's never shared.",
       },
     ];
 

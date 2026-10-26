@@ -17,6 +17,7 @@ import {
 } from "@/lib/payments";
 import { viaPhrase } from "@/lib/visit-notify";
 import { recordInPersonInstalment, restartInstalments, stopInstalments } from "@/lib/instalments";
+import { spendCredits } from "@/lib/referrals";
 
 type Context = { customerId: string; appointmentId: string | null; back: string };
 
@@ -57,6 +58,9 @@ export async function takePayment(ctx: Context, formData: FormData) {
     instalments: kind === "invoice" && intent === "send" ? instalmentsFrom(formData) : null,
   });
   if (!created.ok) redirect(pageHref(ctx, { error: created.error }));
+  // Money off they were owed, now on this invoice: used.
+  const creditIds = String(formData.get("creditIds") ?? "").split(",").filter(Boolean);
+  if (kind === "invoice" && creditIds.length) await spendCredits(ctx.customerId, creditIds, created.request.id);
 
   let flash: string;
   if (inPerson) {

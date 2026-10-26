@@ -11,6 +11,7 @@ import { londonNow } from "@/lib/schedule-time";
 import { formatPence } from "@/lib/payments";
 import { bookedPerDay, businessSnapshot } from "@/lib/dashboard";
 import { logout } from "../login/actions";
+import { emailLastMonth } from "./report-actions";
 
 export const metadata: Metadata = { title: "Home" };
 
@@ -24,7 +25,8 @@ const SHORT_DAY = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "
  * Kanvas Academy's coach dashboard and finance page, for a boiler business.
  * Every number links to where it's dealt with.
  */
-export default async function StaffHome() {
+export default async function StaffHome({ searchParams }: { searchParams: Promise<{ report?: string }> }) {
+  const { report } = await searchParams;
   const user = await requireStaff("/staff");
   const { dateISO: today, minutes } = londonNow();
   const [admin, unread, newJobs, waiting, visits, days, snap] = await Promise.all([
@@ -219,6 +221,19 @@ export default async function StaffHome() {
           </ul>
         )}
       </section>
+
+      {admin && (
+        <form action={emailLastMonth} className="mt-4 flex flex-wrap items-center gap-3">
+          <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold hover:border-foreground/40">
+            Email me last month&rsquo;s numbers
+          </button>
+          {report && (
+            <span className={`text-sm ${report === "sent" ? "text-success" : "text-danger"}`} role="status">
+              {report === "sent" ? "Sent. It goes to the admins on the 1st of every month too." : "Couldn't send it: is Resend set up?"}
+            </span>
+          )}
+        </form>
+      )}
 
       <nav className="mt-6 flex flex-wrap gap-2" aria-label="Shortcuts">
         {[

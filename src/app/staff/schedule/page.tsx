@@ -10,6 +10,7 @@ import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForAppointments, ty
 import { requestedWhen } from "@/lib/visit-copy";
 import { customerLabel, getCustomer, getCustomers, type Customer } from "@/lib/customers";
 import { onPlan } from "@/lib/maintenance-plan";
+import { closedDays } from "@/lib/days-off";
 import { QUOTE_STATUS_LABEL, quoteNumber, quotesForAppointments, type Quote } from "@/lib/quotes";
 import { getEnquiry, visitKindFor, CATEGORY_LABEL } from "@/lib/enquiries";
 import {
@@ -171,6 +172,7 @@ async function MonthView({ month, today }: { month: string; today: string }) {
   const customers = await getCustomers(appointments.map((a) => a.customerId).filter((id): id is string => !!id));
   const byDay = new Map<string, Appointment[]>();
   for (const a of appointments) byDay.set(a.day, [...(byDay.get(a.day) ?? []), a]);
+  const off = await closedDays(first, last).catch(() => new Map<string, string | null>());
 
   const monthVisits = appointments.filter((a) => a.day.startsWith(month) && counts(a));
   const fullDays = weeks.flat().filter((d) => d.startsWith(month) && dayLoad((byDay.get(d) ?? []).filter(counts)).full).length;
@@ -194,7 +196,10 @@ async function MonthView({ month, today }: { month: string; today: string }) {
         </div>
         <p className="text-sm text-muted" data-month-summary>
           {monthVisits.length} visit{monthVisits.length === 1 ? "" : "s"}
-          {fullDays ? ` · ${fullDays} full day${fullDays === 1 ? "" : "s"}` : ""}
+          {fullDays ? ` · ${fullDays} full day${fullDays === 1 ? "" : "s"}` : ""} ·{" "}
+          <Link href="/staff/days-off" className="inline-flex min-h-11 items-center font-semibold text-foreground underline underline-offset-4">
+            Days off
+          </Link>
         </p>
       </div>
 
@@ -216,14 +221,16 @@ async function MonthView({ month, today }: { month: string; today: string }) {
             const isToday = day === today;
             const past = day < today;
             const freeMinutes = WORKDAY.end - WORKDAY.start - load.bookedMinutes;
+            const dayOff = off.has(day);
             return (
               <Link
                 key={day}
                 href={scheduleHref({ view: "day", date: day })}
                 data-day={day}
                 data-full={load.full ? "1" : undefined}
-                aria-label={`${longDate(day)}: ${items.length - asks ? `${items.length - asks} visit${items.length - asks === 1 ? "" : "s"}${load.full ? ", full" : `, ${formatDuration(freeMinutes)} free`}` : "nothing booked"}${asks ? `, ${asks} request${asks === 1 ? "" : "s"}` : ""}`}
-                className={`group relative flex min-h-16 flex-col gap-1 border-border p-1.5 transition-colors hover:bg-surface sm:min-h-28 sm:p-2 ${i % 7 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""} ${inMonth ? "" : "bg-surface/60"} ${past ? "opacity-70" : ""}`}
+                data-day-off={dayOff ? "1" : undefined}
+                aria-label={`${longDate(day)}${dayOff ? ", day off" : ""}: ${items.length - asks ? `${items.length - asks} visit${items.length - asks === 1 ? "" : "s"}${load.full ? ", full" : `, ${formatDuration(freeMinutes)} free`}` : "nothing booked"}${asks ? `, ${asks} request${asks === 1 ? "" : "s"}` : ""}`}
+                className={`group relative flex min-h-16 flex-col gap-1 border-border p-1.5 transition-colors hover:bg-surface sm:min-h-28 sm:p-2 ${i % 7 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""} ${dayOff ? "bg-[repeating-linear-gradient(135deg,transparent,transparent_6px,rgb(0_0_0/0.04)_6px,rgb(0_0_0/0.04)_12px)]" : inMonth ? "" : "bg-surface/60"} ${past ? "opacity-70" : ""}`}
               >
                 <div className="flex items-center justify-between gap-1">
                   <span
@@ -231,7 +238,9 @@ async function MonthView({ month, today }: { month: string; today: string }) {
                   >
                     {Number(day.slice(8))}
                   </span>
-                  {load.full ? (
+                  {dayOff ? (
+                    <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-[10px] font-semibold text-muted">Off</span>
+                  ) : load.full ? (
                     <span className="hidden rounded-full bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger sm:inline">Full</span>
                   ) : items.length > 0 ? (
                     <span className="hidden text-[10px] font-medium text-muted sm:inline">{formatDuration(freeMinutes)} free</span>
@@ -383,6 +392,8 @@ async function DayView({ day, today, params }: { day: string; today: string; par
       ? { day: params.to, start: PART_WINDOW[params.part].start, end: Math.min(PART_WINDOW[params.part].start + (editing.end - editing.start), PART_WINDOW[params.part].end) }
       : null;
   const addInitial = adding ? await addFormValues(day, params) : null;
+  const dayOff = (await closedDays(day, day).catch(() => new Map<string, string | null>())).get(day);
+  const isDayOff = dayOff !== undefined;
 
   const viewStart = Math.min(DAY_VIEW.start, ...active.map((a) => Math.floor(a.start / 60) * 60));
   const viewEnd = Math.max(DAY_VIEW.end, ...active.map((a) => Math.ceil(a.end / 60) * 60));
@@ -419,6 +430,15 @@ async function DayView({ day, today, params }: { day: string; today: string; par
           </Link>
         )}
       </div>
+
+      {isDayOff && (
+        <p className="mt-3 rounded-lg border border-border bg-foreground/5 px-4 py-2 text-sm font-medium" data-day-off>
+          Day off{dayOff ? `: ${dayOff}` : ""}. Customers can&rsquo;t ask for a visit today; you can still book one.{" "}
+          <Link href="/staff/days-off" className="underline underline-offset-4">
+            Days off
+          </Link>
+        </p>
+      )}
 
       <p className="mt-2 text-sm text-muted" data-day-summary>
         {booked.length === 0

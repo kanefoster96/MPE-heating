@@ -555,8 +555,11 @@ export async function markPaidInPerson(id: string, via: "in_person" | "cash" | "
     .eq("id", id)
     .eq("status", "open")
     .is("plan_status", null)
-    .select("id");
-  if (data?.length) return { ok: true };
+    .select("id, customer_id");
+  if (data?.length) {
+    if (data[0].customer_id) await rewardReferral(data[0].customer_id as string);
+    return { ok: true };
+  }
   const row = await getRow(id);
   return { ok: false, error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid." : row.plan_status ? partPaidMonthly : "That payment was cancelled." };
 }
@@ -608,6 +611,9 @@ export async function markPaid(id: string, paymentIntentId: string, via: PaidVia
     return;
   }
 
+  // Their first job paid, through someone's referral link: the referrer's thanked.
+  if (row.customer_id) await rewardReferral(row.customer_id);
+
   // A quote's deposit: the quote's accepted (and the team told there).
   if (row.quote_id && row.kind === "other") {
     const { quoteDepositPaid } = await import("@/lib/quotes");
@@ -642,6 +648,16 @@ export async function cancelPaymentRequest(id: string): Promise<{ ok: true } | {
     ok: false,
     error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid: refund it in Stripe instead." : (onMonthly(row) ?? "It's already cancelled."),
   };
+}
+
+/** Referrals are rewarded on a customer's first paid job (lib/referrals.ts); never in the way of a payment. */
+async function rewardReferral(customerId: string): Promise<void> {
+  try {
+    const { rewardReferralFor } = await import("@/lib/referrals");
+    await rewardReferralFor(customerId);
+  } catch (err) {
+    console.error("payments: referral reward failed", err);
+  }
 }
 
 export async function alertTeam(title: string, body: string): Promise<void> {

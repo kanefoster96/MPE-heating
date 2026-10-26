@@ -9,6 +9,8 @@ import { getAppointmentByToken } from "@/lib/appointments";
 import { getCustomer } from "@/lib/customers";
 import { getJobReview } from "@/lib/job-completion";
 import { reviewUrl } from "@/lib/settings";
+import { referralCodeFor, referralLink, referralRewards } from "@/lib/referrals";
+import { ShareLink } from "@/components/ShareLink";
 import { KIND_LABEL, longDate } from "@/lib/day-plan";
 import { business } from "@/lib/content";
 import { submitReview } from "./actions";
@@ -39,6 +41,10 @@ export default async function ReviewPage({
   const visit = await getAppointmentByToken(token);
   if (!visit || !visit.customerId || visit.status !== "done") notFound();
   const [customer, review, google] = await Promise.all([getCustomer(visit.customerId), getJobReview(visit.id), reviewUrl()]);
+  // A happy customer, at the moment they've said so: their link to recommend us.
+  const rewards = review && review.rating >= 4 ? await referralRewards() : null;
+  const refCode = rewards && customer ? await referralCodeFor(customer.id) : null;
+  const pounds = (p: number) => `£${Number.isInteger(p / 100) ? p / 100 : (p / 100).toFixed(2)}`;
   const first = customer?.name?.split(" ")[0];
 
   return (
@@ -66,6 +72,19 @@ export default async function ReviewPage({
                     >
                       Post a Google review
                     </a>
+                  </div>
+                )}
+                {rewards && refCode && (
+                  <div className="mt-4 rounded-2xl bg-cream p-5 text-left" data-review-refer>
+                    <p className="font-semibold text-navy">Know someone who needs a heating engineer?</p>
+                    <p className="mt-1 text-sm text-text-2">
+                      Share your link.
+                      {rewards.friendPence ? ` They get ${pounds(rewards.friendPence)} off their first job` : ""}
+                      {rewards.referrerPence ? `${rewards.friendPence ? ", and" : ""} you get ${pounds(rewards.referrerPence)} off your next once they've had it` : ""}.
+                    </p>
+                    <div className="mt-3">
+                      <ShareLink url={referralLink(refCode)} text={`I use MPE for my boiler. Book through this link${rewards.friendPence ? ` and get ${pounds(rewards.friendPence)} off your first job` : ""}:`} />
+                    </div>
                   </div>
                 )}
                 <Link href={`/visit/${token}`} className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-navy underline underline-offset-4">

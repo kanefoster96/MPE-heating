@@ -15,6 +15,9 @@ import { addNote, managePlan, openCustomerChat, removeNote, saveCustomer } from 
 import { BILLING_LABEL, earliestEnd, planDate, planFor, planOpen, planPrices } from "@/lib/maintenance-plan";
 import { instalmentProgress } from "@/lib/instalments";
 import { QUOTE_STATUS_LABEL, quoteNumber, quotesForCustomer } from "@/lib/quotes";
+import { fileLabel, filesForCustomer } from "@/lib/job-files";
+import { FileUploader } from "@/components/staff/file-uploader";
+import { removeFile, shareFile } from "../../files/actions";
 import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForCustomer } from "@/lib/payments";
 import { reviewsForCustomer, type JobReview } from "@/lib/job-completion";
 
@@ -78,7 +81,16 @@ export default async function CustomerPage({
     enquiriesForCustomer(id),
     paymentsForCustomer(id),
   ]);
-  const [reviews, plan, prices, progress, quotes] = await Promise.all([reviewsForCustomer(id), planFor(id), planPrices(), instalmentProgress(payments), quotesForCustomer(id)]);
+  const [reviews, plan, prices, progress, quotes, files] = await Promise.all([
+    reviewsForCustomer(id),
+    planFor(id),
+    planPrices(),
+    instalmentProgress(payments),
+    quotesForCustomer(id),
+    filesForCustomer(id).catch(() => []),
+  ]);
+  const photos = files.filter((f) => f.kind === "photo");
+  const certificates = files.filter((f) => f.kind === "certificate");
   const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
   const today = londonNow().dateISO;
   const upcoming = visits.filter((v) => v.day >= today && v.status === "booked").reverse();
@@ -270,6 +282,70 @@ export default async function CustomerPage({
             ))}
           </ul>
         )}
+      </section>
+
+      <section id="files" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="files-heading">
+        <h2 id="files-heading" className="text-lg font-semibold">
+          Photos and certificates
+        </h2>
+        <p className="mt-1 text-sm text-muted">Gas safety records, service records, Benchmark, photos of the job. Ticked ones show in their account.</p>
+        {certificates.length > 0 && (
+          <ul className="mt-4 flex flex-col gap-2" data-certificates>
+            {certificates.map((f) => (
+              <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm">
+                <span className="min-w-0">
+                  {f.url ? (
+                    <a href={f.url} target="_blank" rel="noopener noreferrer" className="font-semibold underline-offset-4 hover:underline">
+                      {fileLabel(f)}
+                    </a>
+                  ) : (
+                    <span className="font-semibold">{fileLabel(f)}</span>
+                  )}
+                  <span className={`block text-xs ${f.expiresOn && f.expiresOn < today ? "font-semibold text-danger" : "text-muted"}`}>
+                    {f.issuedOn ? `Issued ${longDate(f.issuedOn)}` : ""}
+                    {f.expiresOn ? `${f.issuedOn ? " · " : ""}${f.expiresOn < today ? "Ran out" : "Runs out"} ${longDate(f.expiresOn)}` : ""}
+                    {f.shared ? " · In their account" : ""}
+                  </span>
+                </span>
+                <span className="flex gap-1">
+                  <form action={shareFile.bind(null, customer.id, f.id, !f.shared)}>
+                    <button type="submit" className="min-h-9 rounded-full px-2.5 text-xs font-medium text-muted hover:bg-foreground/5">
+                      {f.shared ? "Hide from them" : "Show them"}
+                    </button>
+                  </form>
+                  <form action={removeFile.bind(null, customer.id, f.id)}>
+                    <button type="submit" className="min-h-9 rounded-full px-2.5 text-xs font-medium text-danger hover:bg-danger/10">
+                      Delete
+                    </button>
+                  </form>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {photos.length > 0 && (
+          <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4" data-photos>
+            {photos.map((f) => (
+              <li key={f.id} className="relative">
+                <a href={f.url ?? "#"} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-xl bg-background ring-1 ring-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {f.url && <img src={f.url} alt={fileLabel(f)} className="h-full w-full object-cover" loading="lazy" />}
+                </a>
+                <span className="mt-1 block truncate text-[11px] text-muted">
+                  {f.enquiryId ? "From their booking" : fileLabel(f)}
+                </span>
+                <form action={removeFile.bind(null, customer.id, f.id)} className="absolute right-1 top-1">
+                  <button type="submit" aria-label={`Delete ${fileLabel(f)}`} className="flex h-8 w-8 items-center justify-center rounded-full bg-background/90 text-sm text-danger shadow">
+                    ×
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-5 border-t border-border pt-4">
+          <FileUploader customerId={customer.id} today={today} />
+        </div>
       </section>
 
       <section className="mt-8" aria-labelledby="details">

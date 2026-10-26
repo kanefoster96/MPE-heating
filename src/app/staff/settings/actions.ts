@@ -88,3 +88,22 @@ export async function savePlanPrices(formData: FormData) {
   revalidatePath("/staff/settings");
   redirect(to({ planDone: month || year ? "Plan prices saved." : "Plan prices cleared: the plan can't be joined online until a price is set." }));
 }
+
+/** Referral rewards: what the customer who recommends gets, and what their friend gets. Both blank: referrals off. */
+export async function saveReferralRewards(formData: FormData) {
+  await requireAdmin();
+  const to = (params: Record<string, string>) => `/staff/settings?${new URLSearchParams(params).toString()}#referrals`;
+  const pence = (key: string): number | null | "bad" => {
+    const raw = String(formData.get(key) ?? "").replace(/[£,\s]/g, "");
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 1 && n <= 500 ? Math.round(n * 100) : "bad";
+  };
+  const referrer = pence("referrerReward");
+  const friend = pence("friendReward");
+  if (referrer === "bad" || friend === "bad") redirect(to({ referralError: "Rewards need to be between £1 and £500." }));
+  const ok = (await Promise.all([setSetting("referral_referrer_pence", referrer ? String(referrer) : null), setSetting("referral_friend_pence", friend ? String(friend) : null)])).every(Boolean);
+  if (!ok) redirect(to({ referralError: "Couldn't save that." }));
+  revalidatePath("/staff/settings");
+  redirect(to({ referralDone: referrer || friend ? "Referral rewards saved." : "Referrals switched off." }));
+}

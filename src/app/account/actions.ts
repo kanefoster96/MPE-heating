@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies, headers } from "next/headers";
+import { isDayOff } from "@/lib/days-off";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -96,6 +97,7 @@ export async function requestVisit(formData: FormData) {
   if (!(REQUESTABLE_KINDS as readonly string[]).includes(kind) || !isISODate(day) || day < today || day > addDays(today, 60) || !isPart(part)) {
     redirect(`/account?requestError=${encodeURIComponent("Pick what you need, a day and a time of day.")}#request`);
   }
+  if (await isDayOff(day)) redirect(`/account?requestError=${encodeURIComponent("We're not working that day. Please pick another.")}#request`);
   const visit = await createRequest({
     customerId: customer.id,
     kind,

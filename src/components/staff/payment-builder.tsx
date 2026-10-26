@@ -38,6 +38,7 @@ export function PaymentBuilder({
   offers: upsells,
   products,
   repair,
+  credits = [],
 }: {
   action: (formData: FormData) => void | Promise<void>;
   defaultDescription: string;
@@ -53,6 +54,8 @@ export function PaymentBuilder({
   products: { id: string; name: string; pricePence: number }[];
   /** A repair: the upsells start ticked. */
   repair: boolean;
+  /** Money off they're owed (a referral reward): one tap adds it as a line. */
+  credits?: { id: string; label: string; pence: number }[];
 }) {
   const [offerState, setOfferState] = useState(upsells.map((o) => ({ ...o, on: repair, price: (o.offerPence / 100).toString() })));
   const offered = offerState.filter((o) => o.on && toPence(o.price) >= 100);
@@ -69,6 +72,8 @@ export function PaymentBuilder({
   const total = parsed.reduce((sum, l) => sum + l.amountPence, 0);
   const ready = parsed.length > 0 && parsed.every((l) => l.description && l.amountPence !== 0) && total >= 100;
   const monthly = monthlyOn && total >= 100 ? instalmentSchedule(total, months, toPence(deposit)) : null;
+  // The credits on the invoice: their line is still there, at their amount.
+  const creditIds = credits.filter((c) => lines.some((l) => l.description === c.label && toPence(l.pounds) === -c.pence)).map((c) => c.id);
 
   function update(i: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -78,6 +83,7 @@ export function PaymentBuilder({
     <form action={action} className="flex flex-col gap-5" data-payment-builder>
       <input type="hidden" name="kind" value="invoice" />
       <input type="hidden" name="lines" value={JSON.stringify(parsed)} />
+      <input type="hidden" name="creditIds" value={creditIds.join(",")} />
       <label className="flex flex-col gap-2">
         <span className="text-sm text-muted">What it&rsquo;s for</span>
         <input name="description" defaultValue={defaultDescription} maxLength={120} className={FIELD} />
@@ -144,6 +150,23 @@ export function PaymentBuilder({
             </button>
           ))}
         </div>
+        {credits.some((c) => !creditIds.includes(c.id)) && (
+          <div className="flex flex-wrap items-center gap-1.5" data-credit-chips>
+            <span className="text-xs font-semibold text-success">They&rsquo;re owed:</span>
+            {credits
+              .filter((c) => !creditIds.includes(c.id))
+              .map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setLines((prev) => [...prev, { description: c.label, pounds: (-c.pence / 100).toString() }])}
+                  className="min-h-9 rounded-full border border-success/40 bg-success/10 px-3 text-xs font-semibold text-success"
+                >
+                  + {c.label} {formatPence(-c.pence)}
+                </button>
+              ))}
+          </div>
+        )}
         {creditPence > 0 && <p className="text-xs text-muted">The {formatPence(creditPence)} call-out fee they paid comes off, as promised. Remove that line if it shouldn&rsquo;t.</p>}
       </div>
 

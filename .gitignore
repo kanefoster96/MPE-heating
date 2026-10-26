@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# the MPE app (mobile/)
+/mobile/node_modules
+/mobile/.expo
+/mobile/dist
+/mobile/web-build

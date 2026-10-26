@@ -396,7 +396,12 @@ export async function declineQuote(token: string, reason: string | null): Promis
 // After the work: the invoice for the rest.
 
 /** The invoice for what's left: the quote's lines, less the deposit paid, monthly if the quote offered it. */
-export async function invoiceBalance(quoteId: string, staffId: string, opts: { appointmentId?: string | null } = {}): Promise<{ ok: true; sentVia: string[] } | { ok: false; error: string }> {
+export async function invoiceBalance(
+  quoteId: string,
+  staffId: string,
+  /** `send: false`: kept to take there and then (the repair visit's Payment button), not sent to them. */
+  opts: { appointmentId?: string | null; send?: boolean } = {},
+): Promise<{ ok: true; sentVia: string[]; requestId: string } | { ok: false; error: string }> {
   const quote = await getQuote(quoteId);
   if (!quote || quote.status !== "accepted") return { ok: false, error: "Only an accepted quote can be invoiced." };
   if (quote.balanceRequestId) return { ok: false, error: "The invoice for this quote has already been sent." };
@@ -423,11 +428,12 @@ export async function invoiceBalance(quoteId: string, staffId: string, opts: { a
     description: quote.title,
     lines,
     quoteId: quote.id,
-    instalments: quote.balanceInstalments ? { months: quote.balanceInstalments, depositPence: 0 } : null,
+    send: opts.send ?? true,
+    instalments: quote.balanceInstalments && opts.send !== false ? { months: quote.balanceInstalments, depositPence: 0 } : null,
   });
   if (!created.ok) return created;
   await createAdminClient().from("quotes").update({ balance_request_id: created.request.id, updated_at: new Date().toISOString() }).eq("id", quote.id);
-  return { ok: true, sentVia: created.sentVia };
+  return { ok: true, sentVia: created.sentVia, requestId: created.request.id };
 }
 
 // ---------------------------------------------------------------------------

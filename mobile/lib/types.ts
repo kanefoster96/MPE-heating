@@ -179,6 +179,8 @@ export type SheetContext = {
   terminalLocation: string | null;
   savedCard: { brand: string; last4: string } | null;
   choices: JobPayment[];
+  /** The job's accepted quote, not billed yet: one tap makes its invoice here, ready to take. */
+  quoteToBill?: { id: string; number: string; amount: string; detail: string } | null;
 };
 
 export type StaffJobDetail = {
@@ -188,6 +190,8 @@ export type StaffJobDetail = {
   customerId?: string | null;
   asked?: string | null;
   askedPast?: boolean;
+  /** An accepted quote for this job, not billed yet: the Payment button bills it, less what's been paid. */
+  quoteToBill?: { id: string; number: string; amount: string; detail: string } | null;
   change?: { label: string; note: string | null } | null;
   /** Finished as "coming back": what for, and the return visit once booked. */
   comingBack?: { note: string | null; returnVisit: { id: string; when: string } | null } | null;

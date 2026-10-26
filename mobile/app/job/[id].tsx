@@ -165,6 +165,7 @@ function Job() {
         terminalLocation: data.payments.terminalLocation,
         savedCard: data.payments.savedCard,
         choices: [...data.payments.forJob, ...data.payments.otherOpen],
+        quoteToBill: data.quoteToBill ?? null,
       }
     : null;
 

@@ -8,6 +8,7 @@ import { getNewEnquiryCount, getUnreadCountForCoach } from "@/lib/chat-db";
 import { formatPence } from "@/lib/payments";
 import { monthName, monthNumbers, previousMonth } from "@/lib/monthly-report";
 import { staffIdentity } from "@/lib/staff-identity";
+import { smsThisMonth } from "@/lib/twilio";
 
 /**
  * Fergal's Menu in the app (mobile/app/(tabs)/menu.tsx): Kanvas Academy's
@@ -91,6 +92,20 @@ export async function staffOverview(user: User, admin: boolean): Promise<{ name:
   ];
 
   if (admin) {
+    // Texts cost per segment: how much of the month's allowance is used (lib/twilio.ts).
+    const texts = await smsThisMonth().catch(() => null);
+    if (texts) {
+      const near = texts.used >= texts.limit * 0.8;
+      cards.push({
+        id: "texts",
+        icon: "chatbox-ellipses",
+        title: "Texts this month",
+        value: `${texts.used} of ${texts.limit}`,
+        caption: texts.used >= texts.limit ? "Limit reached: updates go by the app and email" : `About £${((texts.used * 0.056 * 1.2) / 1.27).toFixed(2)} so far, with VAT`,
+        tone: near ? "alert" : "good",
+        count: near ? 1 : 0,
+      });
+    }
     const s = await businessSnapshot(today);
     const up = s.takenThisMonthPence - s.takenLastMonthPence;
     cards.push(

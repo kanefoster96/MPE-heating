@@ -30,7 +30,9 @@ function loadSetup(): Promise<Setup | null> {
 }
 
 /**
- * The team's Call buttons (Kanvas Academy's business call): "Call as MPE"
+ * The team's Call buttons. WhatsApp first: free, from his WhatsApp
+ * Business (on the MPE number, once it's set up there). Then Kanvas
+ * Academy's business call: "Call as MPE"
  * rings the engineer's phone first, then puts them through, and the
  * customer sees MPE's number, never theirs. "Use my own phone" dials
  * straight from their phone. Until MPE's Twilio number is set up, Call just
@@ -50,6 +52,27 @@ export function useBusinessCall() {
   useEffect(() => {
     loadSetup().then(setSetup);
   }, []);
+
+  /** Their number as WhatsApp wants it: 447700900123. */
+  function waNumber(target: CallTarget): string | null {
+    const raw = (target.directNumber ?? target.to)?.replace(/[^\d+]/g, "");
+    if (!raw) return null;
+    const digits = raw.startsWith("+") ? raw.slice(1) : raw.startsWith("0") ? `44${raw.slice(1)}` : raw;
+    return /^\d{10,15}$/.test(digits) ? digits : null;
+  }
+
+  /**
+   * WhatsApp, free: opens their chat in WhatsApp (WhatsApp Business, if
+   * that's the one on the phone), with its call button at the top. No way
+   * to start the call itself from a link, so it's one more tap there.
+   */
+  function whatsapp(target: CallTarget) {
+    const number = waNumber(target);
+    if (!number) return;
+    openExternal(`https://wa.me/${number}`);
+    // A reply, as far as their bookings go: the same-day nudge stops.
+    apiPost("/api/mobile/staff/call/whatsapp", { conversationId: target.conversationId, to: target.to ?? target.directNumber ?? undefined }).catch(() => {});
+  }
 
   function direct(target: CallTarget) {
     const number = (target.directNumber ?? target.to)?.replace(/\s+/g, "");
@@ -71,8 +94,8 @@ export function useBusinessCall() {
   }
 
   function call(target: CallTarget) {
-    // Not set up yet: their own phone, as before.
-    if (!setup?.on) return direct(target);
+    // WhatsApp first (free), so there's always a choice when we have their number.
+    if (!setup?.on && !waNumber(target)) return direct(target);
     setChoosing(target);
   }
 
@@ -114,18 +137,30 @@ export function useBusinessCall() {
             Call {choosing?.name}
           </AppText>
           <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 6, lineHeight: 20 }}>
-            They&apos;ll see {setup?.businessNumber ?? "MPE's number"}, not yours. We ring {setup?.ringPhone ?? "you"} first, then put you through.
+            WhatsApp is free: it opens their chat, then tap the call button.{setup?.on ? ` Calling as MPE uses call credit; they see ${setup.businessNumber ?? "MPE's number"}.` : ""}
           </AppText>
           <View style={{ gap: 10, marginTop: 18 }}>
-            {button(
-              "Call as MPE",
-              () => {
-                const target = choosing;
-                setChoosing(null);
-                if (target) void place(target);
-              },
-              "orange",
-            )}
+            {!!choosing &&
+              !!waNumber(choosing) &&
+              button(
+                "WhatsApp (free)",
+                () => {
+                  const target = choosing;
+                  setChoosing(null);
+                  if (target) whatsapp(target);
+                },
+                "orange",
+              )}
+            {setup?.on &&
+              button(
+                "Call as MPE",
+                () => {
+                  const target = choosing;
+                  setChoosing(null);
+                  if (target) void place(target);
+                },
+                choosing && waNumber(choosing) ? "outline" : "orange",
+              )}
             {!!(choosing?.directNumber ?? choosing?.to) &&
               button(
                 "Use my own phone",
@@ -136,7 +171,7 @@ export function useBusinessCall() {
                 },
                 "outline",
               )}
-            {button(
+            {setup?.on && button(
               setup?.ownPhone ? "Change the phone we ring" : "Ring my own mobile instead",
               () => {
                 setChoosing(null);

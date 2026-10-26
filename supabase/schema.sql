@@ -856,6 +856,20 @@ create table if not exists public.sms_opt_outs (
 );
 alter table public.sms_opt_outs enable row level security;
 
+-- Every text sent, and its segments (what Twilio charges per), so the month's
+-- texts stay inside SMS_MONTHLY_SEGMENTS (lib/twilio.ts) and the Menu can show it.
+create table if not exists public.sms_sends (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  segments int not null,
+  -- "call" (after a call), "on_my_way", "late", "fallback", "manual" (typed in the chat), "limit" (the alert, no text).
+  kind text not null
+);
+create index if not exists sms_sends_created_idx on public.sms_sends (created_at);
+alter table public.sms_sends enable row level security;
+-- The one text after someone's first call (lib/missed-calls.ts): never sent to that number again.
+alter table public.chat_conversations add column if not exists call_text_sent_at timestamptz;
+
 -- Every email the site sends (lib/resend.ts).
 create table if not exists public.email_log (
   id uuid primary key default gen_random_uuid(),

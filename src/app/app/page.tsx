@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
@@ -31,9 +33,18 @@ const FEATURES = [
  * (NEXT_PUBLIC_APP_STORE_URL / NEXT_PUBLIC_PLAY_STORE_URL). Until then it
  * says it's coming, and everything's on the website meanwhile.
  */
-export default function AppPage() {
+export default async function AppPage({ searchParams }: { searchParams: Promise<{ stay?: string }> }) {
   const { appStoreUrl, playStoreUrl } = CLUB.app;
   const listed = !!(appStoreUrl || playStoreUrl);
+  // The link in our texts: a phone goes straight to its app store once the
+  // app's listed (?stay=1 shows this page instead). A computer, or a phone
+  // before then, gets this page, with live chat below.
+  const { stay } = await searchParams;
+  if (!stay) {
+    const ua = (await headers()).get("user-agent") ?? "";
+    if (appStoreUrl && /iPhone|iPad|iPod/i.test(ua)) redirect(appStoreUrl);
+    if (playStoreUrl && /Android/i.test(ua)) redirect(playStoreUrl);
+  }
   return (
     <>
       <Nav />

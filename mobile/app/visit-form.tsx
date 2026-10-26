@@ -286,7 +286,7 @@ export default function VisitForm() {
                 <Card style={{ gap: 10 }}>
                   <Field label="Name" value={fresh.name} onChange={(v) => setFresh({ ...fresh, name: v })} autoCapitalize="words" />
                   <Field label="Mobile" value={fresh.phone} onChange={(v) => setFresh({ ...fresh, phone: v })} keyboardType="phone-pad" />
-                  <Field label="Email" value={fresh.email} onChange={(v) => setFresh({ ...fresh, email: v })} keyboardType="email-address" autoCapitalize="none" />
+                  <Field label="Email (their booking and receipts go here)" value={fresh.email} onChange={(v) => setFresh({ ...fresh, email: v })} keyboardType="email-address" autoCapitalize="none" />
                   {/* A phone booking: where they found MPE (the website's forms record their own). */}
                   <AppText weight="semibold" style={{ fontSize: 14, marginTop: 4 }}>
                     How did they hear about us?

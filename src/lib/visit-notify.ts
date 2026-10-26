@@ -3,7 +3,7 @@ import { getOrCreateConversation, getOrCreateConversationByPhone } from "@/lib/c
 import { replyToForConversation } from "@/lib/chat-notify";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { resend, FROM_EMAIL } from "@/lib/resend";
-import { sendSms } from "@/lib/twilio";
+import { sendSms, smsAllowed, type SmsKind } from "@/lib/twilio";
 import { SmsOptedOutError } from "@/lib/sms-opt-out";
 import { pushToUsers } from "@/lib/push";
 import { CLUB, CLUB_SITE_URL } from "@/lib/club";
@@ -11,7 +11,7 @@ import { business } from "@/lib/content";
 import { getAppointment, recordNotice, shiftWindow, type Appointment } from "@/lib/appointments";
 import { getCustomer, type Customer } from "@/lib/customers";
 import { visitEmailHtml } from "@/lib/emails/visit";
-import { noticeBody, noticeHeadline, smsText, type NoticeType } from "@/lib/visit-copy";
+import { noticeBody, noticeHeadline, shortNotice, smsText, type NoticeType } from "@/lib/visit-copy";
 import { staffIdentity } from "@/lib/staff-identity";
 import { renderEmailLayout } from "@/lib/emails/layout";
 import { KIND_LABEL, windowLabel } from "@/lib/day-plan";
@@ -65,8 +65,16 @@ export type Delivery = {
   staffId: string | null;
   /** "if-no-text": the hour-before message, where an email would arrive too late to matter. */
   email?: "always" | "if-no-text";
-  /** Adds the MPE app link to the text, for the messages that start a job (a booking). */
-  appNudge?: boolean;
+  /**
+   * Whether it goes by text when the app can't reach them: "always" for
+   * what can't wait (on my way, running late), "fallback" for a booking, a
+   * cancellation or a failed payment when there's no email either. Left
+   * out: never (the app and email only), which is most messages.
+   */
+  text?: "always" | "fallback";
+  /** A shorter version for the text (one segment, under 160 characters). */
+  smsBody?: string;
+  smsKind?: SmsKind;
   /** Adds "Reply STOP to opt out." to the text: for anything not about a booked visit. */
   smsOptOut?: boolean;
   /** A payment request: the chat shows it as a Pay card (lib/payments.ts). */
@@ -118,12 +126,15 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
     if (inApp) via.push("app");
   }
 
-  // 3. Text, to a UK mobile, when the app can't reach them. The ones that
-  // matter (a booking) point them at the app, so the next one's free.
-  if (TWILIO_ON && !inApp && customer.phoneE164?.startsWith("+447")) {
+  // 3. A text, to a UK mobile, only when the app can't reach them, and only
+  // for what can't wait: "on my way" and running late (`text: "always"`).
+  // A booking, a cancellation or a failed payment (`"fallback"`) is texted
+  // only if there's no email either. Everything else: the app and email.
+  const wantsText = d.text === "always" || (d.text === "fallback" && !(RESEND_ON && customer.email));
+  const smsBody = d.text ? smsText(d.smsBody ?? d.body, CLUB.name, d.smsOptOut) : "";
+  if (TWILIO_ON && wantsText && !inApp && customer.phoneE164?.startsWith("+447") && (await smsAllowed(smsBody))) {
     try {
-      const nudge = d.appNudge ? ` Get updates and chat free in the MPE app: ${CLUB_SITE_URL.replace(/\/$/, "")}/app` : "";
-      await sendSms(customer.phoneE164, smsText(d.body + nudge, CLUB.name, d.smsOptOut));
+      await sendSms(customer.phoneE164, smsBody, d.smsKind ?? "fallback");
       via.push("text");
     } catch (err) {
       if (!(err instanceof SmsOptedOutError)) console.error("deliverToCustomer: text failed", err);
@@ -206,7 +217,10 @@ export async function sendVisitNotice(
     // Reminders don't need an email as well as a text; confirmations and changes do.
     email: type === "hour" || type === "reminder" ? "if-no-text" : "always",
     smsOptOut: type === "service_due",
-    appNudge: type === "booked" || type === "requested",
+    // Texts cost: only running late always, and a booking or cancellation if there's no email.
+    text: type === "late" ? "always" : type === "booked" || type === "moved" || type === "cancelled" ? "fallback" : undefined,
+    smsKind: type === "late" ? "late" : "fallback",
+    smsBody: shortNotice(type, facts, { name: customer.name, engineer, appLink: `${CLUB_SITE_URL.replace(/\/$/, "")}/app` }),
     emailHtml: (canReplyByEmail) =>
       visitEmailHtml({
         type,
@@ -297,6 +311,10 @@ export async function sendOnMyWay(appointmentId: string, staffId: string, etaMin
   const body = `${hi}${who} is on the way for ${what} and should be with you in about ${eta} minutes (around ${arrive}). If you won't be in, let us know: ${visitLink(appointment)}`;
   const via = await deliverToCustomer(customer, {
     body,
+    // One of the two texts a customer gets (the other's after their first call).
+    text: "always",
+    smsKind: "on_my_way",
+    smsBody: `${hi}${engineer ? `${engineer}, your MPE engineer,` : "your MPE engineer"} is on the way. With you around ${arrive}. Reply if anything's changed.`,
     headline: "Your MPE engineer is on the way",
     staffId,
     pushHref: `/visit/${appointment.publicToken}`,

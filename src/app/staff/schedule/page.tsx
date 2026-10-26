@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireStaff } from "@/lib/staff-auth";
-import { londonNow } from "@/lib/schedule-time";
+import { formatLondonClock, londonNow } from "@/lib/schedule-time";
 import { appointmentsBetween, getAppointment, waitingOnTeam, type Appointment } from "@/lib/appointments";
 import { business } from "@/lib/content";
-import { viaPhrase } from "@/lib/visit-notify";
+import { ON_MY_WAY_ETAS, viaPhrase } from "@/lib/visit-notify";
 import { remindersSent } from "@/lib/follow-up-sweep";
 import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForAppointments, type PaymentRequest } from "@/lib/payments";
 import { requestedWhen } from "@/lib/visit-copy";
 import { customerLabel, getCustomer, getCustomers, type Customer } from "@/lib/customers";
 import { onPlan } from "@/lib/maintenance-plan";
+import { QUOTE_STATUS_LABEL, quoteNumber, quotesForAppointments, type Quote } from "@/lib/quotes";
 import { getEnquiry, visitKindFor, CATEGORY_LABEL } from "@/lib/enquiries";
 import {
   APPOINTMENT_STATUSES,
@@ -46,6 +47,7 @@ import {
   keepVisitTime,
   removeAppointment,
   sendVisitDetails,
+  onMyWay,
 } from "./actions";
 import { openCustomerChat } from "../customers/actions";
 
@@ -58,6 +60,7 @@ const SUCCESS: Record<string, string> = {
   sent: "Sent.",
   removed: "Visit removed.",
   finished: "Job done.",
+  onmyway: "On my way sent.",
 };
 
 /** "Visit added. Sent to them by message, email and text." */
@@ -141,7 +144,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
 
       {params.success && SUCCESS[params.success] && (
         <p className="mt-4 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success" data-flash>
-          {params.success === "finished" && params.note ? params.note : successLine(params.success, params.sent)}
+          {(params.success === "finished" || params.success === "onmyway") && params.note ? params.note : successLine(params.success, params.sent)}
         </p>
       )}
       {params.error && <p className="mt-4 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{params.error}</p>}
@@ -364,6 +367,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
   const customers = await getCustomers(appointments.map((a) => a.customerId).filter((id): id is string => !!id));
   const payments = await paymentsForAppointments(appointments.map((a) => a.id));
   const members = await onPlan([...customers.keys()]).catch(() => new Set<string>());
+  const quotes = await quotesForAppointments(appointments.filter((a) => a.kind === "quote" || a.kind === "install").map((a) => a.id)).catch(() => new Map<string, Quote[]>());
   const active = appointments.filter(live);
   const booked = active.filter(counts);
   const asks = active.length - booked.length;
@@ -514,7 +518,7 @@ async function DayView({ day, today, params }: { day: string; today: string; par
             </p>
           ) : (
             appointments.map((a) => (
-              <VisitCard key={a.id} appointment={a} customer={a.customerId ? customers.get(a.customerId) : undefined} payments={payments.get(a.id) ?? []} member={!!a.customerId && members.has(a.customerId)} />
+              <VisitCard key={a.id} appointment={a} customer={a.customerId ? customers.get(a.customerId) : undefined} payments={payments.get(a.id) ?? []} member={!!a.customerId && members.has(a.customerId)} today={today} quotes={quotes.get(a.id) ?? []} />
             ))
           )}
           <KindKey />
@@ -528,7 +532,21 @@ const SENT_TIME = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", 
 
 const PILL = "inline-flex min-h-9 items-center rounded-full border border-border px-3 text-xs font-semibold transition-colors hover:border-foreground/40";
 
-function VisitCard({ appointment: a, customer, payments, member }: { appointment: Appointment; customer: Customer | undefined; payments: PaymentRequest[]; member: boolean }) {
+function VisitCard({
+  appointment: a,
+  customer,
+  payments,
+  member,
+  today,
+  quotes,
+}: {
+  appointment: Appointment;
+  customer: Customer | undefined;
+  payments: PaymentRequest[];
+  member: boolean;
+  today: string;
+  quotes: Quote[];
+}) {
   const place = [a.address, a.postcode].filter(Boolean).join(", ");
   const requested = a.status === "requested";
   const firstName = customer?.name?.split(" ")[0] ?? "them";
@@ -680,9 +698,65 @@ function VisitCard({ appointment: a, customer, payments, member }: { appointment
         </div>
       )}
 
+      {customer && a.status === "booked" && a.day <= today && <OnMyWay appointment={a} />}
+      {customer && !requested && a.status !== "cancelled" && (a.kind === "quote" || a.kind === "install") && <QuoteLine appointment={a} quotes={quotes} />}
       {customer && !requested && a.status !== "cancelled" && <PaymentLine appointment={a} payments={payments} />}
       {customer && !requested && <NoticeLine appointment={a} firstName={firstName} />}
     </article>
+  );
+}
+
+/**
+ * "On my way": one tap when setting off, with roughly how long. The
+ * customer gets a text (and their chat and the app): who's coming and when.
+ */
+function OnMyWay({ appointment: a }: { appointment: Appointment }) {
+  return (
+    <form action={onMyWay.bind(null, a.id, a.day)} className="mt-3 border-t border-border pt-3" data-on-my-way>
+      <p className="text-sm font-semibold">
+        {a.onMyWayAt ? `On my way sent ${formatLondonClock(a.onMyWayAt)}${a.onMyWayEta ? ` (about ${a.onMyWayEta} min)` : ""}. Send again:` : "On my way? Tell them you'll be there in about:"}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {ON_MY_WAY_ETAS.map((m) => (
+          <button
+            key={m}
+            type="submit"
+            name="eta"
+            value={m}
+            className="inline-flex min-h-11 items-center rounded-full border border-accent/50 bg-accent/5 px-3.5 text-sm font-semibold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            {m < 60 ? `${m} min` : m === 60 ? "1 hour" : "1½ hours"}
+          </button>
+        ))}
+      </div>
+    </form>
+  );
+}
+
+/** A quote visit's quotes (where each has got to), and Write a quote. */
+function QuoteLine({ appointment: a, quotes }: { appointment: Appointment; quotes: Quote[] }) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-sm" data-quote-line>
+      <ul className="flex flex-col gap-0.5">
+        {quotes.length === 0 ? (
+          <li className="text-xs text-muted">No quote sent yet.</li>
+        ) : (
+          quotes.map((q) => (
+            <li key={q.id} className="text-xs">
+              <Link href={`/staff/quotes/${q.id}`} className="underline-offset-4 hover:underline">
+                <span className="font-semibold">{quoteNumber(q.number)}</span> {formatPence(q.totalPence)} ·{" "}
+                <span className={q.status === "accepted" ? "font-medium text-success" : "text-muted"}>
+                  {q.status === "sent" ? (q.viewedAt ? "Opened, waiting" : "Sent, not opened") : QUOTE_STATUS_LABEL[q.status]}
+                </span>
+              </Link>
+            </li>
+          ))
+        )}
+      </ul>
+      <Link href={`/staff/quotes/new?visit=${a.id}`} className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold hover:border-foreground/40">
+        Write a quote
+      </Link>
+    </div>
   );
 }
 

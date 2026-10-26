@@ -14,6 +14,7 @@ import { PhoneIcon } from "@/components/icons";
 import { addNote, managePlan, openCustomerChat, removeNote, saveCustomer } from "../actions";
 import { BILLING_LABEL, earliestEnd, planDate, planFor, planOpen, planPrices } from "@/lib/maintenance-plan";
 import { instalmentProgress } from "@/lib/instalments";
+import { QUOTE_STATUS_LABEL, quoteNumber, quotesForCustomer } from "@/lib/quotes";
 import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForCustomer } from "@/lib/payments";
 import { reviewsForCustomer, type JobReview } from "@/lib/job-completion";
 
@@ -77,7 +78,7 @@ export default async function CustomerPage({
     enquiriesForCustomer(id),
     paymentsForCustomer(id),
   ]);
-  const [reviews, plan, prices, progress] = await Promise.all([reviewsForCustomer(id), planFor(id), planPrices(), instalmentProgress(payments)]);
+  const [reviews, plan, prices, progress, quotes] = await Promise.all([reviewsForCustomer(id), planFor(id), planPrices(), instalmentProgress(payments), quotesForCustomer(id)]);
   const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
   const today = londonNow().dateISO;
   const upcoming = visits.filter((v) => v.day >= today && v.status === "booked").reverse();
@@ -299,6 +300,41 @@ export default async function CustomerPage({
           </ul>
         </section>
       )}
+
+      <section id="quotes" className="mt-8 scroll-mt-20" aria-labelledby="quotes-heading">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="quotes-heading" className="text-lg font-semibold">
+            Quotes
+          </h2>
+          <Link href={`/staff/quotes/new?customer=${customer.id}`} className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold hover:border-foreground/40">
+            New quote
+          </Link>
+        </div>
+        {quotes.length === 0 ? (
+          <p className="mt-2 text-sm text-muted">None yet.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2" data-customer-quotes>
+            {quotes.map((q) => (
+              <li key={q.id}>
+                <Link href={`/staff/quotes/${q.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-sm transition-colors hover:border-foreground/40">
+                  <span>
+                    <span className="font-semibold">
+                      {quoteNumber(q.number)} · {q.title}
+                    </span>
+                    <span className="block text-xs text-muted">{when(q.createdAt)}</span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block font-bold">{formatPence(q.totalPence)}</span>
+                    <span className={`text-xs ${q.status === "accepted" ? "font-medium text-success" : "text-muted"}`}>
+                      {q.status === "sent" ? (q.viewedAt ? "Opened, waiting" : "Sent") : QUOTE_STATUS_LABEL[q.status]}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="mt-8" aria-labelledby="payments">
         <div className="flex flex-wrap items-center justify-between gap-2">

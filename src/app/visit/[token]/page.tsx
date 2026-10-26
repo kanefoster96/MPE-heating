@@ -13,6 +13,7 @@ import { getCustomer } from "@/lib/customers";
 import { KIND_LABEL, longDate } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
+import { arrivalClock } from "@/lib/visit-notify";
 import { askForAnotherTime } from "./actions";
 import { getJobReview } from "@/lib/job-completion";
 import { formatPence, invoiceNumber, paymentsForAppointments } from "@/lib/payments";
@@ -87,8 +88,15 @@ export default async function VisitPage({
             className="mt-3 text-[36px] sm:text-5xl"
           />
 
+          {visit.status === "booked" && visit.day === today && visit.onMyWayAt && (
+            <p className="mt-8 rounded-2xl border border-success/30 bg-success/10 px-5 py-4 text-lg font-semibold text-success" role="status" data-on-my-way>
+              We&rsquo;re on the way
+              {visit.onMyWayEta ? `: with you around ${arrivalClock(visit.onMyWayAt, visit.onMyWayEta)}` : ""}.
+            </p>
+          )}
+
           <section
-            className={`mt-8 ${CARD}`}
+            className={`mt-6 ${CARD}`}
             aria-label="Visit details"
             data-visit-status={visit.status}
           >

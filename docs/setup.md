@@ -157,6 +157,47 @@ Customer messages go out between 10am and 7pm, except the evening-before
 reminder and the hour-before message. Each visit card shows which reminders
 have gone and when. Jobs in the inbox show if they've been followed up.
 
+### On my way
+
+On the day of a booked visit, its card on the schedule has **On my way?**
+with 15 min, 30 min, 45 min, 1 hour and 1½ hours. One tap texts the
+customer, e.g. "Fergal from MPE is on the way for your service and should
+be with you in about 30 minutes (around 9:45am)". It also goes in their
+chat and the app, and by email only if they've no mobile. Their visit page
+shows "We're on the way: with you around 9:45am", and the card shows when
+it was sent. The engineer's first name comes from their profile; without
+one it says "your MPE engineer".
+
+### Quotes
+
+Mostly for new boilers. On a quote or install visit, tap **Write a quote**,
+or **New quote** on a customer's page:
+- **What it's for**, a line per part and the labour (products are one
+  tap), and **what's included**, which they see on the quote.
+- **Deposit to accept it** (optional), how long it's **open** (14 to 90
+  days), and **Offer the rest monthly** (2 to 12 payments).
+
+It's sent by text, message, email and the app as a link to the quote, e.g.
+"here's your quote Q-1001 for a new combi boiler: £2,450, with a £500
+deposit to book in". On the quote page they can:
+- **Accept and pay the deposit**, by Apple Pay, Google Pay or card. With
+  no deposit, it's just **Accept**.
+- Say **Not for me**, with an optional reason.
+
+The team gets a push either way. The customer gets a thank-you saying
+we'll be in touch to book the date.
+
+Follow-ups: two days after sending, "just checking you got your quote";
+four days after that, the last word with the date it runs out. Both stop
+the moment they answer. The day after it runs out, it lapses.
+
+Fergal sees each quote's progress (sent, opened, followed up, accepted
+with the deposit, declined and why) under **Home → Quotes**, on the
+customer's page and on the visit card. Home shows accepted quotes still to
+book in, and how many quotes are out and what they're worth. Once the work
+is done, **Work done: invoice the rest** sends the invoice with the deposit
+taken off, with monthly payments if the quote offered them.
+
 ### Taking payment
 
 Tap **Take payment** on a visit card, or in a customer's chat (**+ → Take

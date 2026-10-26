@@ -50,6 +50,9 @@ export type Appointment = {
   createdBy: string | null;
   /** What was done, in words the customer sees (lib/job-completion.ts). */
   jobReport: string | null;
+  /** "On my way" sent: when, and roughly how many minutes away. */
+  onMyWayAt: string | null;
+  onMyWayEta: number | null;
   completedAt: string | null;
   reviewDueAt: string | null;
   reviewAskedAt: string | null;
@@ -86,6 +89,8 @@ type Row = {
   staff_nudged_at: string | null;
   created_by: string | null;
   job_report: string | null;
+  on_my_way_at: string | null;
+  on_my_way_eta: number | null;
   completed_at: string | null;
   review_due_at: string | null;
   review_asked_at: string | null;
@@ -125,6 +130,8 @@ function mapAppointment(r: Row): Appointment {
     staffNudgedAt: r.staff_nudged_at ?? null,
     createdBy: r.created_by ?? null,
     jobReport: r.job_report ?? null,
+    onMyWayAt: r.on_my_way_at ?? null,
+    onMyWayEta: r.on_my_way_eta ?? null,
     completedAt: r.completed_at ?? null,
     reviewDueAt: r.review_due_at ?? null,
     reviewAskedAt: r.review_asked_at ?? null,

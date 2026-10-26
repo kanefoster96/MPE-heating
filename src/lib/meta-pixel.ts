@@ -29,7 +29,7 @@ declare global {
  * sends Meta the full address; the rest are logins and the signed-in
  * areas, which are nobody's advert journey.
  */
-const PRIVATE_PREFIXES = ["/visit", "/pay", "/plan", "/request", "/auth", "/account", "/staff", "/login", "/messages"];
+const PRIVATE_PREFIXES = ["/visit", "/pay", "/plan", "/quote", "/request", "/auth", "/account", "/staff", "/login", "/messages"];
 
 export function isPrivatePath(pathname: string | null | undefined): boolean {
   if (!pathname) return true;

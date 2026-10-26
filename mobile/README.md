@@ -42,7 +42,8 @@ picked up.
 - **Services** (`app/(tabs)/services.tsx`): every service with its price
   and Book, and the maintenance plan.
 - **The orange button** in the middle: the call-out request. For the team,
-  Take payment (`app/take-payment.tsx`), with Tap to Pay.
+  their Jobs; the last tab is then Payment (`app/take-payment.tsx`), every
+  open invoice with Tap to Pay.
 - **Chat** (`app/(tabs)/chat.tsx`, `components/chat-thread.tsx`): the
   customer's chat with the team, photos from the camera or library,
   live. The team see their inbox instead, and reply by chat, text or
@@ -51,7 +52,14 @@ picked up.
   steps (requested, booked, on the way, done, paid), today's as a green
   card, and their previous jobs underneath. For the team, the day's
   visits on a fortnight strip, with Call, Directions, Chat, On my way,
-  Not in, Finish and Take payment.
+  Not in, Finish and Take payment. Tapping a visit opens its page
+  (`app/job/[id].tsx`): what's been asked for and paid, the customer's
+  other unpaid invoices, and Payment stuck to the bottom. Payment
+  (`components/payment-sheet.tsx`) asks what it's for (this job's open
+  invoices first, then their others; one not on a job yet goes on this
+  one), then Tap to Pay, their saved card, paid another way, or the link
+  again. A new invoice or call-out fee opens the website's take-payment
+  page for the visit.
 - **Menu** (`app/(tabs)/menu.tsx`, the team only, in Services' place):
   cards that turn orange when something needs Fergal (requests, unread
   messages, overdue invoices, failed monthly or plan payments, accepted

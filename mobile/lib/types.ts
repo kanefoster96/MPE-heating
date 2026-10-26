@@ -115,6 +115,33 @@ export type StaffDay = {
   waiting: number;
 };
 
+/** An invoice or call-out fee on a team job's page (src/lib/app-jobs.ts on the site). */
+export type JobPayment = {
+  id: string;
+  number: string;
+  kind: "callout_fee" | "invoice" | "other";
+  description: string;
+  amount: string;
+  status: "open" | "paid";
+  paidVia: string | null;
+  monthly: boolean;
+  /** "this" job, "none" yet, or the other visit's date. */
+  job: string;
+};
+
+export type StaffJobDetail = {
+  job: StaffJob;
+  day: string;
+  dayLabel: string;
+  payments: {
+    on: boolean;
+    terminalLocation: string | null;
+    savedCard: { brand: string; last4: string } | null;
+    forJob: JobPayment[];
+    otherOpen: JobPayment[];
+  };
+};
+
 /** Fergal's Menu (src/lib/app-menu.ts on the site). */
 export type MenuCard = {
   id: string;

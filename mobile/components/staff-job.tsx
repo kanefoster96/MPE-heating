@@ -52,9 +52,11 @@ function Big({ label, icon, onPress, tone = "orange" }: { label: string; icon: I
  * the buttons for the job in the order it happens. Call, directions and
  * their chat; then "On my way" (pick how long, they get a text), "Not in",
  * and Finish (the website's finish page: report, boiler, photos, invoice).
- * Once it's done and unpaid, Take payment.
+ * Once it's done and unpaid, Take payment. In a list, tapping the top
+ * opens the job's page (app/job/[id].tsx); on that page `onPay` opens its
+ * Payment sheet.
  */
-export function StaffJobCard({ job, day, onChanged }: { job: StaffJob; day: string; onChanged: () => void }) {
+export function StaffJobCard({ job, day, onChanged, onPay }: { job: StaffJob; day: string; onChanged: () => void; onPay?: () => void }) {
   const router = useRouter();
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -95,28 +97,41 @@ export function StaffJobCard({ job, day, onChanged }: { job: StaffJob; day: stri
     ]);
   }
 
-  return (
-    <View style={{ backgroundColor: colors.card, borderRadius: 22, borderWidth: 1, borderColor: job.onMyWay && job.status === "booked" ? colors.success : colors.edge, padding: 16, gap: 12 }}>
-      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-        <View style={{ minWidth: 58 }}>
-          <AppText weight="extrabold" style={{ fontSize: 15 }}>
-            {job.window.split("–")[0]}
-          </AppText>
-          <AppText style={{ color: colors.text3, fontSize: 12 }}>{job.window.includes("–") ? `to ${job.window.split("–")[1]}` : ""}</AppText>
-        </View>
-        <View style={{ flex: 1 }}>
-          <AppText weight="bold" style={{ fontSize: 17 }}>
-            {job.customer?.name ?? "No customer yet"}
-          </AppText>
-          <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 1 }}>{[job.kind, job.title].filter(Boolean).join(": ")}</AppText>
-          {place ? <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 1 }}>{place}</AppText> : null}
-        </View>
+  const head = (
+    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+      <View style={{ minWidth: 58 }}>
+        <AppText weight="extrabold" style={{ fontSize: 15 }}>
+          {job.window.split("–")[0]}
+        </AppText>
+        <AppText style={{ color: colors.text3, fontSize: 12 }}>{job.window.includes("–") ? `to ${job.window.split("–")[1]}` : ""}</AppText>
+      </View>
+      <View style={{ flex: 1 }}>
+        <AppText weight="bold" style={{ fontSize: 17 }}>
+          {job.customer?.name ?? "No customer yet"}
+        </AppText>
+        <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 1 }}>{[job.kind, job.title].filter(Boolean).join(": ")}</AppText>
+        {place ? <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 1 }}>{place}</AppText> : null}
+      </View>
+      <View style={{ alignItems: "flex-end", gap: 8 }}>
         <View style={{ backgroundColor: status.bg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
           <AppText weight="bold" style={{ color: status.ink, fontSize: 12 }}>
             {status.label}
           </AppText>
         </View>
+        {!onPay && <Ionicons name="chevron-forward" size={18} color={colors.text3} />}
       </View>
+    </View>
+  );
+
+  return (
+    <View style={{ backgroundColor: colors.card, borderRadius: 22, borderWidth: 1, borderColor: job.onMyWay && job.status === "booked" ? colors.success : colors.edge, padding: 16, gap: 12 }}>
+      {onPay ? (
+        head
+      ) : (
+        <PressableScale onPress={() => router.push(`/job/${job.id}`)} accessibilityLabel={`Open the job for ${job.customer?.name ?? "this visit"}`}>
+          {head}
+        </PressableScale>
+      )}
 
       {job.notes ? (
         <View style={{ backgroundColor: colors.cream, borderRadius: 12, padding: 10 }}>
@@ -177,7 +192,7 @@ export function StaffJobCard({ job, day, onChanged }: { job: StaffJob; day: stri
           </AppText>
         </PressableScale>
       )}
-      {job.status === "done" && job.openPayment && <Big label={`Take payment, ${job.openPayment.amount}`} icon="card" onPress={() => router.push("/take-payment")} />}
+      {job.status === "done" && job.openPayment && <Big label={`Take payment, ${job.openPayment.amount}`} icon="card" onPress={onPay ?? (() => router.push(`/job/${job.id}?pay=1`))} />}
       {job.status === "done" && job.paid && (
         <AppText weight="semibold" style={{ color: colors.success, fontSize: 14 }}>
           Paid

@@ -166,7 +166,7 @@ export function TeamHome() {
               {jobs.map((j, i) => {
                 const st = STATUS[j.status];
                 return (
-                  <PressableScale key={j.id} onPress={() => router.push("/jobs")} accessibilityLabel={`${j.window.split("–")[0]}, ${j.customer?.name ?? "No customer"}, ${j.kind}, ${st.label}`}>
+                  <PressableScale key={j.id} onPress={() => router.push(`/job/${j.id}`)} accessibilityLabel={`${j.window.split("–")[0]}, ${j.customer?.name ?? "No customer"}, ${j.kind}, ${st.label}`}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: colors.edge, opacity: j.status === "done" ? 0.7 : 1 }}>
                       <AppText weight="bold" style={{ width: 62, fontSize: 14 }}>
                         {j.window.split("–")[0]}

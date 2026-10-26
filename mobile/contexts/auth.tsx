@@ -27,8 +27,12 @@ type AuthState = {
   refreshMe: () => Promise<void>;
   /** A session for chat: their own, or an anonymous guest's, made the first time. */
   ensureSession: () => Promise<Session | null>;
-  sendCode: (email: string) => Promise<void>;
-  verifyCode: (email: string, code: string) => Promise<void>;
+  /** Emails the "Confirm my email" button. `password` only for Apple's review login. */
+  sendLink: (email: string) => Promise<{ password: boolean }>;
+  /** The button was tapped: `t` from the email, `h` back from the website. */
+  signInWithLink: (link: { t?: string; h?: string }) => Promise<void>;
+  /** Apple's review login only (APP_REVIEW_EMAIL on the site). */
+  signInWithPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -38,8 +42,9 @@ const AuthContext = createContext<AuthState | null>(null);
  * Who's using the app (Kanvas Academy's auth context). Nobody has to sign
  * in: Home, services, guides and booking work for everyone, and chat makes
  * an anonymous guest the first time it's opened, like the website's chat.
- * Signing in (the avatar, top left) is by a 6-digit code emailed to them,
- * no password; their guest chat comes with them.
+ * Signing in (the avatar, top left) is by a "Confirm my email" button we
+ * email them, no password (src/lib/app-sign-in.ts on the site); their
+ * guest chat comes with them.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -96,26 +101,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.session;
   }, []);
 
-  const sendCode = useCallback(async (email: string) => {
+  const sendLink = useCallback(async (email: string) => {
     if (!supabase) throw new Error("Accounts aren't switched on yet.");
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { shouldCreateUser: true } });
-    if (error) throw new Error(error.status === 429 ? "Too many tries. Wait a minute, then ask for a new code." : "Couldn't send a code to that email. Check it and try again.");
+    const res = await apiPost<{ ok: true; password: boolean }>("/api/mobile/auth/send-link", { email: email.trim() });
+    return { password: !!res.password };
   }, []);
 
-  const verifyCode = useCallback(
-    async (email: string, code: string) => {
-      if (!supabase) throw new Error("Accounts aren't switched on yet.");
-      // The guest they were chatting as, so their chat can come with them.
-      const guestToken = sessionRef.current?.user.is_anonymous ? sessionRef.current.access_token : null;
-      const { data, error } = await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: code.trim(), type: "email" });
-      if (error || !data.session) throw new Error("That code didn't work. Check it, or ask for a new one.");
-      sessionRef.current = data.session;
-      setSession(data.session);
+  // Once a session's in: bring a guest's chat across, then the counts and pushes.
+  const finishSignIn = useCallback(
+    async (session: Session, guestToken: string | null) => {
+      sessionRef.current = session;
+      setSession(session);
       if (guestToken) await apiPost("/api/mobile/claim", { guestToken }).catch(() => {});
       await refreshMe();
       registerForPush();
     },
     [refreshMe],
+  );
+
+  const signInWithLink = useCallback(
+    async (link: { t?: string; h?: string }) => {
+      if (!supabase) throw new Error("Accounts aren't switched on yet.");
+      // The guest they were chatting as, so their chat can come with them.
+      // Read from storage: the link may have just cold-started the app.
+      const current = (await supabase.auth.getSession()).data.session;
+      const guestToken = current?.user.is_anonymous ? current.access_token : null;
+      const { tokenHash } = await apiPost<{ tokenHash: string }>("/api/mobile/auth/confirm-link", link);
+      const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
+      if (error || !data.session) throw new Error("Something went wrong signing you in. Please ask for a new link.");
+      await finishSignIn(data.session, guestToken);
+    },
+    [finishSignIn],
+  );
+
+  const signInWithPassword = useCallback(
+    async (email: string, password: string) => {
+      if (!supabase) throw new Error("Accounts aren't switched on yet.");
+      const guestToken = sessionRef.current?.user.is_anonymous ? sessionRef.current.access_token : null;
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      if (error || !data.session) throw new Error("That email and password don't match.");
+      await finishSignIn(data.session, guestToken);
+    },
+    [finishSignIn],
   );
 
   const signOut = useCallback(async () => {
@@ -138,11 +165,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       waiting: me?.waiting ?? 0,
       refreshMe,
       ensureSession,
-      sendCode,
-      verifyCode,
+      sendLink,
+      signInWithLink,
+      signInWithPassword,
       signOut,
     }),
-    [session, me, refreshMe, ensureSession, sendCode, verifyCode, signOut],
+    [session, me, refreshMe, ensureSession, sendLink, signInWithLink, signInWithPassword, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

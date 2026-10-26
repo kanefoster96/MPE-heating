@@ -19,6 +19,8 @@ export function targetFor(href: string, opts: { staff?: boolean } = {}): LinkTar
     // Already a path.
   }
   const [pathname] = path.split(/[?#]/);
+  // The "Confirm my email" button: signs the app in (app/app-sign-in.tsx), keeping its link.
+  if (pathname === "/app-sign-in") return { route: path };
   if (pathname === "/messages") return { route: "/chat" };
   if (pathname === "/account" || pathname.startsWith("/account/")) return opts.staff ? { web: `${SITE_URL}${path}` } : { route: "/account" };
   const guide = pathname.match(/^\/help\/([a-z0-9-]+)$/);

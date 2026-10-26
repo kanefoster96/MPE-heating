@@ -853,3 +853,23 @@ create table if not exists public.email_log (
 );
 create index if not exists email_log_to_idx on public.email_log (lower(to_email), sent_at desc);
 alter table public.email_log enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Signing in to the app by email link (lib/app-sign-in.ts).
+
+-- One-use links. "email" is the button in the sign-in email; "handoff" is
+-- the one the website's confirm page passes back to the app. Only a hash
+-- of each is kept. Rows also count requests, for the limits.
+create table if not exists public.app_sign_in_links (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  kind text not null check (kind in ('email', 'handoff')),
+  token_hash text not null unique,
+  ip text,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  used_at timestamptz
+);
+create index if not exists app_sign_in_links_email_idx on public.app_sign_in_links (email, created_at desc);
+create index if not exists app_sign_in_links_ip_idx on public.app_sign_in_links (ip, created_at desc);
+alter table public.app_sign_in_links enable row level security;

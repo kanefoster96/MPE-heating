@@ -1,12 +1,11 @@
 import { useCallback, useState } from "react";
 import { FlatList, View } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "@/components/screen-header";
 import { RowSkeleton } from "@/components/rows";
 import { AppText, LoadError, PressableScale } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
-import { openSignedIn } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 
 type Due = { id: string; title: string; expiresOn: string; customerId: string | null; customer: string | null };
@@ -21,6 +20,7 @@ function daysLeft(iso: string): number {
  * for the customer's page.
  */
 export default function CertificatesScreen() {
+  const router = useRouter();
   const [list, setList] = useState<Due[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -61,7 +61,7 @@ export default function CertificatesScreen() {
             const left = daysLeft(item.expiresOn);
             const soon = left <= 30;
             return (
-              <PressableScale onPress={() => item.customerId && openSignedIn(`/staff/customers/${item.customerId}`)} accessibilityLabel={`${item.customer ?? "Customer"}, ${item.title}, runs out in ${left} days`}>
+              <PressableScale onPress={() => item.customerId && router.push(`/customer/${item.customerId}`)} accessibilityLabel={`${item.customer ?? "Customer"}, ${item.title}, runs out in ${left} days`}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: soon ? colors.orangeDeep : colors.edge, padding: 14 }}>
                   <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: soon ? colors.orangeLight : colors.grey, alignItems: "center", justifyContent: "center" }}>
                     <Ionicons name="shield-checkmark" size={22} color={soon ? colors.orangeDeep : colors.navy} />

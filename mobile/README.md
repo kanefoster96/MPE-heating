@@ -95,6 +95,11 @@ picked up.
   each with what's left; take it, send the link or receipt again, cancel,
   record a monthly payment, stop or restart monthly payments. **New
   customer** and their details (`app/customer-form.tsx`).
+- **Quotes** (`app/quotes.tsx`, `app/new-quote.tsx`, `app/quote/[id].tsx`):
+  waiting, accepted (to do) and the last 90 days; writing one (lines,
+  products, what's included, a deposit, how long it's open, the rest
+  monthly); and on one: send it again, withdraw it, book the work in,
+  invoice the rest.
 - **Menu** (`app/(tabs)/menu.tsx`, the team only, in Services' place):
   cards that turn orange when something needs Fergal (requests, unread
   messages, overdue invoices, failed monthly or plan payments, accepted

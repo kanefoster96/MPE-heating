@@ -89,7 +89,7 @@ export async function staffOverview(user: User, admin: boolean): Promise<{ name:
         caption: s.overdueCount ? `${s.overdueCount} overdue, over a week` : s.unpaidCount ? `${s.unpaidCount} waiting to be paid` : "All paid",
         tone: s.overdueCount ? "alert" : s.unpaidCount ? "plain" : "good",
         count: s.overdueCount,
-        path: "/staff/invoices",
+        route: "/invoices",
       },
       {
         id: "monthly",
@@ -99,7 +99,7 @@ export async function staffOverview(user: User, admin: boolean): Promise<{ name:
         caption: s.monthlyFailedCount ? `Failed: card needs updating` : "None failed",
         tone: s.monthlyFailedCount ? "alert" : "good",
         count: s.monthlyFailedCount,
-        path: "/staff/invoices",
+        route: "/invoices?show=monthly",
       },
       {
         id: "plan",
@@ -125,7 +125,7 @@ export async function staffOverview(user: User, admin: boolean): Promise<{ name:
         caption: s.quotes.accepted ? `${s.quotes.accepted} accepted, to book in` : s.quotes.open ? `${formatPence(s.quotes.openPence)} out with customers` : "None out",
         tone: s.quotes.accepted ? "alert" : "plain",
         count: s.quotes.accepted,
-        path: "/staff/quotes",
+        route: "/quotes",
       },
       {
         id: "money",

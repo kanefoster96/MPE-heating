@@ -85,6 +85,9 @@ export default function RootLayout() {
           <Stack.Screen name="customer-form" />
           <Stack.Screen name="invoices" />
           <Stack.Screen name="invoice/[id]" />
+          <Stack.Screen name="quotes" />
+          <Stack.Screen name="new-quote" />
+          <Stack.Screen name="quote/[id]" />
           <Stack.Screen name="finance" />
           <Stack.Screen name="metrics" />
           <Stack.Screen name="certificates" />

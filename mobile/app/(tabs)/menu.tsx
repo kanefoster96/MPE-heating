@@ -133,8 +133,8 @@ export default function MenuTab() {
             <NavRow icon="card-outline" title="Take payment" description="Tap to Pay, or any open invoice." onPress={() => router.push("/take-payment")} />
             <NavRow icon="add-circle-outline" title="New invoice" description="An invoice or call-out fee, sent or paid now." onPress={() => router.push("/new-payment")} />
             <NavRow icon="receipt-outline" title="Invoices" description="Unpaid, overdue, paid monthly, receipts." badge={badge("invoices") || badge("monthly")} onPress={() => router.push("/invoices")} />
-            <NavRow icon="document-text-outline" title="Quotes" description="Out with customers, accepted, to invoice." badge={badge("quotes")} onPress={() => openSignedIn("/staff/quotes")} />
-            <NavRow icon="create-outline" title="New quote" description="Lines, deposit, monthly payments." onPress={() => openSignedIn("/staff/quotes/new")} />
+            <NavRow icon="document-text-outline" title="Quotes" description="Out with customers, accepted, to invoice." badge={badge("quotes")} onPress={() => router.push("/quotes")} />
+            <NavRow icon="create-outline" title="New quote" description="Lines, deposit, monthly payments." onPress={() => router.push("/new-quote")} />
             <NavRow icon="refresh-circle-outline" title="Maintenance plan" description="Members, payments, who's leaving." badge={badge("plan")} onPress={() => openSignedIn("/staff/plan")} last />
           </NavList>
 

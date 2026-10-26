@@ -332,6 +332,8 @@ export type StaffJobDetail = {
   job: StaffJob;
   day: string;
   dayLabel: string;
+  /** Their customer page in the app. */
+  customerId: string | null;
   payments: {
     on: boolean;
     terminalLocation: string | null;
@@ -377,6 +379,7 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
   return {
     job: toStaffJob(v, c ?? undefined, onJob),
     day: v.day,
+    customerId: c?.id ?? null,
     dayLabel: v.day === today ? "Today" : v.day === addDays(today, 1) ? "Tomorrow" : longDate(v.day),
     payments: {
       on: paymentsOn(),

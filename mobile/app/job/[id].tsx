@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
-import { Redirect, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "@/components/screen-header";
 import { StaffJobCard } from "@/components/staff-job";
 import { PaymentSheet } from "@/components/payment-sheet";
 import { TapToPayProvider } from "@/components/tap-to-pay";
-import { AppText, Card, LoadError, PrimaryButton, Skeleton } from "@/components/ui";
+import { AppText, Card, LoadError, PressableScale, PrimaryButton, Skeleton } from "@/components/ui";
+import { openSignedIn } from "@/lib/open-link";
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, readCached } from "@/lib/api";
 import { colors } from "@/lib/theme";
@@ -60,6 +62,7 @@ function Job() {
   const { id, pay } = useLocalSearchParams<{ id: string; pay?: string }>();
   const path = `/api/mobile/staff/jobs/${id}`;
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { staff, me, session, ready } = useAuth();
   const [data, setData] = useState<StaffJobDetail | null>(() => readCached<StaffJobDetail>(path) ?? null);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +134,30 @@ function Job() {
             }
           >
             <StaffJobCard job={data.job} day={data.day} onChanged={load} onPay={() => setSheet(true)} />
+
+            {/* Move it, change it, or see everything about them. */}
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              {data.job.status !== "done" && (
+                <PressableScale onPress={() => openSignedIn(`/staff/schedule?view=day&date=${data.day}#visit-${data.job.id}`)} accessibilityLabel="Move or change this visit" style={{ flex: 1 }}>
+                  <View style={{ minHeight: 48, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 }}>
+                    <Ionicons name="calendar-outline" size={18} color={colors.navy} />
+                    <AppText weight="bold" style={{ fontSize: 14 }}>
+                      Move or change
+                    </AppText>
+                  </View>
+                </PressableScale>
+              )}
+              {data.customerId && (
+                <PressableScale onPress={() => router.push(`/customer/${data.customerId}`)} accessibilityLabel="Their details" style={{ flex: 1 }}>
+                  <View style={{ minHeight: 48, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 }}>
+                    <Ionicons name="person-outline" size={18} color={colors.navy} />
+                    <AppText weight="bold" style={{ fontSize: 14 }}>
+                      Their details
+                    </AppText>
+                  </View>
+                </PressableScale>
+              )}
+            </View>
 
             <Card style={{ paddingVertical: 6 }}>
               <AppText weight="bold" style={{ fontSize: 17, paddingVertical: 8 }}>

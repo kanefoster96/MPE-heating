@@ -5,6 +5,7 @@ import { getConversationForCoachById, getMessagesForApp, getOrCreateConversation
 import { ensureWelcome } from "@/lib/chat-welcome";
 import { resolveDisplayName } from "@/lib/display-name";
 import { TEAM_CHAT_NAME } from "@/lib/team-chat";
+import { customerIdForConversation } from "@/lib/app-customer";
 
 /**
  * A chat for the app. A customer gets their own (made on first open, with
@@ -23,12 +24,25 @@ export async function GET(request: Request) {
     const conversation = await getConversationForCoachById(requested);
     if (!conversation) return mobileJson({ error: "That conversation has gone." }, 404);
     let title = TEAM_CHAT_NAME;
+    let guest = false;
     if (!conversation.isTeam) {
       const { data } = await createAdminClient().auth.admin.getUserById(conversation.userId);
-      title = isGuestUser(data?.user) ? conversation.guestName || "Guest" : resolveDisplayName(data?.user, "Customer");
+      guest = isGuestUser(data?.user);
+      title = guest ? conversation.guestName || "Guest" : resolveDisplayName(data?.user, "Customer");
     }
+    // Who they are, for the name at the top: their customer page, if they're one yet.
+    const customerId = conversation.isTeam || after ? null : await customerIdForConversation(conversation.id);
     return mobileJson({
-      conversation: { id: conversation.id, title, phone: conversation.phone, completed: !!conversation.completedAt, isTeam: !!conversation.isTeam },
+      conversation: {
+        id: conversation.id,
+        title,
+        phone: conversation.phone,
+        completed: !!conversation.completedAt,
+        isTeam: !!conversation.isTeam,
+        customerId,
+        guest,
+        lastFrom: conversation.memberLastSource,
+      },
       messages: await getMessagesForApp(conversation.id, after),
       viewer: { id: caller.user.id, staff: true },
     });

@@ -23,6 +23,8 @@ export const APP_ID = "uk.co.mpenortheast.app";
 const COMPONENTS: Record<string, unknown>[] = [
   // The "add to calendar" file needs the browser to hand it to the calendar.
   { "/": "/visit/*/calendar.ics", exclude: true, comment: "Calendar files stay on the website" },
+  // The "Confirm my email" button in the app's sign-in email (lib/app-sign-in.ts).
+  { "/": "/app-sign-in" },
   { "/": "/messages" },
   { "/": "/account" },
   { "/": "/account/*" },

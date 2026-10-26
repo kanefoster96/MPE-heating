@@ -37,10 +37,6 @@ deployment.
   - [ ] Redirect URLs: add `<site>/auth/confirm`
   - [ ] Optional, for preview deployments:
         `https://*-kanvas1.vercel.app/auth/confirm`
-- [ ] **Authentication → Emails → Magic Link:** add the code to the email,
-      so the app can sign people in with it (the website keeps using the
-      link). For example, under the link: `Or enter this code in the MPE
-      app: {{ .Token }}`
 - [ ] **Authentication → Emails → SMTP:** optional, but set Resend as the
       SMTP sender so sign-in emails come from MPE's address, not Supabase's
       (and aren't limited to a few an hour).
@@ -219,28 +215,103 @@ repair, servicing, new boilers and commercial pages), **Contact** (a tap
 on the phone number or WhatsApp) and **Lead** (a booking form sent, from
 the browser and the server, counted once).
 
-## 8. The app (mobile/)
+## 8. The app (mobile/): before it's published
 
-The app's code is ready; these are the accounts and switches it needs.
-`mobile/README.md` has how to run and build it.
+The app's code is ready. These are the accounts, switches and forms it
+needs, in order. `mobile/README.md` has how to run and build it.
 
-- [ ] **Apple Developer account in MPE's name**
+### Apple (iPhone)
+
+- [ ] **Apple Developer Program, in MPE's name**
       (developer.apple.com/programs). Apple rejects apps a business
       publishes from someone else's account (guideline 4.2.6).
-- [ ] **Expo:** create the project at expo.dev (`npx eas init` in
-      `mobile/`); its id is `EAS_PROJECT_ID`.
-- [ ] **Push notifications:** `npx eas credentials` makes the Apple push
-      key for you. For Android, add a Firebase project's FCM V1 key in
-      expo.dev → the project → Credentials.
-- [ ] **Tap to Pay on iPhone:** request the entitlement at
-      developer.apple.com/tap-to-pay (as the account holder). Once Apple
-      grants it, set `TAP_TO_PAY_ENTITLEMENT=1` for the app's builds. On
-      Android nothing is needed beyond Stripe's location above.
-- [ ] **Links in emails and texts open the app:** once the app is on the
-      stores, set the two variables below on the website and redeploy.
-      Until then those links open the website, as now.
-- [ ] **App Review:** give Apple a test login (an email whose code you can
-      read) and say that Tap to Pay is for MPE's engineers only.
+  - As a company: you need its D-U-N-S number (Apple's enrolment page
+        looks it up or requests one; allow a few days). The App Store
+        shows the company's name.
+  - As a sole trader: enrol as an individual in Fergal's own name. The
+        App Store shows his name.
+- [ ] **App Store Connect → Users and Access:** add whoever uploads the
+      builds (you) as App Manager, so Fergal doesn't have to.
+- [ ] **Certificates, Identifiers & Profiles:** the first `eas build`
+      makes the App ID `uk.co.mpenortheast.app`. Check it has **Push
+      Notifications** and **Associated Domains** ticked.
+- [ ] **Push notifications:** run `npx eas credentials` in `mobile/`. It
+      makes Apple's push key (.p8) and gives it to Expo. Nothing goes to
+      Stripe.
+- [ ] **Tap to Pay on iPhone:** the account holder requests it at
+      developer.apple.com/tap-to-pay. Apple grants a development
+      entitlement first (for testing on your phones). The publishing one
+      follows once Apple has reviewed the payment screens against its
+      Tap to Pay guidelines (Stripe's Tap to Pay docs walk through what it
+      asks for). Then set `TAP_TO_PAY_ENTITLEMENT=1` for the app's builds.
+      It needs an iPhone XS or newer.
+- [ ] **Apple Pay: nothing to set up in Apple.** Customers pay on
+      Stripe's own checkout page, which the app opens in its in-app
+      browser, and Apple Pay works there as soon as it's on in Stripe
+      (section 5). No Merchant ID or Apple Pay certificate is needed, and
+      Tap to Pay doesn't need one either. (Only if the app ever takes
+      payments in a native payment sheet instead: make a Merchant ID
+      `merchant.uk.co.mpenortheast.app`, then in Stripe → Settings →
+      Payment methods → Apple Pay → Add new application, download Stripe's
+      certificate request, upload it to that Merchant ID's "Apple Pay
+      Payment Processing Certificate", and upload Apple's `.cer` back to
+      Stripe.)
+- [ ] **App Store Connect → New app:** name MPE, bundle ID
+      `uk.co.mpenortheast.app`. Then:
+  - [ ] Privacy policy URL `<site>/privacy`, support URL `<site>/contact`.
+  - [ ] **App Privacy:** contact details (name, email, phone), user
+        content (chat messages and photos), and a user ID, all linked to
+        them and used for the app working, none for tracking. Payments
+        are taken by Stripe.
+  - [ ] Age rating questionnaire, category (Business or Lifestyle),
+        screenshots (6.9-inch iPhone at least) and the description.
+  - [ ] Encryption: already answered in the app (`usesNonExemptEncryption`
+        is false).
+- [ ] **A review login for Apple:** reviewers can't open a customer's
+      email, so one address signs in with a password instead.
+  - [ ] Supabase → Authentication → Users → Add user: an address like
+        `appreview@<your domain>` with a password.
+  - [ ] Set that address as `APP_REVIEW_EMAIL` on the website.
+  - [ ] Put both in App Review's notes, and say Take payment (Tap to Pay)
+        is only shown to MPE's own engineers.
+- Sign in with Apple isn't needed: the app only signs in by email.
+- Delete account is already in the app, as Apple requires.
+
+### Google (Android)
+
+- [ ] **Google Play Console account in MPE's name** (one-off fee). An
+      organisation account needs the D-U-N-S number too. A new personal
+      account has to run a closed test with 12 testers for 14 days before
+      it can publish.
+- [ ] **Push notifications:** a Firebase project → Project settings →
+      Service accounts → generate a key, then upload it in expo.dev → the
+      project → Credentials → Android → FCM V1.
+- [ ] **Data safety form:** the same answers as Apple's App Privacy.
+- [ ] **Account deletion link:** Google asks for a web page that says how
+      to delete an account. The app has Delete account, but the website
+      has no page for this yet. Tell me what you'd like it to say and I'll
+      add it (a section on the privacy page would do).
+- [ ] Tap to Pay on Android needs no extra permission from Google: an
+      NFC phone on Android 11 or newer, and Stripe's location (section 5).
+
+### Expo (builds)
+
+- [ ] Make an account at expo.dev, then in `mobile/` run `npx eas init`:
+      the project id is `EAS_PROJECT_ID`.
+- [ ] Set the app's variables (table below) in expo.dev → the project →
+      Environment variables.
+- [ ] `npx eas build --platform all`, then `npx eas submit` to send each
+      build to the stores.
+
+### The website, once the app's live
+
+- [ ] Resend is set up (section 2): the app's "Confirm my email" sign-in
+      email comes from it.
+- [ ] Stripe's Terminal location is set (section 5), for Tap to Pay.
+- [ ] Set the variables below and redeploy. Until `APPLE_TEAM_ID` and
+      `ANDROID_CERT_SHA256` are set, links in emails and texts open the
+      website, and "Confirm my email" opens the website's confirm page,
+      which then hands back to the app.
 
 On the website (Vercel):
 
@@ -250,6 +321,7 @@ On the website (Vercel):
 | `NEXT_PUBLIC_PLAY_STORE_URL` | The Google Play listing | Public |
 | `APPLE_TEAM_ID` | developer.apple.com → Membership: the 10-character Team ID | Config |
 | `ANDROID_CERT_SHA256` | Play Console → the app → App integrity → App signing: the SHA-256 fingerprint (several, comma-separated) | Config |
+| `APP_REVIEW_EMAIL` | The App Review login's address (above) | Config |
 
 In the app's builds (expo.dev → the project → Environment variables):
 

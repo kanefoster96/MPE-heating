@@ -51,8 +51,11 @@ picked up.
 - **Account** (`app/account.tsx`): their visits, invoices, certificates,
   plan, cards and boiler (the website's account page, opened signed in),
   Sign out and Delete account. The team get their tools here.
-- **Sign in** (`app/sign-in.tsx`): their email, then a 6-digit code. No
-  password. Nobody has to sign in to book or chat.
+- **Sign in** (`app/sign-in.tsx`, `app/app-sign-in.tsx`): their email,
+  then a "Confirm my email" button in the email. Tapped on the phone, it
+  opens the app signed in. No code to type and no password
+  (`src/lib/app-sign-in.ts` on the site). Nobody has to sign in to book or
+  chat.
 
 Booking forms and payment pages open in an in-app browser sheet, so the
 app and the site always take the same bookings and payments.

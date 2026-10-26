@@ -16,7 +16,7 @@ import { SuccessCheck } from "./SuccessCheck";
 import { ContactOptions, LIVE_CHAT_ON } from "./ContactOptions";
 import { ChatButton } from "./ChatButton";
 import { FeeNote } from "./FeeNote";
-import { PhoneIcon, WhatsAppIcon } from "./icons";
+import { MailIcon, PhoneIcon } from "./icons";
 import { DayPartPicker } from "./DayPartPicker";
 import { isISODate, isPart, PART_LABEL } from "@/lib/day-plan";
 import { requestedWhen } from "@/lib/visit-copy";
@@ -84,7 +84,7 @@ function writeSaved(key: FlowKey, saved: Saved | null) {
 // The photo step needs the same two public Supabase settings as the live
 // chat (the browser uploads with them), so without them it isn't shown at
 // all. With them but no service key on the server, the step finds out
-// from the upload route's 503 and points to WhatsApp instead.
+// from the upload route's 503 and says to send them by email instead.
 const PHOTOS_ON = CHAT_ON;
 
 type Notice = "unavailable" | "failed" | null;
@@ -283,14 +283,12 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
         <PhoneIcon className="h-4 w-4" aria-hidden="true" />
         {business.phoneDisplay}
       </a>
-      <a
-        href={business.whatsappHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-whatsapp-dark px-3 text-sm font-semibold text-white"
+<a
+        href={business.emailHref}
+        className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-navy/20 bg-white px-3 text-sm font-semibold text-navy"
       >
-        <WhatsAppIcon className="h-4 w-4" aria-hidden="true" />
-        WhatsApp
+        <MailIcon className="h-4 w-4" aria-hidden="true" />
+        Email us
       </a>
     </div>
   );
@@ -679,7 +677,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
                 <p className="font-semibold">
                   {notice === "unavailable" ? "Online booking is taking a short break." : "That didn’t send."}
                 </p>
-                <p className="mt-1 text-text-2">Call or WhatsApp us and we&rsquo;ll sort it straight away.</p>
+                <p className="mt-1 text-text-2">Call or email us and we&rsquo;ll sort it straight away.</p>
                 <div className="mt-3">{callButtons}</div>
               </div>
             )}

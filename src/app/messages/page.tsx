@@ -33,7 +33,7 @@ export default async function MessagesPage() {
       <MessagesScreen title={`Chat with ${CLUB.name}`}>
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
           <h2 className="text-xl font-semibold tracking-tight">Live chat is coming soon</h2>
-          <p className="mt-2 max-w-sm text-muted">In the meantime, our engineers are a call, a WhatsApp or an email away.</p>
+          <p className="mt-2 max-w-sm text-muted">In the meantime, our engineers are a call or an email away.</p>
           <ContactOptions className="mt-6" />
         </div>
       </MessagesScreen>

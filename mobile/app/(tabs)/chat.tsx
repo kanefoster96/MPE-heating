@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { MPE_PHONE, MPE_WHATSAPP } from "@/lib/site";
+import { MPE_EMAIL, MPE_PHONE } from "@/lib/site";
 import { Animated, FlatList, PanResponder, Platform, Pressable, RefreshControl, TextInput, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,7 +16,7 @@ import { colors, fonts } from "@/lib/theme";
 import type { InboxItem } from "@/lib/types";
 
 const PHONE = MPE_PHONE.href;
-const WHATSAPP = MPE_WHATSAPP;
+const EMAIL = MPE_EMAIL;
 
 /**
  * Chat. A customer talks to the MPE team here (one conversation, like
@@ -97,10 +97,10 @@ function ChatComingSoon() {
         <AppText weight="bold" style={{ fontSize: 20, marginTop: 4 }}>
           Live chat is coming soon
         </AppText>
-        <AppText style={{ color: colors.text2, fontSize: 15, textAlign: "center", lineHeight: 21 }}>Until then, call or WhatsApp us and we&apos;ll get straight back to you.</AppText>
+        <AppText style={{ color: colors.text2, fontSize: 15, textAlign: "center", lineHeight: 21 }}>Until then, call or email us and we&apos;ll get straight back to you.</AppText>
         <View style={{ alignSelf: "stretch", gap: 10, marginTop: 10 }}>
           <SecondaryButton title="Call" icon="call" onPress={() => openExternal(PHONE)} />
-          <SecondaryButton title="WhatsApp" icon="logo-whatsapp" tone="whatsapp" onPress={() => openExternal(WHATSAPP)} />
+          <SecondaryButton title="Email" icon="mail" onPress={() => openExternal(EMAIL)} />
         </View>
       </Card>
     </View>

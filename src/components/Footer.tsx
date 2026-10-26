@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { business, footerLinks, accreditations } from "@/lib/content";
-import { PhoneIcon, WhatsAppIcon } from "./icons";
+import { ChatIcon, MailIcon, PhoneIcon } from "./icons";
 import { FreeBand } from "./FreeBand";
 import { CHAT_ON } from "@/lib/chat-on";
 import { META_PIXEL_ID } from "@/lib/meta-pixel";
@@ -20,16 +20,14 @@ export function Footer() {
                 <PhoneIcon className="h-4 w-4" />
                 {business.phoneDisplay}
               </a>
-              <a
-                href={business.whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center gap-2 hover:text-navy"
-              >
-                <WhatsAppIcon className="h-4 w-4 text-whatsapp" />
-                WhatsApp us
-              </a>
-              <a href={`mailto:${business.email}`} className="inline-flex min-h-11 items-center hover:text-navy">
+              {CHAT_ON && (
+                <Link href="/messages" className="inline-flex min-h-11 items-center gap-2 hover:text-navy">
+                  <ChatIcon className="h-4 w-4" />
+                  Live chat
+                </Link>
+              )}
+              <a href={business.emailHref} className="inline-flex min-h-11 items-center gap-2 hover:text-navy">
+                <MailIcon className="h-4 w-4" />
                 {business.email}
               </a>
               <p className="text-text-3">Gas Safe registration: {business.gasSafeNumber}</p>

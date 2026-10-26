@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormLayout } from "./FormLayout";
 import { FormField } from "./FormField";
 import { FeeNote } from "./FeeNote";
-import { ArrowRightIcon, ChevronLeftIcon, PhoneIcon, WhatsAppIcon, QuestionIcon } from "./icons";
+import { ArrowRightIcon, ChatIcon, ChevronLeftIcon, MailIcon, PhoneIcon, QuestionIcon } from "./icons";
 import { business, sameDay as sameDayCopy, type TwoTone } from "@/lib/content";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
 import { funnel, resolvePath, type FunnelNode } from "@/lib/funnel";
@@ -209,13 +209,11 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
                       {business.phoneDisplay}
                     </a>
                     <a
-                      href={business.whatsappHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex h-12 items-center justify-center gap-2 rounded-full bg-whatsapp-dark px-3 text-sm font-semibold text-white"
+                      href={business.chatHref}
+                      className="flex h-12 items-center justify-center gap-2 rounded-full border border-navy/20 bg-white px-3 text-sm font-semibold text-navy"
                     >
-                      <WhatsAppIcon className="h-4 w-4" aria-hidden="true" />
-                      WhatsApp
+                      <ChatIcon className="h-4 w-4" aria-hidden="true" />
+                      {business.chatLabel}
                     </a>
                   </div>
                 </div>
@@ -234,7 +232,7 @@ export function Funnel({ initialPath = [], locked = false, eyebrow, title, subti
               <p className="font-semibold text-navy">
                 {notice === "unavailable" ? "Online booking is taking a short break." : "That didn’t send."}
               </p>
-              <p className="mt-1">Call or WhatsApp us and we&rsquo;ll get you booked in straight away.</p>
+              <p className="mt-1">Call or email us and we&rsquo;ll get you booked in straight away.</p>
               <FallbackLinks className="mt-3" />
             </div>
           )}
@@ -358,13 +356,11 @@ function FallbackLinks({ className = "" }: { className?: string }) {
         {business.phoneDisplay}
       </a>
       <a
-        href={business.whatsappHref}
-        target="_blank"
-        rel="noopener noreferrer"
+        href={business.emailHref}
         className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-grey px-5 text-sm font-semibold text-navy transition-colors hover:bg-navy/10"
       >
-        <WhatsAppIcon className="h-5 w-5 text-whatsapp" />
-        WhatsApp us
+        <MailIcon className="h-5 w-5" />
+        Email us
       </a>
     </div>
   );

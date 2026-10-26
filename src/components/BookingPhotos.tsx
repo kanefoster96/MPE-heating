@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { business } from "@/lib/content";
 import { shrinkImage, uploadToSignedPath } from "@/lib/upload-client";
-import { CameraIcon, CloseIcon, WhatsAppIcon } from "./icons";
+import { CameraIcon, CloseIcon, MailIcon } from "./icons";
 
 // The booking forms' optional photo step (lib/flows.ts, kind "photos").
 // Each photo is shrunk on the phone and sent straight to storage, one at a
@@ -26,7 +26,7 @@ export type BookingPhoto = {
 
 export function useBookingPhotos(max: number) {
   const [photos, setPhotos] = useState<BookingPhoto[]>([]);
-  // The server said uploads aren't set up (503): say WhatsApp instead.
+  // The server said uploads aren't set up (503): say email instead.
   const [off, setOff] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const batch = useRef<string | null>(null);
@@ -84,7 +84,7 @@ export function useBookingPhotos(max: number) {
     const images = files.filter((f) => f.type.startsWith("image/"));
     const small = images.filter((f) => f.size <= MAX_BYTES);
     if (images.length < files.length) setNote("Photos only, please.");
-    else if (small.length < images.length) setNote("That photo is over 10MB. Try a smaller one, or send it on WhatsApp.");
+    else if (small.length < images.length) setNote("That photo is over 10MB. Try a smaller one, or email it to us after you've sent this.");
     else if (small.length > room) setNote(`Up to ${max} photos. We added the first ${room === 1 ? "one" : room}.`);
     const added = small.slice(0, Math.max(room, 0)).map((file) => {
       const preview = URL.createObjectURL(file);
@@ -136,10 +136,10 @@ export function PhotoPicker({ max, state }: { max: number; state: ReturnType<typ
   if (off) {
     return (
       <div className="rounded-lg border border-line bg-cream px-4 pt-3 pb-1 text-sm text-text-2" data-photos-off>
-        <p>Photos can&rsquo;t be added here just now. You can send them to us on WhatsApp instead, after you&rsquo;ve sent this.</p>
-        <a href={business.whatsappHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-whatsapp-ink underline underline-offset-4">
-          <WhatsAppIcon className="h-4 w-4" aria-hidden="true" />
-          WhatsApp us
+        <p>Photos can&rsquo;t be added here just now. You can email them to us instead, after you&rsquo;ve sent this.</p>
+        <a href={business.emailHref} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-navy underline underline-offset-4">
+          <MailIcon className="h-4 w-4" aria-hidden="true" />
+          Email us
         </a>
       </div>
     );

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mobileJson, mobileStaff, readJson } from "@/lib/mobile-api";
+import { usagePaused } from "@/lib/twilio-usage";
 import { businessCallsOn, callSetup, callableUkNumber, CoachPhoneMissingError, startBridgedCall } from "@/lib/coach-calls";
 
 /** The app's Call sheet: whether calls go from the MPE number yet, that number, and the phone that rings first. */
 export async function GET(request: Request) {
   const caller = await mobileStaff(request);
   if (caller instanceof NextResponse) return caller;
-  return mobileJson(callSetup(caller.user));
+  return mobileJson(await callSetup(caller.user));
 }
 
 /**
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
   const caller = await mobileStaff(request);
   if (caller instanceof NextResponse) return caller;
   if (!businessCallsOn()) return mobileJson({ error: "Calls from the MPE number are off. Call on WhatsApp or your own phone." }, 403);
+  if (await usagePaused()) return mobileJson({ error: "Calls and texts are paused until the 1st (Settings → Calls and texts). Call on WhatsApp or your own phone." }, 403);
   const body = await readJson<{ conversationId: string; to: string }>(request);
   let to: string | null = null;
   let conversationId: string | null = null;

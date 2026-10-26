@@ -25,7 +25,7 @@ captureFirstTouch();
  * PageViews are sent from here rather than by the pixel itself, so moving
  * from a public page to a private one in the same tab sends nothing.
  *
- * Also reports a tap on a phone or WhatsApp link as Meta's Contact event,
+ * Also reports a tap on a phone link as Meta's Contact event,
  * since for MPE that's how most people get in touch. Only a tap: whether
  * the call went through, Meta isn't told.
  */
@@ -57,10 +57,10 @@ export function MetaPixel() {
   useEffect(() => {
     if (!META_PIXEL_ID) return;
     function onClick(e: MouseEvent) {
-      const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href^="tel:"], a[href^="https://wa.me/"]');
+      const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href^="tel:"]');
       if (!link) return;
       // A no-op unless the pixel loaded, which is what keeps this behind consent.
-      trackMetaEvent("Contact", { content_name: link.href.startsWith("tel:") ? "Phone" : "WhatsApp" });
+      trackMetaEvent("Contact", { content_name: "Phone" });
     }
     document.addEventListener("click", onClick);
     return () => document.removeEventListener("click", onClick);

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { faqs, business } from "@/lib/content";
+import { CHAT_ON } from "@/lib/chat-on";
 import { ChevronDownIcon } from "./icons";
 import { Heading, Eyebrow } from "./Heading";
 import { Reveal } from "./Reveal";
@@ -110,13 +111,8 @@ export function Faq({ limit }: { limit?: number } = {}) {
           {!limit && (
             <p className="mt-8 text-sm text-text-2">
               Prefer a quick chat?{" "}
-              <a
-                href={business.whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-navy underline decoration-navy/30 underline-offset-4 hover:decoration-navy"
-              >
-                Ask us on WhatsApp
+              <a href={business.chatHref} className="font-semibold text-navy underline decoration-navy/30 underline-offset-4 hover:decoration-navy">
+                {CHAT_ON ? "Live chat with us" : "Email us"}
               </a>
               .
             </p>

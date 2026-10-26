@@ -1,6 +1,6 @@
 /** What the site's /api/mobile/home sends (src/app/api/mobile/home/route.ts on the site). */
 export type HomeData = {
-  business: { name: string; fullName: string; phoneDisplay: string; phoneHref: string; whatsappHref: string; gasSafeNumber: string; base: string };
+  business: { name: string; fullName: string; phoneDisplay: string; phoneHref: string; gasSafeNumber: string; base: string };
   callout: {
     title: string;
     em: string;

@@ -26,7 +26,7 @@ function TabIcon({ name, focused, color, count = 0 }: { name: IconName; focused:
 /**
  * The raised orange button in the middle of the tab bar (Kanvas Academy's
  * highlighted Class Pass tab, in MPE's orange): a call-out, the thing
- * someone with a broken boiler came for. For the team, Take payment.
+ * someone with a broken boiler came for. For the team, their Jobs.
  */
 function CentreIcon({ icon }: { icon: IconName }) {
   return (
@@ -57,8 +57,8 @@ function CentreIcon({ icon }: { icon: IconName }) {
 
 /**
  * Five tabs under the top bar: Home, Services, the call-out button, Chat
- * and Jobs. For the team, Services becomes their Menu and the call-out
- * button Take payment. The avatar (top left) is the account and the bell
+ * and Jobs. For the team: Home, Menu, Jobs in the middle, Chat, and
+ * Payment at the end. The avatar (top left) is the account and the bell
  * (top right) is notifications, so neither needs a tab.
  */
 export default function TabsLayout() {
@@ -92,16 +92,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="callout"
         options={{
-          title: staff ? "Payment" : "Call-out",
+          title: staff ? "Jobs" : "Call-out",
           tabBarLabelStyle: { fontFamily: fonts.bold, fontSize: 11, color: colors.orangeDeep },
-          tabBarIcon: () => <CentreIcon icon={staff ? "card" : "flame"} />,
-          tabBarAccessibilityLabel: staff ? "Take payment" : "Request a call-out",
+          tabBarIcon: () => <CentreIcon icon={staff ? "clipboard" : "flame"} />,
+          tabBarAccessibilityLabel: staff ? "Jobs" : "Request a call-out",
         }}
         listeners={{
           tabPress: (e) => {
             // Straight to it, from wherever they are.
             e.preventDefault();
-            if (staff) router.push("/take-payment");
+            if (staff) router.navigate("/jobs");
             else openInApp(`${SITE_URL}/emergency`);
           },
         }}
@@ -110,7 +110,21 @@ export default function TabsLayout() {
         name="chat"
         options={{ title: "Chat", tabBarIcon: ({ focused, color }) => <TabIcon name="chatbubble-ellipses" focused={focused} color={color} count={unreadChats} /> }}
       />
-      <Tabs.Screen name="jobs" options={{ title: "Jobs", tabBarIcon: ({ focused, color }) => <TabIcon name="clipboard" focused={focused} color={color} /> }} />
+      {/* The team reach Jobs from the middle button, so this slot is theirs for Payment. */}
+      <Tabs.Screen
+        name="jobs"
+        options={{ title: "Jobs", href: staff ? null : undefined, tabBarIcon: ({ focused, color }) => <TabIcon name="clipboard" focused={focused} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="payment"
+        options={{ title: "Payment", href: staff ? undefined : null, tabBarIcon: ({ focused, color }) => <TabIcon name="card" focused={focused} color={color} />, tabBarAccessibilityLabel: "Take payment" }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            router.push("/take-payment");
+          },
+        }}
+      />
     </Tabs>
   );
 }

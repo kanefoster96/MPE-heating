@@ -14,9 +14,9 @@ type OpenPayment = { id: string; number: string; description: string; amount: st
 type PaymentsResponse = { on: boolean; terminalLocation: string | null; payments: OpenPayment[] };
 
 /**
- * The team's Take payment (the orange button in the middle, for them):
- * every open invoice and call-out fee, and Tap to Pay to take it on this
- * phone. A new payment is made on the website's take-payment page, which
+ * The team's Take payment (their Payment tab): every open invoice and
+ * call-out fee, and Tap to Pay to take it on this phone. For one job, the
+ * job's own page has a Payment button (app/job/[id].tsx). A new payment is made on the website's take-payment page, which
  * opens here signed in; it then shows in this list.
  */
 export default function TakePaymentScreen() {

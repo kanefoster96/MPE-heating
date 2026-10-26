@@ -76,6 +76,7 @@ export default function RootLayout() {
           <Stack.Screen name="account" />
           <Stack.Screen name="notifications" />
           <Stack.Screen name="take-payment" />
+          <Stack.Screen name="job/[id]" />
           <Stack.Screen name="finance" />
           <Stack.Screen name="metrics" />
           <Stack.Screen name="certificates" />

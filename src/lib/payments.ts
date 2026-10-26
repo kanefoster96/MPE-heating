@@ -646,6 +646,15 @@ export async function markPaid(id: string, paymentIntentId: string, via: PaidVia
   );
 }
 
+/**
+ * Puts an invoice that isn't on a job yet onto this visit (the app's job
+ * page, taking payment for it there). One already on another visit stays
+ * where it is.
+ */
+export async function linkPaymentToVisit(id: string, appointmentId: string): Promise<void> {
+  await createAdminClient().from("payment_requests").update({ appointment_id: appointmentId }).eq("id", id).is("appointment_id", null);
+}
+
 export async function cancelPaymentRequest(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data } = await createAdminClient()
     .from("payment_requests")

@@ -1,11 +1,21 @@
 import type { User } from "@supabase/supabase-js";
 import { CLUB_SITE_URL } from "@/lib/club";
-import { customerForUser, getCustomers } from "@/lib/customers";
-import { appointmentsBetween, appointmentsForCustomer, waitingOnTeamCount, type Appointment } from "@/lib/appointments";
+import { customerForUser, getCustomer, getCustomers, type Customer } from "@/lib/customers";
+import { appointmentsBetween, appointmentsForCustomer, getAppointment, waitingOnTeamCount, type Appointment } from "@/lib/appointments";
 import { KIND_LABEL, addDays, longDate, windowLabel } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
-import { formatPence, invoiceNumber, payLink, paymentsForAppointments, paymentsForCustomer, type PaymentRequest } from "@/lib/payments";
+import {
+  PAID_VIA_LABEL,
+  formatPence,
+  invoiceNumber,
+  payLink,
+  paymentsForAppointments,
+  paymentsForCustomer,
+  paymentsOn,
+  savedCardFor,
+  type PaymentRequest,
+} from "@/lib/payments";
 import { quoteLink, quoteNumber, quoteOpen, quotesForCustomer } from "@/lib/quotes";
 import { filesForCustomer } from "@/lib/job-files";
 import { CATEGORY_LABEL, enquiriesForCustomer } from "@/lib/enquiries";
@@ -251,27 +261,111 @@ export async function staffDay(dayParam: string | null): Promise<StaffDay> {
     closed: dayClosed === undefined ? false : dayClosed,
     waiting,
     strip: perDay.map((d) => ({ day: d.day, count: d.count, closed: closed.has(d.day) })),
-    jobs: shown.map((v) => {
-      const c = v.customerId ? customers.get(v.customerId) : undefined;
-      const ps = (payments.get(v.id) ?? []).filter((p) => p.status !== "cancelled");
-      const open = ps.find((p) => p.status === "open");
-      return {
-        id: v.id,
-        kind: KIND_LABEL[v.kind],
-        title: v.title,
-        status: v.status,
-        window: windowLabel(v.start, v.end),
-        start: v.start,
-        end: v.end,
-        customer: c ? { name: c.name, phone: c.phoneE164 ?? c.phone, conversationId: c.conversationId } : null,
-        address: v.address ?? c?.address ?? null,
-        postcode: v.postcode ?? c?.postcode ?? null,
-        notes: v.notes,
-        onMyWay: v.onMyWayAt ? arrivalClock(v.onMyWayAt, v.onMyWayEta ?? 30) : null,
-        changeRequested: !!v.change,
-        openPayment: open ? { id: open.id, amount: formatPence(open.amountPence) } : null,
-        paid: ps.length > 0 && !open,
-      };
+    jobs: shown.map((v) => toStaffJob(v, v.customerId ? customers.get(v.customerId) : undefined, payments.get(v.id) ?? [])),
+  };
+}
+
+function toStaffJob(v: Appointment, c: Customer | undefined, payments: PaymentRequest[]): StaffJob {
+  const ps = payments.filter((p) => p.status !== "cancelled");
+  const open = ps.find((p) => p.status === "open");
+  return {
+    id: v.id,
+    kind: KIND_LABEL[v.kind],
+    title: v.title,
+    status: v.status,
+    window: windowLabel(v.start, v.end),
+    start: v.start,
+    end: v.end,
+    customer: c ? { name: c.name, phone: c.phoneE164 ?? c.phone, conversationId: c.conversationId } : null,
+    address: v.address ?? c?.address ?? null,
+    postcode: v.postcode ?? c?.postcode ?? null,
+    notes: v.notes,
+    onMyWay: v.onMyWayAt ? arrivalClock(v.onMyWayAt, v.onMyWayEta ?? 30) : null,
+    changeRequested: !!v.change,
+    openPayment: open ? { id: open.id, amount: formatPence(open.amountPence) } : null,
+    paid: ps.length > 0 && !open,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// One of the team's jobs, with what's been asked for it.
+
+export type JobPayment = {
+  id: string;
+  number: string;
+  kind: PaymentRequest["kind"];
+  description: string;
+  amount: string;
+  status: "open" | "paid";
+  paidVia: string | null;
+  /** Being paid monthly: taken through its monthly payments, not here. */
+  monthly: boolean;
+  /** Which job it's for: this one, another visit ("Tuesday 13 October"), or none yet. */
+  job: "this" | "none" | string;
+};
+
+export type StaffJobDetail = {
+  job: StaffJob;
+  day: string;
+  dayLabel: string;
+  payments: {
+    on: boolean;
+    terminalLocation: string | null;
+    savedCard: { brand: string; last4: string } | null;
+    /** Asked for on this job, open first. */
+    forJob: JobPayment[];
+    /** The customer's other open invoices: ones not on a job, or on another visit. */
+    otherOpen: JobPayment[];
+  };
+};
+
+/**
+ * A job opened from the team's Jobs list: the visit, plus everything the
+ * Payment button can take for it. Open invoices for the customer that
+ * aren't on this job show too, so the payment can go against the right one.
+ */
+export async function staffJob(id: string): Promise<StaffJobDetail | null> {
+  const v = await getAppointment(id);
+  if (!v || v.status === "cancelled") return null;
+  const c = v.customerId ? await getCustomer(v.customerId) : null;
+  const [onJob, theirs, card] = await Promise.all([
+    paymentsForAppointments([v.id]).then((m) => m.get(v.id) ?? []),
+    c ? paymentsForCustomer(c.id) : Promise.resolve([]),
+    c && paymentsOn() ? savedCardFor(c) : Promise.resolve(null),
+  ]);
+  const other = theirs.filter((p) => p.status === "open" && p.appointmentId !== v.id);
+  const visits = new Map<string, string>();
+  await Promise.all(
+    [...new Set(other.map((p) => p.appointmentId).filter((x): x is string => !!x))].map(async (aid) => {
+      const a = await getAppointment(aid).catch(() => null);
+      visits.set(aid, a ? longDate(a.day) : "another visit");
     }),
+  );
+  const shape = (p: PaymentRequest): JobPayment => ({
+    id: p.id,
+    number: invoiceNumber(p.number),
+    kind: p.kind,
+    description: p.description,
+    amount: formatPence(p.amountPence),
+    status: p.status === "paid" ? "paid" : "open",
+    paidVia: p.paidVia ? PAID_VIA_LABEL[p.paidVia] : null,
+    monthly: !!p.planStatus,
+    job: p.appointmentId === v.id ? "this" : p.appointmentId ? (visits.get(p.appointmentId) ?? "another visit") : "none",
+  });
+  const today = londonNow().dateISO;
+  return {
+    job: toStaffJob(v, c ?? undefined, onJob),
+    day: v.day,
+    dayLabel: v.day === today ? "Today" : v.day === addDays(today, 1) ? "Tomorrow" : longDate(v.day),
+    payments: {
+      on: paymentsOn(),
+      terminalLocation: process.env.STRIPE_TERMINAL_LOCATION || null,
+      savedCard: card ? { brand: card.brand, last4: card.last4 } : null,
+      forJob: onJob
+        .filter((p) => p.status !== "cancelled")
+        .sort((a, b) => (a.status === "open" ? 0 : 1) - (b.status === "open" ? 0 : 1))
+        .map(shape),
+      otherOpen: other.map(shape),
+    },
   };
 }

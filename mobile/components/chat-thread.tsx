@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppText, PressableScale, Skeleton, haptic } from "@/components/ui";
 import { Avatar } from "@/components/avatar";
 import { ImageViewer } from "@/components/image-viewer";
+import { ActionSheet, type SheetAction } from "@/components/action-sheet";
 import { apiFetch, apiPost } from "@/lib/api";
 import { useAuth } from "@/contexts/auth";
 import { supabase } from "@/lib/supabase";
@@ -65,8 +66,22 @@ function MessageText({ body, color }: { body: string; color: string }) {
  * New messages arrive live (Supabase Realtime), with a poll every few
  * seconds in case one's missed. Photos come from the camera or the
  * library: a picture of the boiler, or the error code on its display.
+ * For the team, `actions` puts a "+" in the composer instead of the
+ * camera: a sheet of what they can do for this customer, with the photos.
  */
-export function ChatThread({ conversationId, header, onLoaded }: { conversationId?: string; header?: ReactNode; onLoaded?: (data: ConversationResponse) => void }) {
+export function ChatThread({
+  conversationId,
+  header,
+  onLoaded,
+  actions,
+  actionsTitle,
+}: {
+  conversationId?: string;
+  header?: ReactNode;
+  onLoaded?: (data: ConversationResponse) => void;
+  actions?: SheetAction[];
+  actionsTitle?: string;
+}) {
   const [data, setData] = useState<ConversationResponse | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +90,7 @@ export function ChatThread({ conversationId, header, onLoaded }: { conversationI
   const [channel, setChannel] = useState<Channel>("chat");
   const [viewing, setViewing] = useState<string | null>(null);
   const [keyboardPad, setKeyboardPad] = useState(0);
+  const [plus, setPlus] = useState(false);
   const rootRef = useRef<View>(null);
   const latestRef = useRef<string | null>(null);
   const sentAnyRef = useRef(false);
@@ -350,9 +366,15 @@ export function ChatThread({ conversationId, header, onLoaded }: { conversationI
           </View>
         )}
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
-          <PressableScale onPress={attach} accessibilityLabel="Send a photo" style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.grey }}>
-            <Ionicons name="camera" size={22} color={colors.navy} />
-          </PressableScale>
+          {actions ? (
+            <PressableScale onPress={() => setPlus(true)} accessibilityLabel="More: book, invoice, payment, quote, photo" style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.orangeLight }}>
+              <Ionicons name="add" size={26} color={colors.orangeDeep} />
+            </PressableScale>
+          ) : (
+            <PressableScale onPress={attach} accessibilityLabel="Send a photo" style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.grey }}>
+              <Ionicons name="camera" size={22} color={colors.navy} />
+            </PressableScale>
+          )}
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -378,6 +400,18 @@ export function ChatThread({ conversationId, header, onLoaded }: { conversationI
       </View>
 
       <ImageViewer uri={viewing} onClose={() => setViewing(null)} />
+      {actions && (
+        <ActionSheet
+          visible={plus}
+          title={actionsTitle ?? "More"}
+          actions={[
+            ...actions,
+            ...(Platform.OS === "web" ? [] : [{ key: "camera", label: "Take a photo", icon: "camera" as const, onPress: () => pick("camera") }]),
+            { key: "library", label: "Send a photo", icon: "image" as const, onPress: () => pick("library") },
+          ]}
+          onClose={() => setPlus(false)}
+        />
+      )}
     </View>
   );
 }

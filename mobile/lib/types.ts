@@ -46,7 +46,17 @@ export type ChatMessage = {
   localUri?: string;
 };
 
-export type ChatConversation = { id: string; title: string; phone: string | null; completed: boolean; isTeam: boolean };
+export type ChatConversation = {
+  id: string;
+  title: string;
+  phone: string | null;
+  completed: boolean;
+  isTeam: boolean;
+  /** For the team: their customer record, if they're one yet. */
+  customerId?: string | null;
+  guest?: boolean;
+  lastFrom?: "web" | "app" | null;
+};
 
 export type ConversationResponse = { conversation: ChatConversation; messages: ChatMessage[]; viewer: { id: string; staff: boolean } };
 
@@ -148,6 +158,7 @@ export type StaffJobDetail = {
   job: StaffJob;
   day: string;
   dayLabel: string;
+  customerId?: string | null;
   payments: {
     on: boolean;
     terminalLocation: string | null;
@@ -205,3 +216,31 @@ export type MonthNumbers = {
   referrals: number;
 };
 export type StaffMetrics = { month: string; label: string; previous: string; previousLabel: string; now: MonthNumbers; before: MonthNumbers };
+
+/** A customer for the team (src/lib/app-customer.ts on the site). */
+export type CustomerVisit = { id: string; when: string; kind: string; title: string | null; status: string; report: string | null };
+export type StaffCustomer = {
+  id: string;
+  name: string;
+  since: string;
+  conversationId: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  postcode: string | null;
+  plan: string | null;
+  boiler: { label: string; value: string }[];
+  accessNotes: string | null;
+  notes: { id: string; body: string; when: string; author: string | null }[];
+  ongoing: CustomerVisit[];
+  previous: CustomerVisit[];
+  quotes: { id: string; number: string; title: string; total: string; status: string }[];
+  payments: {
+    on: boolean;
+    terminalLocation: string | null;
+    savedCard: { brand: string; last4: string } | null;
+    open: JobPayment[];
+    paidCount: number;
+  };
+  links: { book: string; invoice: string; quote: string; page: string };
+};

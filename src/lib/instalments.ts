@@ -494,6 +494,8 @@ async function takeOne(row: DueRow): Promise<void> {
   await deliverToCustomer(customer, {
     body,
     headline: "Monthly payment didn't go through",
+    // Texted only if there's no email or app to tell them.
+    text: "fallback",
     staffId: null,
     pushHref: `/pay/${p.publicToken}`,
     emailHtml: () =>

@@ -119,6 +119,33 @@ export function noticeBody(
   }
 }
 
+const SHORT_DAY = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" });
+
+/**
+ * The one-segment version for a text (under 160 characters with "MPE: "
+ * in front), for the few that go by text (lib/visit-notify.ts): a booking,
+ * a move or a cancellation when there's no email or app, and running
+ * late. They point at the app, so the next update's free.
+ */
+export function shortNotice(type: NoticeType, v: VisitFacts, opts: { name?: string | null; engineer?: string | null; appLink: string }): string | undefined {
+  const hi = opts.name ? `Hi ${opts.name.split(" ")[0]}, ` : "Hi, ";
+  const what = v.returning ? "return visit" : kindName(v.kind);
+  const day = SHORT_DAY.format(new Date(`${v.day}T12:00:00Z`));
+  const window = windowLabel(v.start, v.end);
+  switch (type) {
+    case "booked":
+      return `${hi}you're booked in for your ${what} on ${day}, ${window}. Get the MPE app for updates: ${opts.appLink}`;
+    case "moved":
+      return `${hi}your ${what} has moved to ${day}, ${window}. Get the MPE app for updates: ${opts.appLink}`;
+    case "cancelled":
+      return `${hi}your ${what} on ${day} is cancelled. To rebook, live chat with us in the MPE app: ${opts.appLink}`;
+    case "late":
+      return `${hi}sorry, we're running behind. ${opts.engineer ? `${opts.engineer}, your MPE engineer,` : "Your MPE engineer"} will now be with you ${window}. Reply if you won't be in.`;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * The same as a text: plain characters only (a curly quote, en dash or emoji
  * turns a text into 70-character segments and roughly triples its cost, as

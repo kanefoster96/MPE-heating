@@ -7,7 +7,9 @@ import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import {
   PAID_VIA_LABEL,
+  calloutCreditFor,
   formatPence,
+  getPaymentRequest,
   invoiceNumber,
   payLink,
   paymentsForAppointments,
@@ -431,6 +433,8 @@ export type StaffJobDetail = {
   askedPast?: boolean;
   /** They asked to move it: to when, and why. */
   change: { label: string; note: string | null } | null;
+  /** An accepted quote for this job, not billed yet: the Payment button bills it, less what's been paid. */
+  quoteToBill?: { id: string; number: string; amount: string; detail: string } | null;
   /** Finished as "coming back": what for, and the return visit once booked. */
   comingBack: { note: string | null; returnVisit: { id: string; when: string } | null } | null;
   /** A return visit: the first visit of the job. */
@@ -483,9 +487,27 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
       p.appointmentId === v.id ? "this" : p.appointmentId ? (visits.get(p.appointmentId) ?? "another visit") : "none",
     );
 
+  // The repair's accepted quote (on this visit or the call-out before it), still to bill.
+  const chainIds = [v.id, ...(v.followUpOf ? [v.followUpOf] : [])];
+  const accepted = c ? (await quotesForCustomer(c.id).catch(() => [])).find((q) => q.status === "accepted" && !q.balanceRequestId && !!q.appointmentId && chainIds.includes(q.appointmentId)) : undefined;
+  let quoteToBill: StaffJobDetail["quoteToBill"] = null;
+  if (accepted) {
+    const deposit = accepted.depositRequestId ? await getPaymentRequest(accepted.depositRequestId) : null;
+    const depositPaid = deposit?.status === "paid" ? deposit.amountPence : 0;
+    const callout = await calloutCreditFor(v).catch(() => 0);
+    const less = [depositPaid ? `${formatPence(depositPaid)} deposit` : "", callout ? `${formatPence(callout)} call-out` : ""].filter(Boolean).join(" and ");
+    quoteToBill = {
+      id: accepted.id,
+      number: quoteNumber(accepted.number),
+      amount: formatPence(Math.max(0, accepted.totalPence - depositPaid - callout)),
+      detail: less ? `${formatPence(accepted.totalPence)} less the ${less} already paid` : formatPence(accepted.totalPence),
+    };
+  }
+
   const today = londonNow().dateISO;
   return {
     job: toStaffJob(v, c ?? undefined, onJob),
+    quoteToBill,
     day: v.day,
     customerId: c?.id ?? null,
     asked: v.status === "requested" ? requestedWhen(v.day, v.part) : null,

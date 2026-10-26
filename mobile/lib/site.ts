@@ -17,3 +17,6 @@ export const MPE_PHONE = {
   href: `tel:${MPE_E164}`,
   display: national.startsWith("07") ? `${national.slice(0, 5)} ${national.slice(5)}` : `${national.slice(0, 4)} ${national.slice(4, 7)} ${national.slice(7)}`,
 };
+
+/** WhatsApp: Fergal's for now; the MPE number's once WhatsApp Business is on it (EXPO_PUBLIC_WHATSAPP_NUMBER). */
+export const MPE_WHATSAPP = `https://wa.me/${(process.env.EXPO_PUBLIC_WHATSAPP_NUMBER || "+447448628101").replace(/\D/g, "")}`;

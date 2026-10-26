@@ -25,6 +25,8 @@ deployment.
 - [ ] Create a project at supabase.com, in the London region.
 - [ ] **SQL editor:** paste in all of `supabase/schema.sql` and run it.
       Run it again after every update that changes it: it's safe to re-run.
+- [ ] Re-run it after the texts update: it adds the record of texts sent
+      (for the monthly limit) and the once-only text after a first call.
 - [ ] Re-run it after the running-late update: it adds "won't be in" to
       visits and "how did they hear about us?" to customers.
 - [ ] Re-run it after the return-visit update: it adds "Is it fixed?" to
@@ -99,9 +101,31 @@ deployment.
 - [ ] Calls to it ring Fergal's mobile first (or each admin's saved
       mobile, from the app's call setup), showing the caller's number. Not
       answered in 18 seconds: MPE's voicemail. Either way the call's logged
-      in their chat, and they get one text after it (at most every 12
-      hours, and not if they already have the app) pointing them at the app
-      and live chat, so later updates don't cost a text.
+      in their chat, and after their first ever call they get one text
+      (never again to that number, and not if they have the app) pointing
+      them at the app and live chat.
+- [ ] Texts are kept to two per customer: that one after their first
+      call, and "on my way" (plus "running late" when it happens). Anyone
+      with the app gets those as free notifications instead. A booking, a
+      cancellation or a failed payment is only texted if there's no email
+      for them. Everything else goes by the app and email.
+- [ ] The month's texts stop at `SMS_MONTHLY_SEGMENTS` (default 200,
+      about £12 with VAT); after that, updates go by the app and email
+      and the team get one notification. The Menu shows "Texts this
+      month".
+- [ ] In the Twilio console, **Monitor → Usage triggers**: add one at
+      your monthly budget (say $25, about £20) to email you if calls and
+      texts together reach it.
+- [ ] **WhatsApp Business on the MPE number** (free calls and messages
+      from it, so Twilio credit's only for what has to be a call or text):
+      in the WhatsApp Business app on Fergal's phone, register the MPE
+      number and pick "Call me" for the code. Before you do, point the
+      number's "A call comes in" webhook at
+      `<site>/api/webhooks/twilio/voice?mode=forward` so the code call
+      rings straight through; put it back after. Then set
+      `NEXT_PUBLIC_WHATSAPP_NUMBER` and `EXPO_PUBLIC_WHATSAPP_NUMBER` to
+      the MPE number, so the site's and app's WhatsApp links use it. In
+      the app, the team's Call buttons offer WhatsApp (free) first.
 - [ ] Once it's working, show it everywhere instead of Fergal's own number:
       set `NEXT_PUBLIC_MPE_PHONE` on the site and `EXPO_PUBLIC_MPE_PHONE`
       for the app build (both as `+44…`), and redeploy.
@@ -114,11 +138,12 @@ deployment.
 | `TWILIO_API_KEY_SID` | Optional: the API key (`SK…`) | Config |
 | `TWILIO_API_KEY_SECRET` | Optional: the API key's secret | **Secret** |
 | `NEXT_PUBLIC_MPE_PHONE` | The same number: the site shows it instead of Fergal's | Public |
+| `SMS_MONTHLY_SEGMENTS` | Optional: the month's automatic texts, in segments (default 200) | Config |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Optional: the WhatsApp number for the site's links, once WhatsApp Business is on the MPE number | Public |
 
 **Check:** text the number; it appears in the team inbox. Ring it: Fergal's
-phone rings with your number. Answer, then hang up: you get the "track it
-in the MPE app" text. Ring again another day and don't answer: voicemail,
-and the "sorry we missed you" text.
+phone rings with your number. Answer, then hang up: you get the "get the
+MPE app" text. Ring again and don't answer: voicemail, and no second text.
 
 Calls from the app: once the number's set, the team's Call buttons offer
 **Call as MPE**. The engineer's phone rings first, and when they answer

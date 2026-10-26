@@ -69,15 +69,21 @@ export default function TeamConversation() {
   }
 
   /** Their customer record: the one they have, or one made from the chat (once Fergal says so). */
-  async function customerId(): Promise<string | null> {
+  async function customerId(then?: string): Promise<string | null> {
     if (!conversation) return null;
     if (conversation.customerId) return conversation.customerId;
     const ok = await confirmAction(`Add ${conversation.title} as a customer?`, "Their name, email and number from this chat go on a customer record, so you can book them in, invoice and keep notes.", "Add them");
     if (!ok) return null;
     try {
-      const res = await apiPost<{ id: string }>("/api/mobile/staff/customers/from-chat", { conversationId: conversation.id });
+      const res = await apiPost<{ id: string; needsDetails?: boolean }>("/api/mobile/staff/customers/from-chat", { conversationId: conversation.id });
       setConversation({ ...conversation, customerId: res.id });
       haptic.success();
+      // Only a number so far (they called or texted): their name, address, email
+      // and how they found us first, then on to what he was doing.
+      if (then && res.needsDetails) {
+        router.push(`/customer-form?id=${res.id}&then=${then}&conversation=${conversation.id}` as never);
+        return null;
+      }
       return res.id;
     } catch (err) {
       notify("Couldn't add them", err instanceof Error ? err.message : "Please try again.");
@@ -85,16 +91,16 @@ export default function TeamConversation() {
     }
   }
 
-  const withCustomer = (go: (customer: string) => void) => async () => {
-    const customer = await customerId();
+  const withCustomer = (go: (customer: string) => void, then?: string) => async () => {
+    const customer = await customerId(then);
     if (customer) go(customer);
   };
 
   const actions: SheetAction[] = [
-    { key: "visit", label: "Book a visit", icon: "calendar", tone: "orange", onPress: withCustomer((c) => router.push(`/visit-form?customer=${c}&conversation=${conversation?.id ?? ""}`)) },
-    { key: "invoice", label: "Invoice or call-out fee", icon: "receipt", onPress: withCustomer((c) => router.push(`/new-payment?customer=${c}`)) },
+    { key: "visit", label: "Book a visit", icon: "calendar", tone: "orange", onPress: withCustomer((c) => router.push(`/visit-form?customer=${c}&conversation=${conversation?.id ?? ""}`), "visit") },
+    { key: "invoice", label: "Invoice or call-out fee", icon: "receipt", onPress: withCustomer((c) => router.push(`/new-payment?customer=${c}`), "payment") },
     { key: "pay", label: "Take payment", icon: "card", onPress: withCustomer((c) => router.push(`/customer/${c}?pay=1`)) },
-    { key: "quote", label: "New quote", icon: "document-text", onPress: withCustomer((c) => router.push(`/new-quote?customer=${c}`)) },
+    { key: "quote", label: "New quote", icon: "document-text", onPress: withCustomer((c) => router.push(`/new-quote?customer=${c}`), "quote") },
     { key: "details", label: "Their details", icon: "person", onPress: withCustomer((c) => router.push(`/customer/${c}`)) },
   ];
 

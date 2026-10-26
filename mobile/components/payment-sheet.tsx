@@ -209,6 +209,24 @@ export function PaymentSheet({ visible, context, onClose, onDone }: { visible: b
     }
   }
 
+  /** The job's accepted quote: its invoice made here (the call-out and any deposit taken off), picked, ready to take. */
+  async function billQuote() {
+    const q = context.quoteToBill;
+    if (!q || !context.jobId || busy) return;
+    setBusy("quote");
+    try {
+      const res = await apiPost<{ paymentId?: string }>(`/api/mobile/staff/quotes/${q.id}`, { action: "invoice", jobId: context.jobId, take: true });
+      haptic.success();
+      if (res.paymentId) setPicked(res.paymentId);
+      onDone();
+    } catch (err) {
+      haptic.warning();
+      notify("Not made", err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function newPayment() {
     if (!context.jobId) return;
     onClose();
@@ -257,7 +275,9 @@ export function PaymentSheet({ visible, context, onClose, onDone }: { visible: b
               </>
             ) : (
               <AppText style={{ color: colors.text2, fontSize: 15, lineHeight: 21 }}>
-                Nothing&apos;s waiting to be paid{context.customerName ? ` for ${context.customerName}` : ""}. Make the invoice or call-out fee first.
+                {context.quoteToBill
+                  ? "Bill their quote first, then take it here."
+                  : `Nothing's waiting to be paid${context.customerName ? ` for ${context.customerName}` : ""}. Make the invoice or call-out fee first.`}
               </AppText>
             )}
             {monthly.map((p) => (
@@ -265,6 +285,15 @@ export function PaymentSheet({ visible, context, onClose, onDone }: { visible: b
                 {p.number} is being paid monthly: record payments on it from the website.
               </AppText>
             ))}
+            {context.jobId && context.quoteToBill && (
+              <Choice
+                icon="document-text-outline"
+                label={busy === "quote" ? "Making the invoice…" : `Bill quote ${context.quoteToBill.number}: ${context.quoteToBill.amount}`}
+                detail={`${context.quoteToBill.detail}. Then take it below.`}
+                onPress={billQuote}
+                disabled={!!busy}
+              />
+            )}
             {context.jobId && <Choice icon="add-circle-outline" label="New invoice or call-out fee" detail="For this job." onPress={newPayment} />}
 
             {chosen && (

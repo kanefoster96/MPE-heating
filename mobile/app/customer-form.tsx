@@ -18,7 +18,7 @@ const GROUPS: { title: string; fields: Field[] }[] = [
     fields: [
       { key: "name", label: "Name", caps: "words" },
       { key: "phone", label: "Mobile", keyboard: "phone-pad" },
-      { key: "email", label: "Email", keyboard: "email-address", caps: "none" },
+      { key: "email", label: "Email (their booking, receipts and updates go here)", keyboard: "email-address", caps: "none" },
       { key: "address", label: "Address", caps: "words" },
       { key: "postcode", label: "Postcode", caps: "characters" },
     ],
@@ -35,6 +35,7 @@ const GROUPS: { title: string; fields: Field[] }[] = [
     ],
   },
   { title: "Getting in", fields: [{ key: "accessNotes", label: "Access notes (the key safe, parking, the dog)", multiline: true }] },
+  { title: "How they found us", fields: [{ key: "heardFrom", label: "Google, Facebook, recommended by…", caps: "sentences" }] },
 ];
 
 /**
@@ -44,7 +45,7 @@ const GROUPS: { title: string; fields: Field[] }[] = [
  * booking a visit, an invoice or a quote for them, else their page.
  */
 export default function CustomerForm() {
-  const { id, then, name } = useLocalSearchParams<{ id?: string; then?: string; name?: string }>();
+  const { id, then, name, conversation } = useLocalSearchParams<{ id?: string; then?: string; name?: string; conversation?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { staff, me, session, ready } = useAuth();
@@ -65,15 +66,24 @@ export default function CustomerForm() {
     if (!values || saving) return;
     setSaving(true);
     try {
+      // On to what he was doing: booking a visit, an invoice or a quote for them, else their page.
+      const nextFor = (c: string) =>
+        then === "visit"
+          ? `/visit-form?customer=${c}${conversation ? `&conversation=${conversation}` : ""}`
+          : then === "payment"
+            ? `/new-payment?customer=${c}`
+            : then === "quote"
+              ? `/new-quote?customer=${c}`
+              : `/customer/${c}`;
       if (id) {
         await apiPost(`/api/mobile/staff/customers/${id}`, values, "PATCH");
         haptic.success();
-        router.back();
+        if (then) router.replace(nextFor(id) as never);
+        else router.back();
       } else {
         const res = await apiPost<{ id: string }>("/api/mobile/staff/customers", values);
         haptic.success();
-        const next = then === "visit" ? `/visit-form?customer=${res.id}` : then === "payment" ? `/new-payment?customer=${res.id}` : then === "quote" ? `/new-quote?customer=${res.id}` : `/customer/${res.id}`;
-        router.replace(next as never);
+        router.replace(nextFor(res.id) as never);
       }
     } catch (err) {
       haptic.warning();

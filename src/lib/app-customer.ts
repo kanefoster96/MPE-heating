@@ -161,6 +161,7 @@ export async function staffCustomer(id: string, viewerId: string): Promise<Staff
       lastService: customer.lastService ?? "",
       boilerNotes: customer.boilerNotes ?? "",
       accessNotes: customer.accessNotes ?? "",
+      heardFrom: customer.heardFrom ?? "",
     },
   };
 }

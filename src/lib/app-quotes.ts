@@ -137,12 +137,23 @@ export async function quoteDetail(id: string) {
 export const QUOTE_ACTIONS = ["resend", "cancel", "invoice"] as const;
 export type QuoteAction = (typeof QUOTE_ACTIONS)[number];
 
-export async function quoteAction(id: string, action: QuoteAction, staffId: string): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+export async function quoteAction(
+  id: string,
+  action: QuoteAction,
+  staffId: string,
+  /** Invoicing from a job's Payment button: on that job, and kept to take there and then. */
+  opts: { jobId?: string | null; take?: boolean } = {},
+): Promise<{ ok: true; message: string; paymentId?: string } | { ok: false; error: string }> {
   if (action === "resend") {
     const via = await resendQuote(id, staffId);
     return via.length ? { ok: true, message: `Sent again by ${viaPhrase(via)}.` } : { ok: false, error: "Couldn't send it: it may no longer be open, or we can't reach them." };
   }
   if (action === "cancel") return (await cancelQuote(id)) ? { ok: true, message: "Quote withdrawn." } : { ok: false, error: "Only an open quote can be withdrawn." };
-  const result = await invoiceBalance(id, staffId);
-  return result.ok ? { ok: true, message: `Invoice for the rest sent${result.sentVia.length ? ` by ${viaPhrase(result.sentVia)}` : ""}.` } : result;
+  const result = await invoiceBalance(id, staffId, { appointmentId: opts.jobId ?? null, send: !opts.take });
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    paymentId: result.requestId,
+    message: opts.take ? "Invoice ready: take it now." : `Invoice for the rest sent${result.sentVia.length ? ` by ${viaPhrase(result.sentVia)}` : ""}.`,
+  };
 }

@@ -16,8 +16,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const caller = await mobileStaff(request);
   if (caller instanceof NextResponse) return caller;
   const { id } = await params;
-  const { action } = await readJson<{ action: string }>(request);
+  const { action, jobId, take } = await readJson<{ action: string; jobId?: string; take?: boolean }>(request);
   if (!QUOTE_ACTIONS.includes(action as QuoteAction)) return mobileJson({ error: "Nothing to do." }, 400);
-  const result = await quoteAction(id, action as QuoteAction, caller.user.id);
+  const result = await quoteAction(id, action as QuoteAction, caller.user.id, { jobId: typeof jobId === "string" ? jobId : null, take: take === true });
   return result.ok ? mobileJson(result) : mobileJson({ error: result.error }, 400);
 }

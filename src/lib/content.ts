@@ -64,7 +64,8 @@ export const business = {
   phoneE164: MPE_PHONE,
   /** Fergal's own mobile: what a call to the MPE number rings. Never shown to customers once the MPE number is set. */
   engineerMobile: ENGINEER_MOBILE,
-  whatsappHref: "https://wa.me/447448628101",
+  // Fergal's WhatsApp until WhatsApp Business is on the MPE number (NEXT_PUBLIC_WHATSAPP_NUMBER).
+  whatsappHref: `https://wa.me/${(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+447448628101").replace(/\D/g, "")}`,
   email: "fergal@mpenortheast.co.uk",
   gasSafeNumber: "552052",
   base: "Whitley Bay",

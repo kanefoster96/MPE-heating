@@ -222,14 +222,18 @@ needs, in order. `mobile/README.md` has how to run and build it.
 
 ### Apple (iPhone)
 
-- [ ] **Apple Developer Program, in MPE's name**
-      (developer.apple.com/programs). Apple rejects apps a business
-      publishes from someone else's account (guideline 4.2.6).
-  - As a company: you need its D-U-N-S number (Apple's enrolment page
-        looks it up or requests one; allow a few days). The App Store
-        shows the company's name.
-  - As a sole trader: enrol as an individual in Fergal's own name. The
-        App Store shows his name.
+- [ ] **A D-U-N-S number for MPE's limited company.** Apple and Google
+      both use it to check the company is real before it can publish.
+      It's free: look the company up at developer.apple.com/enroll/duns-lookup
+      and request one if it hasn't got one (it can take a few days, and up
+      to a couple of weeks to reach Apple). The company's details must
+      match Companies House exactly.
+- [ ] **Apple Developer Program, as an organisation in MPE's name**
+      (developer.apple.com/programs, with the D-U-N-S number). Apple
+      rejects apps a business publishes from someone else's account
+      (guideline 4.2.6). Enrol as someone with authority to sign for the
+      company (Fergal, as a director), using an Apple ID with two-factor
+      authentication on. The App Store then shows the company's name.
 - [ ] **App Store Connect → Users and Access:** add whoever uploads the
       builds (you) as App Manager, so Fergal doesn't have to.
 - [ ] **Certificates, Identifiers & Profiles:** the first `eas build`
@@ -267,30 +271,22 @@ needs, in order. `mobile/README.md` has how to run and build it.
         screenshots (6.9-inch iPhone at least) and the description.
   - [ ] Encryption: already answered in the app (`usesNonExemptEncryption`
         is false).
-- [ ] **A review login for Apple:** reviewers can't open a customer's
-      email, so one address signs in with a password instead.
-  - [ ] Supabase → Authentication → Users → Add user: an address like
-        `appreview@<your domain>` with a password.
-  - [ ] Set that address as `APP_REVIEW_EMAIL` on the website.
-  - [ ] Put both in App Review's notes, and say Take payment (Tap to Pay)
-        is only shown to MPE's own engineers.
 - Sign in with Apple isn't needed: the app only signs in by email.
 - Delete account is already in the app, as Apple requires.
 
 ### Google (Android)
 
-- [ ] **Google Play Console account in MPE's name** (one-off fee). An
-      organisation account needs the D-U-N-S number too. A new personal
-      account has to run a closed test with 12 testers for 14 days before
-      it can publish.
+- [ ] **Google Play Console account as an organisation** in MPE's name
+      (one-off fee), with the same D-U-N-S number. (A personal account
+      would have to run a closed test with 12 testers for 14 days first;
+      an organisation account doesn't.)
 - [ ] **Push notifications:** a Firebase project → Project settings →
       Service accounts → generate a key, then upload it in expo.dev → the
       project → Credentials → Android → FCM V1.
 - [ ] **Data safety form:** the same answers as Apple's App Privacy.
-- [ ] **Account deletion link:** Google asks for a web page that says how
-      to delete an account. The app has Delete account, but the website
-      has no page for this yet. Tell me what you'd like it to say and I'll
-      add it (a section on the privacy page would do).
+- [ ] **Account deletion link:** Google asks for a web page about deleting
+      an account: give it `<site>/delete-account` (signed in, it has the
+      button; signed out, it says how).
 - [ ] Tap to Pay on Android needs no extra permission from Google: an
       NFC phone on Android 11 or newer, and Stripe's location (section 5).
 
@@ -312,6 +308,16 @@ needs, in order. `mobile/README.md` has how to run and build it.
       `ANDROID_CERT_SHA256` are set, links in emails and texts open the
       website, and "Confirm my email" opens the website's confirm page,
       which then hands back to the app.
+
+### Last, just before sending it to Apple
+
+- [ ] **A review login for Apple:** reviewers can't open a customer's
+      email, so one address signs in with a password instead.
+  - [ ] Supabase → Authentication → Users → Add user: an address like
+        `appreview@<your domain>` with a password.
+  - [ ] Set that address as `APP_REVIEW_EMAIL` on the website.
+  - [ ] Put both in App Review's notes, and say Take payment (Tap to Pay)
+        is only shown to MPE's own engineers.
 
 On the website (Vercel):
 

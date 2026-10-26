@@ -73,3 +73,43 @@ export type AppNotice = {
   url?: string;
   route?: string;
 };
+
+/** A customer's job (src/lib/app-jobs.ts on the site). */
+export type JobStep = { label: string; detail?: string; state: "done" | "now" | "next" };
+export type JobCard = {
+  id: string;
+  title: string;
+  when: string;
+  status: "underway" | "booked" | "requested" | "waiting" | "missed" | "done";
+  statusLabel: string;
+  steps: JobStep[];
+  report: string | null;
+  actions: { label: string; url: string; primary?: boolean }[];
+};
+
+/** One of the team's visits for a day. */
+export type StaffJob = {
+  id: string;
+  kind: string;
+  title: string | null;
+  status: "requested" | "booked" | "done" | "no_access" | "cancelled";
+  window: string;
+  start: number;
+  customer: { name: string | null; phone: string | null; conversationId: string | null } | null;
+  address: string | null;
+  postcode: string | null;
+  notes: string | null;
+  onMyWay: string | null;
+  changeRequested: boolean;
+  openPayment: { id: string; amount: string } | null;
+  paid: boolean;
+};
+
+export type StaffDay = {
+  day: string;
+  label: string;
+  closed: string | null | false;
+  jobs: StaffJob[];
+  strip: { day: string; count: number; closed: boolean }[];
+  waiting: number;
+};

@@ -1,4 +1,4 @@
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { apiPost } from "@/lib/api";
 import { SITE_URL } from "@/lib/site";
@@ -36,4 +36,11 @@ export async function openSignedIn(path: string): Promise<void> {
 /** A phone call, WhatsApp or email: the phone's own app. */
 export function openExternal(url: string): void {
   Linking.openURL(url).catch(() => {});
+}
+
+/** Directions to an address in the phone's maps app (Apple Maps, or Google Maps on Android). */
+export function openDirections(address: string): void {
+  const q = encodeURIComponent(address);
+  const url = Platform.OS === "ios" ? `maps://?daddr=${q}` : Platform.OS === "android" ? `geo:0,0?q=${q}` : `https://www.google.com/maps/dir/?api=1&destination=${q}`;
+  Linking.openURL(url).catch(() => Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${q}`).catch(() => {}));
 }

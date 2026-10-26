@@ -44,7 +44,11 @@ picked up.
   customer's chat with the team, photos from the camera or library,
   live. The team see their inbox instead, and reply by chat, text or
   email (`app/chat/[id].tsx`).
-- **Jobs**: says "coming next" until it's built.
+- **Jobs** (`app/(tabs)/jobs.tsx`): a customer's jobs, each with its
+  steps (requested, booked, on the way, done, paid), today's as a green
+  card, and their previous jobs underneath. For the team, the day's
+  visits on a fortnight strip, with Call, Directions, Chat, On my way,
+  Not in, Finish and Take payment.
 - **Bell** (`app/notifications.tsx`): what's waiting on them (an invoice
   to pay, a quote, a plan payment that failed) and what's coming up. For
   the team, new bookings and requests.

@@ -20,7 +20,7 @@ if (Platform.OS !== "web") {
 
 /**
  * Tapping a push opens what it's about (Kanvas Academy's PushNavigator): a
- * chat reply opens Chat, a visit or invoice opens its page. A push that
+ * chat reply opens Chat, a visit opens Jobs, an invoice its page. A push that
  * lands while the app is open refreshes the counts on the bell and Chat.
  */
 function PushNavigator() {
@@ -39,6 +39,9 @@ function PushNavigator() {
     Notifications.clearLastNotificationResponseAsync().catch(() => {});
     if (data.kind === "chat" && data.conversationId) {
       router.push(staff ? `/chat/${data.conversationId}` : "/chat");
+    } else if (data.kind === "link" && data.href?.startsWith("/visit/") && !staff) {
+      // A visit booked, on the way or done: the job, with its steps.
+      router.push("/jobs");
     } else if (data.kind === "link" && data.href) {
       const target = targetFor(data.href, { staff });
       if ("route" in target) router.push(target.route as never);

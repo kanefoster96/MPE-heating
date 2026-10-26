@@ -1,0 +1,271 @@
+import type { User } from "@supabase/supabase-js";
+import { CLUB_SITE_URL } from "@/lib/club";
+import { customerForUser, getCustomers } from "@/lib/customers";
+import { appointmentsBetween, appointmentsForCustomer, waitingOnTeamCount, type Appointment } from "@/lib/appointments";
+import { KIND_LABEL, addDays, longDate, windowLabel } from "@/lib/day-plan";
+import { requestedWhen, whenLine } from "@/lib/visit-copy";
+import { londonNow } from "@/lib/schedule-time";
+import { formatPence, invoiceNumber, payLink, paymentsForAppointments, paymentsForCustomer, type PaymentRequest } from "@/lib/payments";
+import { quoteLink, quoteNumber, quoteOpen, quotesForCustomer } from "@/lib/quotes";
+import { filesForCustomer } from "@/lib/job-files";
+import { CATEGORY_LABEL, enquiriesForCustomer } from "@/lib/enquiries";
+import { arrivalClock, visitLink } from "@/lib/visit-notify";
+import { bookedPerDay } from "@/lib/dashboard";
+import { closedDays } from "@/lib/days-off";
+
+/**
+ * The app's Jobs tab (mobile/app/(tabs)/jobs.tsx), built fresh from the
+ * records each time, nothing stored.
+ *
+ * A customer's job starts when there's something real: a booking form
+ * they sent, a visit the team booked, or a quote. A chat message alone
+ * stays in chat until the team books it. Each job shows its steps:
+ * requested, booked (when), on the way (from the engineer's "on my way"),
+ * done (with what was done), and paid. A job finished today stays at the
+ * top for the rest of the day, then moves to Previous jobs, which is the
+ * boiler's history.
+ *
+ * For the team, the same tab is the day's jobs: who, where, when, and the
+ * buttons for the visit (call, directions, on my way, not in, finish).
+ */
+
+const SITE = CLUB_SITE_URL.replace(/\/$/, "");
+
+export type JobStep = { label: string; detail?: string; state: "done" | "now" | "next" };
+export type JobAction = { label: string; url: string; primary?: boolean };
+export type JobCard = {
+  id: string;
+  title: string;
+  when: string;
+  /** "underway" is today's, on its way or in progress: the green card. */
+  status: "underway" | "booked" | "requested" | "waiting" | "missed" | "done";
+  statusLabel: string;
+  steps: JobStep[];
+  report: string | null;
+  actions: JobAction[];
+  sortKey: string;
+};
+
+const STATUS_LABEL: Record<JobCard["status"], string> = {
+  underway: "Today",
+  booked: "Booked",
+  requested: "Requested",
+  waiting: "Waiting on you",
+  missed: "Missed",
+  done: "Done",
+};
+
+function paymentStep(payments: PaymentRequest[]): { step: JobStep; action?: JobAction } | null {
+  const live = payments.filter((p) => p.status !== "cancelled");
+  if (!live.length) return null;
+  const open = live.find((p) => p.status === "open" && p.planStatus !== "active");
+  if (open) {
+    return {
+      step: { label: "Pay", detail: `${formatPence(open.amountPence)} (${invoiceNumber(open.number)})`, state: "now" },
+      action: { label: `Pay ${formatPence(open.amountPence)}`, url: payLink(open), primary: true },
+    };
+  }
+  const monthly = live.find((p) => p.planStatus === "active");
+  if (monthly) return { step: { label: "Paying monthly", detail: invoiceNumber(monthly.number), state: "done" }, action: { label: "Monthly payments", url: payLink(monthly) } };
+  return { step: { label: "Paid", state: "done" }, action: { label: "Receipt", url: payLink(live[0]) } };
+}
+
+function visitCard(v: Appointment, today: string, payments: PaymentRequest[], hasFiles: boolean): JobCard {
+  const done = v.status === "done";
+  const steps: JobStep[] = [];
+  if (v.source !== "team" || v.status === "requested") steps.push({ label: "Requested", detail: longDate(v.createdAt.slice(0, 10)), state: "done" });
+  if (v.status === "requested") steps.push({ label: "Booking a time", detail: `You asked for ${requestedWhen(v.day, v.part)}. We'll confirm it.`, state: "now" });
+  else steps.push({ label: "Booked", detail: whenLine(v), state: "done" });
+  if (v.status === "no_access") {
+    steps.push({ label: "We couldn't get in", detail: "Pick another time and we'll come back.", state: "now" });
+  } else if (v.status !== "requested") {
+    steps.push(
+      v.onMyWayAt
+        ? { label: "On the way", detail: `Arriving around ${arrivalClock(v.onMyWayAt, v.onMyWayEta ?? 30)}`, state: "done" }
+        : { label: "On the way", detail: done ? undefined : "We'll text you when we set off.", state: done ? "done" : v.day === today ? "now" : "next" },
+    );
+  }
+  steps.push(done ? { label: "Job done", detail: v.completedAt ? longDate(v.completedAt.slice(0, 10)) : undefined, state: "done" } : { label: "Job done", state: "next" });
+  const pay = done ? paymentStep(payments) : null;
+  if (pay) steps.push(pay.step);
+
+  const actions: JobAction[] = [];
+  if (pay?.action) actions.push(pay.action);
+  if (v.status === "no_access") actions.push({ label: "Pick another time", url: visitLink(v), primary: true });
+  actions.push({ label: "Visit details", url: visitLink(v) });
+  if (hasFiles) actions.push({ label: "Certificates and photos", url: `${SITE}/account#files` });
+
+  const status: JobCard["status"] = done
+    ? "done"
+    : v.status === "no_access"
+      ? "missed"
+      : v.status === "requested"
+        ? "requested"
+        : v.day === today || v.onMyWayAt
+          ? "underway"
+          : "booked";
+  return {
+    id: `visit-${v.id}`,
+    title: v.title?.trim() || KIND_LABEL[v.kind],
+    when: v.status === "requested" ? `Asked for ${requestedWhen(v.day, v.part)}` : whenLine(v),
+    status,
+    statusLabel: STATUS_LABEL[status],
+    steps,
+    report: v.jobReport,
+    actions,
+    sortKey: `${v.day}-${String(v.start).padStart(4, "0")}`,
+  };
+}
+
+export async function customerJobs(user: User): Promise<{ active: JobCard[]; previous: JobCard[] }> {
+  if (user.is_anonymous) return { active: [], previous: [] };
+  const customer = await customerForUser(user.id, user.email);
+  if (!customer) return { active: [], previous: [] };
+  const today = londonNow().dateISO;
+  const [visits, payments, quotes, files, enquiries] = await Promise.all([
+    appointmentsForCustomer(customer.id),
+    paymentsForCustomer(customer.id),
+    quotesForCustomer(customer.id),
+    filesForCustomer(customer.id, { sharedOnly: true }).catch(() => []),
+    enquiriesForCustomer(customer.id).catch(() => []),
+  ]);
+  const byVisit = new Map<string, PaymentRequest[]>();
+  for (const p of payments) if (p.appointmentId) byVisit.set(p.appointmentId, [...(byVisit.get(p.appointmentId) ?? []), p]);
+  const filesByVisit = new Set(files.map((f) => f.appointmentId).filter(Boolean));
+
+  const active: JobCard[] = [];
+  const previous: JobCard[] = [];
+  for (const v of visits) {
+    if (v.status === "cancelled") continue;
+    const card = visitCard(v, today, byVisit.get(v.id) ?? [], filesByVisit.has(v.id));
+    // Finished today: stays up top for the rest of the day.
+    const isActive = v.status === "done" ? v.day >= today : v.day >= today || v.status === "no_access" || v.status === "requested";
+    (isActive ? active : previous).push(card);
+  }
+
+  // A booking form with no visit yet: "we've got it", and their link to pick a time.
+  const booked = new Set(visits.map((v) => v.enquiryId).filter(Boolean));
+  const monthAgo = addDays(today, -30);
+  for (const e of enquiries) {
+    if (booked.has(e.id) || (e.status !== "new" && e.status !== "contacted") || e.createdAt.slice(0, 10) < monthAgo) continue;
+    active.push({
+      id: `request-${e.id}`,
+      title: CATEGORY_LABEL[e.category],
+      when: `Sent ${longDate(e.createdAt.slice(0, 10))}`,
+      status: "requested",
+      statusLabel: STATUS_LABEL.requested,
+      steps: [
+        { label: "Request received", detail: e.sameDay ? "You asked for today." : undefined, state: "done" },
+        { label: "Booking a time", detail: "We'll be in touch, or pick a time yourself.", state: "now" },
+        { label: "Visit", state: "next" },
+        { label: "Job done", state: "next" },
+      ],
+      report: null,
+      actions: [{ label: "Pick a time", url: `${SITE}/request/${e.publicToken}`, primary: true }],
+      sortKey: e.createdAt.slice(0, 10),
+    });
+  }
+
+  // A quote waiting on their answer, or accepted and waiting for the install to be booked.
+  for (const q of quotes) {
+    const accepted = q.status === "accepted" && !!q.acceptedAt && q.acceptedAt.slice(0, 10) >= monthAgo;
+    const installBooked = accepted && visits.some((v) => v.kind === "install" && v.status !== "cancelled" && v.createdAt >= q.acceptedAt!);
+    if (!quoteOpen(q) && !(accepted && !installBooked)) continue;
+    active.push({
+      id: `quote-${q.id}`,
+      title: q.title,
+      when: `${quoteNumber(q.number)}: ${formatPence(q.totalPence)}`,
+      status: accepted ? "booked" : "waiting",
+      statusLabel: accepted ? "Accepted" : STATUS_LABEL.waiting,
+      steps: [
+        { label: "Quote sent", detail: q.sentAt ? longDate(q.sentAt.slice(0, 10)) : undefined, state: "done" },
+        accepted ? { label: "Accepted", detail: longDate(q.acceptedAt!.slice(0, 10)), state: "done" } : { label: "Your answer", detail: `Valid until ${longDate(q.validUntil)}`, state: "now" },
+        { label: "Booking the work", detail: accepted ? "We'll be in touch to book it in." : undefined, state: accepted ? "now" : "next" },
+        { label: "Job done", state: "next" },
+      ],
+      report: null,
+      actions: [{ label: accepted ? "Your quote" : `View quote, ${formatPence(q.totalPence)}`, url: quoteLink(q), primary: !accepted }],
+      sortKey: (q.sentAt ?? q.createdAt).slice(0, 10),
+    });
+  }
+
+  // Today's first, then the soonest; history newest first.
+  const rank: Record<JobCard["status"], number> = { underway: 0, missed: 1, waiting: 2, booked: 3, requested: 4, done: 5 };
+  active.sort((a, b) => rank[a.status] - rank[b.status] || a.sortKey.localeCompare(b.sortKey));
+  previous.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  return { active, previous: previous.slice(0, 50) };
+}
+
+// ---------------------------------------------------------------------------
+// The team's day.
+
+export type StaffJob = {
+  id: string;
+  kind: string;
+  title: string | null;
+  status: Appointment["status"];
+  window: string;
+  start: number;
+  customer: { name: string | null; phone: string | null; conversationId: string | null } | null;
+  address: string | null;
+  postcode: string | null;
+  notes: string | null;
+  onMyWay: string | null;
+  changeRequested: boolean;
+  openPayment: { id: string; amount: string } | null;
+  paid: boolean;
+};
+
+export type StaffDay = {
+  day: string;
+  label: string;
+  closed: string | null | false;
+  jobs: StaffJob[];
+  strip: { day: string; count: number; closed: boolean }[];
+  waiting: number;
+};
+
+export async function staffDay(dayParam: string | null): Promise<StaffDay> {
+  const today = londonNow().dateISO;
+  const day = dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) ? dayParam : today;
+  const [visits, perDay, closed, waiting] = await Promise.all([
+    appointmentsBetween(day, day),
+    bookedPerDay(today, 14),
+    closedDays(today, addDays(today, 13)).catch(() => new Map<string, string | null>()),
+    waitingOnTeamCount(today).catch(() => 0),
+  ]);
+  const shown = visits.filter((v) => v.status !== "cancelled").sort((a, b) => a.start - b.start);
+  const [customers, payments] = await Promise.all([
+    getCustomers(shown.map((v) => v.customerId).filter((id): id is string => !!id)),
+    paymentsForAppointments(shown.map((v) => v.id)),
+  ]);
+  const dayClosed = (await closedDays(day, day).catch(() => new Map<string, string | null>())).get(day);
+  return {
+    day,
+    label: day === today ? "Today" : day === addDays(today, 1) ? "Tomorrow" : longDate(day),
+    closed: dayClosed === undefined ? false : dayClosed,
+    waiting,
+    strip: perDay.map((d) => ({ day: d.day, count: d.count, closed: closed.has(d.day) })),
+    jobs: shown.map((v) => {
+      const c = v.customerId ? customers.get(v.customerId) : undefined;
+      const ps = (payments.get(v.id) ?? []).filter((p) => p.status !== "cancelled");
+      const open = ps.find((p) => p.status === "open");
+      return {
+        id: v.id,
+        kind: KIND_LABEL[v.kind],
+        title: v.title,
+        status: v.status,
+        window: windowLabel(v.start, v.end),
+        start: v.start,
+        customer: c ? { name: c.name, phone: c.phoneE164 ?? c.phone, conversationId: c.conversationId } : null,
+        address: v.address ?? c?.address ?? null,
+        postcode: v.postcode ?? c?.postcode ?? null,
+        notes: v.notes,
+        onMyWay: v.onMyWayAt ? arrivalClock(v.onMyWayAt, v.onMyWayEta ?? 30) : null,
+        changeRequested: !!v.change,
+        openPayment: open ? { id: open.id, amount: formatPence(open.amountPence) } : null,
+        paid: ps.length > 0 && !open,
+      };
+    }),
+  };
+}

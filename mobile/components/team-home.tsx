@@ -231,7 +231,7 @@ export function TeamHome() {
             </View>
             {me?.admin ? (
               <View style={{ flexDirection: "row", gap: 10 }}>
-                <Action icon="receipt" label="New invoice" onPress={() => openSignedIn("/staff/payments/new")} />
+                <Action icon="receipt" label="New invoice" onPress={() => router.push("/new-payment")} />
                 <Action icon="create" label="New quote" onPress={() => openSignedIn("/staff/quotes/new")} />
               </View>
             ) : null}

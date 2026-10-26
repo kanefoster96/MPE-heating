@@ -42,3 +42,10 @@ export async function readJson<T extends object>(request: Request): Promise<Part
     return {};
   }
 }
+
+/** A JSON body as the form a website check reads (customerFieldsFromForm and the like): only the text fields sent. */
+export function jsonAsForm(body: Record<string, unknown>): FormData {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(body)) if (typeof value === "string") form.set(key, value);
+  return form;
+}

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { FlatList, RefreshControl, View } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "@/components/screen-header";
 import { RowSkeleton } from "@/components/rows";
@@ -9,7 +9,6 @@ import { PaymentSheet } from "@/components/payment-sheet";
 import { TapToPayProvider, useTapToPay } from "@/components/tap-to-pay";
 import { apiFetch } from "@/lib/api";
 import { notify } from "@/lib/confirm";
-import { openSignedIn } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 import type { SheetContext } from "@/lib/types";
 
@@ -31,6 +30,7 @@ export default function TakePaymentScreen() {
 }
 
 function TakePayment() {
+  const router = useRouter();
   const [data, setData] = useState<PaymentsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -94,7 +94,7 @@ function TakePayment() {
           </AppText>
         </View>
       </Card>
-      <SecondaryButton title="New payment" icon="add" onPress={() => openSignedIn("/staff/payments/new")} />
+      <SecondaryButton title="New invoice or call-out fee" icon="add" onPress={() => router.push("/new-payment")} />
       <AppText weight="bold" style={{ color: colors.text3, fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", marginTop: 6, marginLeft: 4 }}>
         Waiting to be paid
       </AppText>

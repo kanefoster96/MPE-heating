@@ -43,6 +43,8 @@ export type StaffCustomer = {
     open: JobPayment[];
     paidCount: number;
   };
+  /** Everything the edit form changes, as saved. */
+  fields: Record<string, string>;
   /** The website's pages for the rest, opened signed in. */
   links: { book: string; invoice: string; quote: string; page: string };
 };
@@ -141,6 +143,20 @@ export async function staffCustomer(id: string, viewerId: string): Promise<Staff
         ),
       ),
       paidCount: payments.filter((p) => p.status === "paid").length,
+    },
+    fields: {
+      name: customer.name ?? "",
+      phone: customer.phone ?? "",
+      email: customer.email ?? "",
+      address: customer.address ?? "",
+      postcode: customer.postcode ?? "",
+      boilerMake: customer.boilerMake ?? "",
+      boilerModel: customer.boilerModel ?? "",
+      boilerAge: customer.boilerAge ?? "",
+      boilerLocation: customer.boilerLocation ?? "",
+      lastService: customer.lastService ?? "",
+      boilerNotes: customer.boilerNotes ?? "",
+      accessNotes: customer.accessNotes ?? "",
     },
     links: {
       book: `/staff/schedule?view=day&date=${today}&customer=${customer.id}#add`,

@@ -81,6 +81,10 @@ export default function RootLayout() {
           <Stack.Screen name="calendar" />
           <Stack.Screen name="visit-form" />
           <Stack.Screen name="finish/[id]" />
+          <Stack.Screen name="new-payment" />
+          <Stack.Screen name="customer-form" />
+          <Stack.Screen name="invoices" />
+          <Stack.Screen name="invoice/[id]" />
           <Stack.Screen name="finance" />
           <Stack.Screen name="metrics" />
           <Stack.Screen name="certificates" />

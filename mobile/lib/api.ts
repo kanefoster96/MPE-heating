@@ -84,7 +84,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return read<T>(res, path, method);
 }
 
-/** A POST with a JSON body. */
-export function apiPost<T>(path: string, body: unknown = {}): Promise<T> {
-  return apiFetch<T>(path, { method: "POST", body: JSON.stringify(body) });
+/** A POST (or `method`, like PATCH) with a JSON body. */
+export function apiPost<T>(path: string, body: unknown = {}, method: "POST" | "PATCH" | "DELETE" = "POST"): Promise<T> {
+  return apiFetch<T>(path, { method, body: JSON.stringify(body) });
 }

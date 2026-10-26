@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText, PressableScale, PrimaryButton, haptic } from "@/components/ui";
 import { useTapToPay, type TapWith } from "@/components/tap-to-pay";
 import { apiPost } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/confirm";
-import { openSignedIn } from "@/lib/open-link";
 import { colors, fonts } from "@/lib/theme";
 import type { JobPayment, SheetContext } from "@/lib/types";
 
@@ -89,11 +89,11 @@ function Choice({ icon, label, detail, onPress, disabled }: { icon: IconName; la
  *  - cash, all of it or part: part comes off what's left, and the rest is
  *    taken by card or the link;
  *  - or a bank transfer.
- * A new invoice or call-out fee is the website's take-payment page for the
- * visit (call-out credit, products, monthly payments), opened signed in.
+ * A new invoice or call-out fee for the job is app/new-payment.tsx.
  */
 export function PaymentSheet({ visible, context, onClose, onDone }: { visible: boolean; context: SheetContext; onClose: () => void; onDone: () => void }) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const choices = context.choices.filter((p) => p.status === "open" && !p.monthly && p.amountPence > 0);
   const monthly = context.choices.filter((p) => p.status === "open" && p.monthly);
   const [picked, setPicked] = useState<string | null>(choices[0]?.id ?? null);
@@ -212,7 +212,7 @@ export function PaymentSheet({ visible, context, onClose, onDone }: { visible: b
   function newPayment() {
     if (!context.jobId) return;
     onClose();
-    openSignedIn(`/staff/payments/new?visit=${context.jobId}`);
+    router.push(`/new-payment?visit=${context.jobId}`);
   }
 
   const card = tap.supported && context.on;
@@ -265,7 +265,7 @@ export function PaymentSheet({ visible, context, onClose, onDone }: { visible: b
                 {p.number} is being paid monthly: record payments on it from the website.
               </AppText>
             ))}
-            {context.jobId && <Choice icon="add-circle-outline" label="New invoice or call-out fee" detail="For this job, on the website." onPress={newPayment} />}
+            {context.jobId && <Choice icon="add-circle-outline" label="New invoice or call-out fee" detail="For this job." onPress={newPayment} />}
 
             {chosen && (
               <View style={{ gap: 10, marginTop: 12 }}>

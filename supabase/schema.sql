@@ -738,11 +738,13 @@ alter table public.payment_requests add column if not exists plan_charging_at ti
 alter table public.payment_requests drop column if exists plan_subscription_id;
 alter table public.payment_requests drop constraint if exists payment_requests_paid_via_check;
 alter table public.payment_requests add constraint payment_requests_paid_via_check
-  check (paid_via in ('link', 'app', 'saved_card', 'tap_to_pay', 'in_person', 'cash', 'bank_transfer', 'instalments'));
+  check (paid_via in ('link', 'app', 'saved_card', 'tap_to_pay', 'card_reader', 'in_person', 'cash', 'bank_transfer', 'instalments', 'part_payments'));
 create index if not exists payment_requests_plan_due_idx on public.payment_requests (plan_next_due_on) where plan_status in ('active', 'past_due');
 
 -- Every payment towards an invoice being paid monthly: the first, each
 -- month's, anything extra they pay off, and money Fergal takes in person.
+-- Also the parts of an invoice paid in parts (some cash, then the rest by
+-- card or the link), which is then paid by 'part_payments'.
 -- A Stripe payment is counted once, however often Stripe tells us.
 create table if not exists public.instalment_payments (
   id uuid primary key default gen_random_uuid(),

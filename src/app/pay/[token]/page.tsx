@@ -8,7 +8,7 @@ import { PrintButton } from "@/components/PrintButton";
 import { business } from "@/lib/content";
 import { getCustomer } from "@/lib/customers";
 import { enquiriesOn } from "@/lib/enquiries";
-import { PAID_VIA_LABEL, formatPence, getPaymentByToken, invoiceNumber, paymentsOn } from "@/lib/payments";
+import { PAID_VIA_LABEL, formatPence, getPaymentByToken, invoiceNumber, partPaymentsFor, paymentsOn, type PaidVia } from "@/lib/payments";
 import { changeCard, payMonthly, payNow, payOff } from "./actions";
 import { instalmentSchedule, scheduleSummary } from "@/lib/instalment-schedule";
 import { instalmentProgress } from "@/lib/instalments";
@@ -45,6 +45,10 @@ export default async function PayPage({
   const onMonthly = p.planStatus === "active" || p.planStatus === "past_due";
   const offerMonthly = p.status === "open" && !p.planStatus && p.instalments ? instalmentSchedule(p.amountPence, p.instalments.months, p.instalments.depositPence) : null;
   const progress = p.planStatus ? (await instalmentProgress([p])).get(p.id) : undefined;
+  // Paid in parts (some cash, the rest by card): what's in, and what's left.
+  const parts = p.planStatus ? [] : ((await partPaymentsFor([p.id])).get(p.id) ?? []);
+  const partPence = parts.reduce((sum, x) => sum + x.amountPence, 0);
+  const leftPence = p.amountPence - partPence;
 
   return (
     <>
@@ -122,7 +126,7 @@ export default async function PayPage({
               </tbody>
               <tfoot>
                 <tr>
-                  <td className="pt-4 text-lg font-bold text-navy">{isPaid ? "Paid" : p.offers.some((o) => !o.taken) || p.planStatus ? "Invoice total" : "Total to pay"}</td>
+                  <td className="pt-4 text-lg font-bold text-navy">{isPaid ? "Paid" : p.offers.some((o) => !o.taken) || p.planStatus || partPence ? "Invoice total" : "Total to pay"}</td>
                   <td className="pt-4 text-right text-2xl font-extrabold text-navy" data-amount>
                     {formatPence(p.amountPence)}
                   </td>
@@ -135,6 +139,34 @@ export default async function PayPage({
                 Paid {DATE.format(new Date(p.paidAt))}
                 {p.paidVia ? ` · ${PAID_VIA_LABEL[p.paidVia]}` : ""}. Thank you!
               </p>
+            )}
+            {parts.length > 0 && (
+              <section className="mt-6 rounded-2xl bg-cream p-5" data-part-payments aria-labelledby="parts-heading">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 id="parts-heading" className="font-semibold text-navy">
+                    {isPaid ? "Paid in parts" : "Paid so far"}
+                  </h2>
+                  {!isPaid && p.status === "open" && (
+                    <p className="text-navy">
+                      <span className="text-2xl font-extrabold" data-balance>
+                        {formatPence(leftPence)}
+                      </span>{" "}
+                      <span className="text-sm text-text-2">left to pay</span>
+                    </p>
+                  )}
+                </div>
+                <ul className="mt-3 flex flex-col divide-y divide-line border-y border-line text-sm">
+                  {parts.map((x, i) => (
+                    <li key={i} className="flex justify-between gap-3 py-2">
+                      <span className="text-text-2">
+                        {DATE.format(new Date(x.paidAt))}
+                        {x.paidVia && x.paidVia in PAID_VIA_LABEL ? ` · ${PAID_VIA_LABEL[x.paidVia as PaidVia]}` : ""}
+                      </span>
+                      <span className="font-semibold text-navy">{formatPence(x.amountPence)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
             {p.kind === "callout_fee" && !isPaid && (
               <p className="mt-4 text-sm text-text-2">If you go ahead with the repair, the call-out fee comes off your bill.</p>
@@ -235,10 +267,10 @@ export default async function PayPage({
               (paymentsOn() ? (
                 <PayForm
                   action={payNow.bind(null, token)}
-                  amountPence={p.amountPence}
-                  offers={p.offers.map((o, index) => ({ index, label: o.label, pence: o.pence, usualPence: o.usualPence, taken: o.taken })).filter((o) => !o.taken)}
+                  amountPence={leftPence}
+                  offers={partPence ? [] : p.offers.map((o, index) => ({ index, label: o.label, pence: o.pence, usualPence: o.usualPence, taken: o.taken })).filter((o) => !o.taken)}
                   monthly={
-                    offerMonthly?.ok ? (
+                    offerMonthly?.ok && !partPence ? (
                       <form action={payMonthly.bind(null, token)} className="rounded-2xl border-2 border-line bg-cream p-4" data-pay-monthly>
                         <p className="font-semibold text-navy">Or spread the cost, interest-free</p>
                         <p className="mt-1 text-sm text-text-2">

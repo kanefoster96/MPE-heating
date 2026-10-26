@@ -12,6 +12,7 @@ import {
   payLink,
   paymentsForAppointments,
   paymentsForCustomer,
+  partPaymentsFor,
   paymentsOn,
   savedCardFor,
   type PaymentRequest,
@@ -295,7 +296,12 @@ export type JobPayment = {
   number: string;
   kind: PaymentRequest["kind"];
   description: string;
+  /** What's left to pay (all of it, unless some's been paid). */
   amount: string;
+  amountPence: number;
+  /** The invoice's total, and what's been paid towards it (cash first, say), when some has. */
+  total: string;
+  paidSoFar: string | null;
   status: "open" | "paid";
   paidVia: string | null;
   /** Being paid monthly: taken through its monthly payments, not here. */
@@ -304,6 +310,24 @@ export type JobPayment = {
   job: "this" | "none" | string;
 };
 
+/** An invoice for the app's Payment sheet: what's left, and which job it's on. */
+export function toJobPayment(p: PaymentRequest, paidPence: number, job: JobPayment["job"]): JobPayment {
+  const left = Math.max(0, p.amountPence - paidPence);
+  return {
+    id: p.id,
+    number: invoiceNumber(p.number),
+    kind: p.kind,
+    description: p.description,
+    amount: formatPence(p.status === "open" ? left : p.amountPence),
+    amountPence: p.status === "open" ? left : p.amountPence,
+    total: formatPence(p.amountPence),
+    paidSoFar: paidPence > 0 && p.status === "open" ? formatPence(paidPence) : null,
+    status: p.status === "paid" ? "paid" : "open",
+    paidVia: p.paidVia ? PAID_VIA_LABEL[p.paidVia] : null,
+    monthly: !!p.planStatus,
+    job,
+  };
+}
 export type StaffJobDetail = {
   job: StaffJob;
   day: string;
@@ -341,17 +365,14 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
       visits.set(aid, a ? longDate(a.day) : "another visit");
     }),
   );
-  const shape = (p: PaymentRequest): JobPayment => ({
-    id: p.id,
-    number: invoiceNumber(p.number),
-    kind: p.kind,
-    description: p.description,
-    amount: formatPence(p.amountPence),
-    status: p.status === "paid" ? "paid" : "open",
-    paidVia: p.paidVia ? PAID_VIA_LABEL[p.paidVia] : null,
-    monthly: !!p.planStatus,
-    job: p.appointmentId === v.id ? "this" : p.appointmentId ? (visits.get(p.appointmentId) ?? "another visit") : "none",
-  });
+  const parts = await partPaymentsFor([...onJob, ...other].filter((p) => p.status === "open").map((p) => p.id));
+  const shape = (p: PaymentRequest): JobPayment =>
+    toJobPayment(
+      p,
+      (parts.get(p.id) ?? []).reduce((sum, x) => sum + x.amountPence, 0),
+      p.appointmentId === v.id ? "this" : p.appointmentId ? (visits.get(p.appointmentId) ?? "another visit") : "none",
+    );
+
   const today = londonNow().dateISO;
   return {
     job: toStaffJob(v, c ?? undefined, onJob),

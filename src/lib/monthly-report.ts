@@ -52,7 +52,7 @@ export async function monthNumbers(month: string): Promise<MonthNumbers> {
   const toDay = to.slice(0, 10);
 
   const [paid, monthly, jobs, enquiries, sent, won, members, joined, left, reviews, referrals] = await Promise.all([
-    admin.from("payment_requests").select("amount_pence").eq("status", "paid").neq("paid_via", "instalments").gte("paid_at", from).lt("paid_at", to),
+    admin.from("payment_requests").select("amount_pence").eq("status", "paid").not("paid_via", "in", "(instalments,part_payments)").gte("paid_at", from).lt("paid_at", to),
     admin.from("instalment_payments").select("amount_pence").gte("paid_at", from).lt("paid_at", to),
     admin.from("appointments").select("id", { count: "exact", head: true }).eq("status", "done").gte("day", fromDay).lt("day", toDay),
     admin.from("enquiries").select("traffic_source").gte("created_at", from).lt("created_at", to),

@@ -115,18 +115,33 @@ export type StaffDay = {
   waiting: number;
 };
 
-/** An invoice or call-out fee on a team job's page (src/lib/app-jobs.ts on the site). */
+/** An invoice or call-out fee on the Payment sheet (src/lib/app-jobs.ts on the site). */
 export type JobPayment = {
   id: string;
   number: string;
   kind: "callout_fee" | "invoice" | "other";
   description: string;
+  /** What's left to pay. */
   amount: string;
+  amountPence: number;
+  total: string;
+  /** Paid towards it already (cash first, say), while it's open. */
+  paidSoFar: string | null;
   status: "open" | "paid";
   paidVia: string | null;
   monthly: boolean;
   /** "this" job, "none" yet, or the other visit's date. */
   job: string;
+};
+
+/** What the Payment sheet needs (src/lib/app-payments.ts on the site). */
+export type SheetContext = {
+  jobId: string | null;
+  customerName: string | null;
+  on: boolean;
+  terminalLocation: string | null;
+  savedCard: { brand: string; last4: string } | null;
+  choices: JobPayment[];
 };
 
 export type StaffJobDetail = {

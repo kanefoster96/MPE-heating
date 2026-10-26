@@ -1,23 +1,26 @@
 import { useCallback, useState } from "react";
-import { Alert, FlatList, RefreshControl, View } from "react-native";
+import { FlatList, RefreshControl, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "@/components/screen-header";
 import { RowSkeleton } from "@/components/rows";
-import { AppText, Card, LoadError, PressableScale, PrimaryButton, SecondaryButton, haptic } from "@/components/ui";
+import { AppText, Card, LoadError, PressableScale, SecondaryButton } from "@/components/ui";
+import { PaymentSheet } from "@/components/payment-sheet";
 import { TapToPayProvider, useTapToPay } from "@/components/tap-to-pay";
 import { apiFetch } from "@/lib/api";
+import { notify } from "@/lib/confirm";
 import { openSignedIn } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
+import type { SheetContext } from "@/lib/types";
 
-type OpenPayment = { id: string; number: string; description: string; amount: string; amountPence: number; customer: string | null; createdAt: string };
+type OpenPayment = { id: string; number: string; description: string; amount: string; amountPence: number; paidSoFar: string | null; customer: string | null; createdAt: string };
 type PaymentsResponse = { on: boolean; terminalLocation: string | null; payments: OpenPayment[] };
 
 /**
  * The team's Take payment (their Payment tab): every open invoice and
- * call-out fee, and Tap to Pay to take it on this phone. For one job, the
- * job's own page has a Payment button (app/job/[id].tsx). A new payment is made on the website's take-payment page, which
- * opens here signed in; it then shows in this list.
+ * call-out fee. Tapping one opens the Payment sheet: Tap to Pay or a card
+ * reader, their saved card, the link, or cash (all or part). For one job,
+ * the job's own page has a Payment button (app/job/[id].tsx).
  */
 export default function TakePaymentScreen() {
   return (
@@ -31,7 +34,8 @@ function TakePayment() {
   const [data, setData] = useState<PaymentsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<{ id: string; context: SheetContext } | null>(null);
   const tap = useTapToPay(data?.terminalLocation ?? null);
 
   const load = useCallback(async () => {
@@ -49,20 +53,31 @@ function TakePayment() {
     }, [load]),
   );
 
-  async function takeIt(p: OpenPayment) {
-    setBusyId(p.id);
-    const result = await tap.take(p.id);
-    setBusyId(null);
-    if (result.ok) {
-      haptic.success();
-      Alert.alert("Paid", `${p.amount} taken${p.customer ? ` from ${p.customer}` : ""}. We'll send their receipt.`);
-      // The webhook marks it paid a moment later.
-      setTimeout(load, 2500);
-    } else if (!result.cancelled) {
-      haptic.warning();
-      Alert.alert("Not taken", result.message);
+  const open = useCallback(
+    async (id: string) => {
+      setOpening(id);
+      try {
+        setSheet({ id, context: await apiFetch<SheetContext>(`/api/mobile/staff/payments/${id}`) });
+      } catch (err) {
+        notify("Couldn't open that", err instanceof Error ? err.message : "Please try again.");
+        load();
+      } finally {
+        setOpening(null);
+      }
+    },
+    [load],
+  );
+
+  // After a payment: the list, and the sheet if it's still open (part paid).
+  const refresh = useCallback(async () => {
+    await load();
+    if (!sheet) return;
+    try {
+      setSheet({ id: sheet.id, context: await apiFetch<SheetContext>(`/api/mobile/staff/payments/${sheet.id}`) });
+    } catch {
+      setSheet(null);
     }
-  }
+  }, [load, sheet]);
 
   const header = (
     <View style={{ gap: 12, marginBottom: 6 }}>
@@ -72,10 +87,10 @@ function TakePayment() {
         </View>
         <View style={{ flex: 1 }}>
           <AppText weight="bold" style={{ fontSize: 16 }}>
-            Tap to Pay
+            Tap to Pay or card reader
           </AppText>
           <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 19 }}>
-            {tap.supported ? "Pick a payment, then the customer taps their card or phone on the back of yours." : "Works in the full MPE app on your phone, once Tap to Pay is set up."}
+            {tap.supported ? "Pick a payment, then they tap their card or phone on yours, or use the card reader." : "Works in the full MPE app on your phone, once it's set up."}
           </AppText>
         </View>
       </Card>
@@ -127,8 +142,8 @@ function TakePayment() {
           }
           ListEmptyComponent={<AppText style={{ color: colors.text2, textAlign: "center", marginTop: 24 }}>Nothing waiting to be paid.</AppText>}
           renderItem={({ item }) => (
-            <Card style={{ gap: 12 }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+            <PressableScale onPress={() => (opening ? undefined : open(item.id))} accessibilityLabel={`${item.customer ?? "Customer"}, ${item.number}, ${item.amount} to pay. Take payment`}>
+              <Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <View style={{ flex: 1 }}>
                   <AppText weight="bold" style={{ fontSize: 16 }}>
                     {item.customer ?? "Customer"}
@@ -136,23 +151,26 @@ function TakePayment() {
                   <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 2 }} numberOfLines={2}>
                     {item.number}: {item.description}
                   </AppText>
+                  {item.paidSoFar && (
+                    <AppText weight="semibold" style={{ color: colors.success, fontSize: 13, marginTop: 2 }}>
+                      {item.paidSoFar} paid so far
+                    </AppText>
+                  )}
                 </View>
-                <AppText weight="extrabold" style={{ fontSize: 22 }}>
-                  {item.amount}
-                </AppText>
-              </View>
-              {tap.supported && (
-                <PrimaryButton title={busyId === item.id ? "Hold the card to your phone…" : `Tap to Pay ${item.amount}`} icon="wifi" size="medium" onPress={() => (busyId ? undefined : takeIt(item))} />
-              )}
-              <PressableScale onPress={() => openSignedIn("/staff/invoices")} accessibilityLabel="Other ways to take it" style={{ height: 40, alignItems: "center", justifyContent: "center" }}>
-                <AppText weight="semibold" style={{ color: colors.orangeDeep, fontSize: 14 }}>
-                  Cash, bank transfer or a card on file
-                </AppText>
-              </PressableScale>
-            </Card>
+                <View style={{ alignItems: "flex-end", gap: 4 }}>
+                  <AppText weight="extrabold" style={{ fontSize: 20 }}>
+                    {item.amount}
+                  </AppText>
+                  <AppText weight="bold" style={{ color: colors.orangeDeep, fontSize: 13 }}>
+                    {opening === item.id ? "Opening…" : "Take it ›"}
+                  </AppText>
+                </View>
+              </Card>
+            </PressableScale>
           )}
         />
       )}
+      {sheet && <PaymentSheet visible context={sheet.context} onClose={() => setSheet(null)} onDone={refresh} />}
     </View>
   );
 }

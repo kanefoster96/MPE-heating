@@ -14,6 +14,10 @@ export type FlowStep =
   | { kind: "choice"; id: string; recap: string; question: string; help?: string; choices: FlowChoice[] }
   | { kind: "text"; id: string; recap: string; question: string; help?: string; placeholder: string; minLength: number }
   | { kind: "postcode"; id: "postcode"; question: string; help?: string }
+  // Optional photos, sent straight from the phone to storage
+  // (api/uploads/booking-photo) and attached to the job. Only shown where
+  // uploads can work (StepFlow), and always skippable.
+  | { kind: "photos"; id: "photos"; question: string; help?: string; max: number }
   // A day in the next two weeks, then morning, afternoon or any time
   // (components/DayPartPicker.tsx). Saved as a request on the team's schedule.
   | { kind: "when"; id: "when"; recap: string; question: string; help?: string; fromToday?: boolean }
@@ -50,6 +54,14 @@ const postcode: FlowStep = {
   help: "So we know where we're coming to.",
 };
 
+const photos = (help: string): FlowStep => ({
+  kind: "photos",
+  id: "photos",
+  question: "Got a photo? (optional)",
+  help,
+  max: 5,
+});
+
 const boilerMake: FlowStep = {
   kind: "choice",
   id: "make",
@@ -73,7 +85,7 @@ export const flows: Record<FlowKey, Flow> = {
     label: "Boiler call-out",
     eyebrow: "Boiler call-out",
     title: { lead: "Boiler broken down?", em: "Book a call-out." },
-    subtitle: "Five quick steps. £50 call-out, taken off your repair bill if you go ahead.",
+    subtitle: "A few quick steps. £50 call-out, taken off your repair bill if you go ahead.",
     fee: true,
     steps: [
       {
@@ -99,6 +111,7 @@ export const flows: Record<FlowKey, Flow> = {
         placeholder: "E.g. error code F28, no heating since this morning.",
         minLength: 10,
       },
+      photos("The boiler, the error code on its display, or where it is. It helps us bring the right parts."),
       postcode,
       {
         kind: "when",
@@ -208,6 +221,7 @@ export const flows: Record<FlowKey, Flow> = {
           { id: "prices", label: "Just getting prices" },
         ],
       },
+      photos("Your boiler and where it is. It helps us with your quote."),
       postcode,
       {
         kind: "contact",

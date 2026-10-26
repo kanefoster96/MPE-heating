@@ -76,8 +76,7 @@ export default async function ReferralPage({ params }: { params: Promise<{ code:
               </Link>
             </li>
           </ul>
-          <p className="mt-8 text-center text-sm text-text-2">Rather talk to us?</p>
-          <ContactOptions className="mt-2" />
+          <ContactOptions className="mt-8" />
         </div>
       </main>
       <Footer />

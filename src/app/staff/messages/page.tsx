@@ -29,6 +29,7 @@ import type { ConversationWithMember } from "@/lib/chat";
 import { formatLondonClock, londonNow, londonParts } from "@/lib/schedule-time";
 import { PaperPlaneIcon } from "@/components/coach/icons";
 import { withTeamChat } from "@/lib/team-chat";
+import { photosForEnquiries } from "@/lib/enquiry-photos";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -213,7 +214,7 @@ function formatJobDate(iso: string): string {
 }
 
 /** One booking enquiry: what, where, who, and where it's up to. */
-function JobCard({ job }: { job: Enquiry }) {
+function JobCard({ job, photos }: { job: Enquiry; photos: { id: string; url: string }[] }) {
   const details = job.answers.filter((a) => a.q !== "Postcode").map((a) => a.a);
   return (
     <article className="rounded-2xl border border-border bg-surface p-4" data-job={job.category}>
@@ -259,6 +260,26 @@ function JobCard({ job }: { job: Enquiry }) {
       </div>
       {(details.length > 0 || job.message) && (
         <p className="mt-2 line-clamp-3 text-sm text-foreground">{[...details, job.message].filter(Boolean).join(" · ")}</p>
+      )}
+      {photos.length > 0 && (
+        // The customer's photos from the booking form; tap for full size.
+        <ul className="mt-2 flex flex-wrap gap-2" aria-label="Photos from the booking form" data-photos>
+          {photos.map((p, i) => (
+            <li key={p.id}>
+              <a
+                href={p.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Photo ${i + 1} of ${photos.length}, opens full size`}
+                className="block h-16 w-16 overflow-hidden rounded-lg border border-border transition-opacity hover:opacity-90"
+              >
+                {/* A signed link that expires in an hour, so next/image can't cache it. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
       <p className="mt-2 text-xs text-muted">{[job.email, job.phone].filter(Boolean).join(" · ")}</p>
       {sourceLine(job) && (
@@ -320,6 +341,9 @@ export default async function StaffMessagesPage({
     openEnquiryCategories(),
     listEnquiries({ status: "new" }),
   ]);
+
+  // Signed links for any photos on the jobs shown (an hour each).
+  const jobPhotos = await photosForEnquiries(jobs.map((j) => j.id));
 
   const trimmedQuery = q?.trim() ?? "";
   const matchingIds = trimmedQuery ? await findConversationIdsMatchingText(trimmedQuery) : null;
@@ -434,7 +458,7 @@ export default async function StaffMessagesPage({
                   {jobs.length === 0 ? (
                     <p className="rounded-2xl border border-border bg-surface/50 p-6 text-center text-sm text-muted">No jobs here yet.</p>
                   ) : (
-                    jobs.map((job) => <JobCard key={job.id} job={job} />)
+                    jobs.map((job) => <JobCard key={job.id} job={job} photos={jobPhotos.get(job.id) ?? []} />)
                   )}
                 </div>
               </section>

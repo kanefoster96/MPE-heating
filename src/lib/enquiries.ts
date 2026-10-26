@@ -205,8 +205,9 @@ export function enquirySummary(input: {
 /**
  * Files a booking form: the customer's conversation (found by mobile, then
  * email, or made), the summary message in it, the enquiry row, and a push
- * to the team. Returns false if it couldn't be saved (the caller still
- * emails it, so nothing is lost).
+ * to the team. Returns the new enquiry's id and the customer's (for
+ * filing the form's photos), or null if it couldn't be saved (the caller
+ * still emails it, so nothing is lost).
  */
 export async function recordEnquiry(input: {
   type: EnquiryType;
@@ -223,8 +224,8 @@ export async function recordEnquiry(input: {
   preferred?: { day: string; part: Part } | null;
   /** Where the visit started, from the booking forms (lib/traffic-source.ts). */
   attribution?: { source: string | null; campaign: string | null; medium: string | null; ad: string | null };
-}): Promise<boolean> {
-  if (!enquiriesOn()) return false;
+}): Promise<{ enquiryId: string; customerId: string | null } | null> {
+  if (!enquiriesOn()) return null;
   try {
     const admin = createAdminClient();
     const e164 = input.phone ? normalizePhone(input.phone) : null;
@@ -279,7 +280,7 @@ export async function recordEnquiry(input: {
     }).select("id").single();
     if (error) {
       console.error("recordEnquiry: insert failed", error);
-      return false;
+      return null;
     }
 
     // Which advert or link brought them, and (with cookie consent) the
@@ -323,10 +324,10 @@ export async function recordEnquiry(input: {
         body: `${input.label}${input.sameDay ? " (same day)" : ""}${input.postcode ? ` · ${input.postcode}` : ""}`,
       });
     }
-    return true;
+    return { enquiryId: inserted.id as string, customerId };
   } catch (err) {
     console.error("recordEnquiry failed", err);
-    return false;
+    return null;
   }
 }
 

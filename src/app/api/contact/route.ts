@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { business } from "@/lib/content";
+import { business, inOurArea } from "@/lib/content";
 import { formatPostcode, isValidEmail, isValidPhone, isValidPostcode } from "@/lib/validation";
 import { isLikelyBotSubmission } from "@/lib/spamGuard";
 import { ENQUIRY_TYPES, type EnquiryType } from "@/lib/enquiry";
@@ -8,6 +8,8 @@ import { addDays, isISODate, isPart } from "@/lib/day-plan";
 import { londonNow } from "@/lib/schedule-time";
 import { normalizePhone } from "@/lib/phone";
 import { sendMetaConversionEvent } from "@/lib/meta-capi";
+import { attachBookingPhotos, bookingPhotoPaths } from "@/lib/enquiry-photos";
+import { REF_COOKIE, recordReferral } from "@/lib/referrals";
 
 // Every booking form lands here. It's filed as a job in the team inbox
 // (lib/enquiries.ts: a categorised enquiry, plus the customer's
@@ -43,6 +45,8 @@ type Payload = {
   // browser's Meta Lead event.
   attribution?: unknown;
   metaEventId?: unknown;
+  // The photo step: paths the browser uploaded to (api/uploads/booking-photo).
+  photos?: unknown;
 };
 
 function str(value: unknown, max: number): string {
@@ -78,6 +82,9 @@ export async function POST(request: NextRequest) {
     : [];
   const postcodeRaw = str(body.postcode, 12);
   const postcode = postcodeRaw && isValidPostcode(postcodeRaw) ? formatPostcode(postcodeRaw) : "";
+  // For the email only: never a reason to turn a booking away.
+  const postcodeNote = postcode ? (inOurArea(postcode) ? " (in our area)" : " (outside our usual area)") : "";
+  const photoPaths = bookingPhotoPaths(body.photos);
   const answers = Array.isArray(body.answers)
     ? body.answers
         .map((a) => (a && typeof a === "object" ? { q: str((a as { q?: unknown }).q, 120), a: str((a as { a?: unknown }).a, 600) } : null))
@@ -161,6 +168,17 @@ export async function POST(request: NextRequest) {
     attribution,
   });
 
+  // Photos are filed once the job exists. attachBookingPhotos never
+  // throws, so a photo going wrong can't cost anyone their booking.
+  const photoCount = stored && photoPaths.length ? await attachBookingPhotos(stored.enquiryId, stored.customerId, photoPaths) : 0;
+
+  // Came in on a customer's referral link (lib/referrals.ts): linked to them, never in the way of the booking.
+  const refCode = request.cookies.get(REF_COOKIE)?.value;
+  if (stored?.customerId && refCode) {
+    await recordReferral({ code: refCode, referredCustomerId: stored.customerId, enquiryId: stored.enquiryId }).catch((err) => console.error("contact: referral failed", err));
+  }
+  const photoLine = photoCount ? `${photoCount} attached, on the job in the team inbox` : "";
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return stored
@@ -179,7 +197,8 @@ export async function POST(request: NextRequest) {
     `Name: ${name || "not given"}`,
     `Phone: ${phone || "not given"}`,
     `Email: ${email || "not given"}`,
-    ...(postcode ? [`Postcode: ${postcode}`] : []),
+    ...(postcode ? [`Postcode: ${postcode}${postcodeNote}`] : []),
+    ...(photoLine ? [`Photos: ${photoLine}`] : []),
     ...(answers.length ? ["", ...answers.map((a) => `${a.q}: ${a.a}`)] : []),
     ...(message ? ["", message] : []),
   ];
@@ -190,8 +209,8 @@ export async function POST(request: NextRequest) {
 <p><strong>Name:</strong> ${name ? escapeHtml(name) : "not given"}<br/>
 <strong>Phone:</strong> ${phone ? `<a href="tel:${escapeHtml(phone.replace(/\s+/g, ""))}">${escapeHtml(phone)}</a>` : "not given"}<br/>
 <strong>Email:</strong> ${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : "not given"}${
-    postcode ? `<br/><strong>Postcode:</strong> ${escapeHtml(postcode)}` : ""
-  }</p>${
+    postcode ? `<br/><strong>Postcode:</strong> ${escapeHtml(postcode)}${postcodeNote}` : ""
+  }${photoLine ? `<br/><strong>Photos:</strong> ${photoLine}` : ""}</p>${
     answers.length
       ? `<ul>${answers.map((a) => `<li>${escapeHtml(a.q)}: <strong>${escapeHtml(a.a)}</strong></li>`).join("")}</ul>`
       : ""

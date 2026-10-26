@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { business, sameDay as sameDayCopy } from "@/lib/content";
+import { business, inOurArea, postcodeDistrict, sameDay as sameDayCopy } from "@/lib/content";
 import { flows, type Flow, type FlowKey, type FlowStep } from "@/lib/flows";
 import { funnelIconMap } from "@/lib/funnelIcons";
 import { formatPostcode, isValidEmail, isValidPostcode } from "@/lib/validation";
@@ -24,6 +24,8 @@ import { londonNow } from "@/lib/schedule-time";
 import { getFirstTouch } from "@/lib/first-touch";
 import { parseAd, parseCampaign, parseMedium, parseTrafficSource } from "@/lib/traffic-source";
 import { newMetaEventId, trackMetaEvent } from "@/lib/meta-pixel";
+import { CHAT_ON } from "@/lib/chat-on";
+import { PhotoPicker, useBookingPhotos } from "./BookingPhotos";
 
 // The dedicated booking forms (call-out, new boiler, service, plan), built
 // on Kanvas Academy's trial form: one step per panel under numbered
@@ -79,12 +81,18 @@ function writeSaved(key: FlowKey, saved: Saved | null) {
   }
 }
 
+// The photo step needs the same two public Supabase settings as the live
+// chat (the browser uploads with them), so without them it isn't shown at
+// all. With them but no service key on the server, the step finds out
+// from the upload route's 503 and points to WhatsApp instead.
+const PHOTOS_ON = CHAT_ON;
+
 type Notice = "unavailable" | "failed" | null;
 type FieldErrors = Partial<Record<"name" | "email" | "phone", string>>;
 
 export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
   const flow: Flow = flows[flowKey];
-  const steps = flow.steps;
+  const steps = PHOTOS_ON ? flow.steps : flow.steps.filter((s) => s.kind !== "photos");
   const total = steps.length;
   const searchParams = useSearchParams();
 
@@ -144,6 +152,8 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
   }, [index, sent, moved]);
 
   const emailTypo = useEmailTypoCheck(email, setEmail);
+  const photoStep = steps.find((s) => s.kind === "photos");
+  const photos = useBookingPhotos(photoStep?.kind === "photos" ? photoStep.max : 5);
 
   function go(to: number) {
     setMoved(true);
@@ -161,6 +171,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
     setEmail("");
     setPhone("");
     setSameDay(false);
+    photos.clear();
     setRestored(false);
     go(0);
   }
@@ -188,6 +199,11 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
       }
       return [];
     });
+  }
+
+  // On screen only: the email says how many were filed on the job itself.
+  function shownRecap(): { q: string; a: string }[] {
+    return [...recap(), ...(photos.paths.length ? [{ q: "Photos", a: `${photos.paths.length} added` }] : [])];
   }
 
   async function submit(chosenEmail?: string) {
@@ -236,6 +252,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
             ad: parseAd(firstTouch.search),
           },
           metaEventId,
+          photos: photos.paths,
         }),
       });
       if (res.ok) {
@@ -289,7 +306,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
 
   // ----- Success (Academy trial confirmation) -----
   if (sent) {
-    const answers = recap();
+    const answers = shownRecap();
     return shell(
       <div className="flex w-full max-w-md flex-col items-center text-center animate-fade-up">
         <SuccessCheck />
@@ -339,7 +356,9 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
           ? isValidPostcode(postcode)
           : step.kind === "when"
             ? !!preferred()
-            : true;
+            : step.kind === "photos"
+              ? !photos.uploading
+              : true;
 
   const backRow = (next?: React.ReactNode) => (
     <div className="mt-2 flex justify-between gap-3">
@@ -464,9 +483,40 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
                 if (e.key === "Enter" && canNext) go(index + 1);
               }}
               placeholder="NE26 1AB"
+              aria-describedby="flow-postcode-area"
               className={`${INPUT} border-line uppercase tracking-wide`}
             />
+            {/* Just a heads-up once it's a whole postcode: never stops anyone sending. */}
+            <div id="flow-postcode-area" aria-live="polite">
+              {isValidPostcode(postcode) &&
+                (inOurArea(postcode) ? (
+                  <p className="text-sm text-whatsapp-ink" data-area="in">
+                    Good news: we cover {postcodeDistrict(postcode)}.
+                  </p>
+                ) : (
+                  <p className="text-sm text-text-2" data-area="out">
+                    That looks outside the North East, where we work. You can still send this and we&rsquo;ll let you know if we can help.
+                  </p>
+                ))}
+            </div>
             {backRow(nextButton)}
+          </>
+        )}
+
+        {step.kind === "photos" && (
+          <>
+            <PhotoPicker max={step.max} state={photos} />
+            {backRow(
+              photos.photos.length === 0 ? (
+                <button type="button" onClick={() => go(index + 1)} className={PRIMARY}>
+                  Skip
+                </button>
+              ) : (
+                <button type="button" disabled={!canNext} onClick={() => go(index + 1)} className={PRIMARY}>
+                  {photos.uploading ? "Uploading…" : "Next"}
+                </button>
+              )
+            )}
           </>
         )}
 
@@ -494,7 +544,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
             <div className="rounded-xl border border-line bg-cream p-4 text-sm" data-recap>
               <p className="text-xs uppercase tracking-widest text-text-2">Your request</p>
               <ul className="mt-2 flex flex-col gap-1">
-                {recap().map((r) => (
+                {shownRecap().map((r) => (
                   <li key={r.q}>
                     <span className="text-text-2">{r.q}:</span> <span className="font-semibold text-navy">{r.a}</span>
                   </li>

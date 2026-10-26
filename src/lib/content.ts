@@ -24,6 +24,26 @@ const areasList = [
   "Redcar",
 ];
 
+// The postcode areas the booking forms treat as "ours", for the friendly
+// line on the postcode step and the note in the booking email. It never
+// stops anyone booking. An assumption from areasList ("all areas in the
+// North East"), for Kane and Fergal to confirm: Newcastle and
+// Northumberland (NE), Sunderland (SR), Durham (DH), Teesside (TS) and
+// Darlington (DL).
+export const coveredPostcodeAreas = ["NE", "SR", "DH", "TS", "DL"];
+
+/** "NE26 1AB" -> "NE26": the part before the space. */
+export function postcodeDistrict(postcode: string): string {
+  const v = postcode.replace(/\s+/g, "").toUpperCase();
+  return v.length > 3 ? v.slice(0, -3) : v;
+}
+
+/** Whether a full postcode is in one of coveredPostcodeAreas. */
+export function inOurArea(postcode: string): boolean {
+  const area = postcodeDistrict(postcode).match(/^[A-Z]+/)?.[0] ?? "";
+  return coveredPostcodeAreas.includes(area);
+}
+
 function joinWithAnd(items: string[]): string {
   if (items.length < 2) return items.join("");
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;

@@ -25,6 +25,9 @@ deployment.
 - [ ] Create a project at supabase.com, in the London region.
 - [ ] **SQL editor:** paste in all of `supabase/schema.sql` and run it.
       Run it again after every update that changes it: it's safe to re-run.
+- [ ] **Storage:** after running the schema, check there's a private
+      bucket called `job-files` (photos and certificates) next to
+      `chat-attachments`. The schema makes it; leave it private.
 - [ ] **Authentication → Sign In / Providers:** turn **on** "Allow
       anonymous sign-ins" (website visitors chat as guests).
 - [ ] **Authentication → Sign In / Providers → Email:** leave email sign-in

@@ -31,13 +31,20 @@ function merge(current: ChatMessage[], incoming: ChatMessage[], viewerId: string
   return [...real, ...left].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** "Fri 18 · 19:12", over a message after a gap (Kanvas Academy's divider). */
 function dayTime(iso: string): string {
   const d = new Date(iso);
-  const today = new Date();
-  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  if (d.toDateString() === today.toDateString()) return `Today ${time}`;
-  return `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${time}`;
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} · ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
 }
+
+const CHANNEL_LABEL: Record<Channel, string> = { chat: "Live chat", sms: "Text", email: "Email" };
+const CHANNEL_ICON = { chat: "chatbubble-ellipses", sms: "chatbox-ellipses", email: "mail" } as const;
+
+// One line at rest; grows to about five lines, then scrolls inside.
+const COMPOSER_MIN = 44;
+const COMPOSER_MAX = 22 * 5 + 20;
 
 /** "[label](url)" and bare links in a message, as tappable text (the site writes links that way). */
 function MessageText({ body, color }: { body: string; color: string }) {
@@ -57,7 +64,7 @@ function MessageText({ body, color }: { body: string; color: string }) {
     last = match.index + match[0].length;
   }
   if (last < body.length) parts.push(body.slice(last));
-  return <AppText style={{ color, fontSize: 16, lineHeight: 22 }}>{parts}</AppText>;
+  return <AppText style={{ color, fontSize: 15, lineHeight: 21 }}>{parts}</AppText>;
 }
 
 /**
@@ -66,8 +73,11 @@ function MessageText({ body, color }: { body: string; color: string }) {
  * New messages arrive live (Supabase Realtime), with a poll every few
  * seconds in case one's missed. Photos come from the camera or the
  * library: a picture of the boiler, or the error code on its display.
- * For the team, `actions` puts a "+" in the composer instead of the
- * camera: a sheet of what they can do for this customer, with the photos.
+ * Laid out as Kanvas Academy's: a customer types in one tidy row (the
+ * message, "+" for a photo, send); the team get the message box full
+ * width with a toolbar under it: send as Live chat, Text or Email, the
+ * "+" (with `actions`, a sheet of what they can do for this customer, and
+ * the photos), and Send.
  */
 export function ChatThread({
   conversationId,
@@ -91,6 +101,9 @@ export function ChatThread({
   const [viewing, setViewing] = useState<string | null>(null);
   const [keyboardPad, setKeyboardPad] = useState(0);
   const [plus, setPlus] = useState(false);
+  const [channelMenu, setChannelMenu] = useState(false);
+  const [inputHeight, setInputHeight] = useState(COMPOSER_MIN);
+  const channelSetRef = useRef(false);
   const rootRef = useRef<View>(null);
   const latestRef = useRef<string | null>(null);
   const sentAnyRef = useRef(false);
@@ -113,6 +126,12 @@ export function ChatThread({
       const res = await apiFetch<ConversationResponse>(`/api/mobile/chat/conversation${query}`);
       setData(res);
       setMessages(res.messages);
+      // Reply the way they last got in touch: a text gets a text back.
+      if (!channelSetRef.current) {
+        channelSetRef.current = true;
+        const lastFromThem = [...res.messages].reverse().find((m) => !m.senderIsCoach);
+        if (res.viewer.staff && conversationId && lastFromThem?.channel === "sms" && res.conversation.phone) setChannel("sms");
+      }
       latestRef.current = res.messages.at(-1)?.createdAt ?? null;
       onLoaded?.(res);
       markRead();
@@ -273,56 +292,55 @@ export function ChatThread({
           keyExtractor={(m) => m.id}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 12 }}
+          contentContainerStyle={{ padding: 16 }}
           ListFooterComponent={header ? <View style={{ marginBottom: 12 }}>{header}</View> : null}
           renderItem={({ item, index }) => {
             const older = rows[index + 1];
-            const mine = item.senderId === viewerId || (staff && item.senderIsCoach && item.senderId === viewerId);
+            const mine = item.senderId === viewerId;
             const showDivider = !older || new Date(item.createdAt).getTime() - new Date(older.createdAt).getTime() > GAP_FOR_DIVIDER_MS;
             const firstOfRun = showDivider || older.senderId !== item.senderId;
-            const fromTeam = item.senderIsCoach && !mine;
-            const name = item.senderId === null ? "MPE" : item.senderName || (fromTeam ? "MPE" : (data?.conversation.title ?? "Customer"));
+            // Who gets a face and a name: the team (or MPE's own messages) to a
+            // customer, and a teammate to the team. The customer, to the team,
+            // is just their bubbles: whose chat it is is at the top.
+            const labelled = !mine && (item.senderIsCoach || item.senderId === null);
+            const name = item.senderId === null ? "MPE" : item.senderName || "MPE";
             const photo = item.attachmentType === "image" ? (item.localUri ?? item.attachmentUrl ?? null) : null;
             const textColor = mine ? "#fff" : colors.navy;
             return (
-              <View>
-                {showDivider && (
-                  <AppText style={{ textAlign: "center", color: colors.text3, fontSize: 12, marginVertical: 10 }}>{dayTime(item.createdAt)}</AppText>
-                )}
-                <View style={{ flexDirection: "row", justifyContent: mine ? "flex-end" : "flex-start", alignItems: "flex-end", gap: 8, marginTop: firstOfRun ? 6 : 2 }}>
-                  {!mine && (
-                    <View style={{ width: 28 }}>
+              <View style={{ marginBottom: 4 }}>
+                {showDivider && <AppText style={{ textAlign: "center", color: colors.text2, fontSize: 11, marginVertical: 10 }}>{dayTime(item.createdAt)}</AppText>}
+                <View style={{ flexDirection: "row", justifyContent: mine ? "flex-end" : "flex-start", alignItems: "flex-end", gap: 8 }}>
+                  {labelled && (
+                    <View style={{ width: 26, height: 26 }}>
                       {firstOfRun &&
                         (item.senderId === null ? (
-                          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center" }}>
-                            <Ionicons name="flame" size={16} color="#fff" />
+                          <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center" }}>
+                            <Ionicons name="flame" size={15} color="#fff" />
                           </View>
                         ) : (
-                          <Avatar name={name} url={item.senderAvatarUrl} size={28} />
+                          <Avatar name={name} url={item.senderAvatarUrl} size={26} />
                         ))}
                     </View>
                   )}
-                  <View style={{ maxWidth: "78%", opacity: item.pending ? 0.6 : 1 }}>
-                    {!mine && firstOfRun && (
-                      <AppText weight="semibold" style={{ color: colors.text3, fontSize: 12, marginBottom: 3, marginLeft: 4 }}>
+                  <View style={{ maxWidth: "80%", gap: 2, opacity: item.pending ? 0.6 : 1 }}>
+                    {labelled && firstOfRun && (
+                      <AppText weight="medium" style={{ color: colors.text2, fontSize: 11, marginLeft: 4 }}>
                         {name}
                       </AppText>
                     )}
                     <View
                       style={{
-                        width: photo ? 240 : undefined,
-                        borderRadius: 20,
-                        overflow: "hidden",
-                        backgroundColor: mine ? colors.orangeDeep : colors.card,
+                        borderRadius: 18,
+                        padding: photo ? 6 : 0,
+                        gap: 6,
+                        backgroundColor: mine ? colors.navy : colors.grey,
                         borderWidth: mine ? 0 : 1,
                         borderColor: colors.edge,
-                        borderBottomRightRadius: mine ? 6 : 20,
-                        borderBottomLeftRadius: mine ? 20 : 6,
                       }}
                     >
                       {photo && (
-                        <Pressable onPress={() => setViewing(photo)} accessibilityLabel="Open photo" accessibilityRole="imagebutton">
-                          <Image source={{ uri: photo }} style={{ width: "100%", height: 240, backgroundColor: colors.grey }} resizeMode="cover" accessibilityIgnoresInvertColors />
+                        <Pressable onPress={() => setViewing(photo)} accessibilityLabel="Open photo" accessibilityRole="imagebutton" style={{ width: 208, height: 208, borderRadius: 12, overflow: "hidden" }}>
+                          <Image source={{ uri: photo }} style={{ width: "100%", height: "100%", backgroundColor: colors.edge }} resizeMode="cover" accessibilityIgnoresInvertColors />
                           {item.pending && (
                             <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.25)" }}>
                               <ActivityIndicator color="#fff" />
@@ -331,13 +349,13 @@ export function ChatThread({
                         </Pressable>
                       )}
                       {!!item.body && (
-                        <View style={{ paddingHorizontal: 14, paddingVertical: 9 }}>
+                        <View style={{ paddingHorizontal: photo ? 6 : 14, paddingVertical: photo ? 2 : 9 }}>
                           <MessageText body={item.body} color={textColor} />
                         </View>
                       )}
                     </View>
                     {staff && item.channel !== "chat" && (
-                      <AppText style={{ color: colors.text3, fontSize: 11, marginTop: 2, textAlign: mine ? "right" : "left" }}>{item.channel === "sms" ? "Sent by text" : "Sent by email"}</AppText>
+                      <AppText style={{ color: colors.text2, fontSize: 11, marginHorizontal: 4, textAlign: mine ? "right" : "left" }}>via {item.channel === "sms" ? "text" : "email"}</AppText>
                     )}
                   </View>
                 </View>
@@ -347,44 +365,110 @@ export function ChatThread({
         />
       )}
 
-      {/* The composer. */}
-      <View style={{ borderTopWidth: 1, borderTopColor: colors.edge, backgroundColor: colors.page, paddingHorizontal: 10, paddingTop: 8, paddingBottom: 8 }}>
-        {staff && !data?.conversation.isTeam && (
-          <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }} accessibilityRole="radiogroup">
-            {(["chat", "sms", "email"] as Channel[]).map((c) => (
-              <PressableScale
-                key={c}
-                onPress={() => setChannel(c)}
-                accessibilityLabel={c === "chat" ? "Send in the app and website chat" : c === "sms" ? "Also send as a text" : "Also send as an email"}
-                style={{ height: 32, paddingHorizontal: 12, borderRadius: 999, justifyContent: "center", backgroundColor: channel === c ? colors.navy : colors.grey }}
-              >
-                <AppText weight="semibold" style={{ fontSize: 13, color: channel === c ? "#fff" : colors.navy }}>
-                  {c === "chat" ? "Chat" : c === "sms" ? "Text" : "Email"}
-                </AppText>
-              </PressableScale>
-            ))}
-          </View>
-        )}
-        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
-          {actions ? (
-            <PressableScale onPress={() => setPlus(true)} accessibilityLabel="More: book, invoice, payment, quote, photo" style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.orangeLight }}>
-              <Ionicons name="add" size={26} color={colors.orangeDeep} />
-            </PressableScale>
-          ) : (
-            <PressableScale onPress={attach} accessibilityLabel="Send a photo" style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.grey }}>
-              <Ionicons name="camera" size={22} color={colors.navy} />
-            </PressableScale>
-          )}
+      {staff ? (
+        // The team's composer (Kanvas Academy's coach layout): the message
+        // full width on top, growing to about five lines, and a toolbar
+        // under it: send as, the "+", and Send.
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.edge, backgroundColor: colors.page }}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder={staff ? "Reply…" : "Message the MPE team…"}
-            placeholderTextColor={colors.text3}
             multiline
+            onContentSizeChange={(e) => setInputHeight(Math.min(COMPOSER_MAX, Math.max(COMPOSER_MIN, e.nativeEvent.contentSize.height + 20)))}
+            placeholder="Type a message…"
+            placeholderTextColor={colors.text2}
             accessibilityLabel="Message"
-            style={{ flex: 1, minHeight: 44, maxHeight: 120, borderRadius: 22, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.cream, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11, fontSize: 16, fontFamily: fonts.regular, color: colors.navy }}
+            style={{ height: draft ? inputHeight : COMPOSER_MIN, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 17, lineHeight: 22, fontFamily: fonts.regular, color: colors.navy, textAlignVertical: "top" }}
           />
-          <PressableScale
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingBottom: 8 }}>
+            {!data?.conversation.isTeam && (
+              <View>
+                <Pressable
+                  onPress={() => setChannelMenu((v) => !v)}
+                  accessibilityLabel={`Send as ${CHANNEL_LABEL[channel]}. Change it`}
+                  style={{ height: 44, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 6 }}
+                >
+                  <Ionicons name={CHANNEL_ICON[channel]} size={16} color={colors.navy} />
+                  <AppText weight="bold" style={{ fontSize: 15 }}>
+                    {CHANNEL_LABEL[channel]}
+                  </AppText>
+                  <Ionicons name={channelMenu ? "chevron-up" : "chevron-down"} size={14} color={colors.navy} />
+                </Pressable>
+                {channelMenu && (
+                  <View style={{ position: "absolute", bottom: 48, left: 0, width: 190, borderRadius: 14, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.page, paddingVertical: 4, zIndex: 10, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
+                    {(["chat", ...(data?.conversation.phone ? (["sms"] as const) : []), "email"] as Channel[]).map((c) => (
+                      <Pressable
+                        key={c}
+                        onPress={() => {
+                          setChannel(c);
+                          setChannelMenu(false);
+                        }}
+                        accessibilityLabel={`${CHANNEL_LABEL[c]}${channel === c ? ", selected" : ""}`}
+                        style={{ minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12 }}
+                      >
+                        <Ionicons name={`${CHANNEL_ICON[c]}-outline` as never} size={16} color={channel === c ? colors.navy : colors.text2} />
+                        <AppText weight={channel === c ? "bold" : "regular"} style={{ fontSize: 14, flex: 1 }}>
+                          {CHANNEL_LABEL[c]}
+                        </AppText>
+                        {channel === c && <Ionicons name="checkmark" size={14} color={colors.navy} />}
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+            <View style={{ flex: 1 }} />
+            <Pressable
+              onPress={() => {
+                setChannelMenu(false);
+                if (actions) setPlus(true);
+                else attach();
+              }}
+              accessibilityLabel={actions ? "More: book, invoice, payment, quote, photo" : "Send a photo"}
+              style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+            >
+              <Ionicons name="add-circle-outline" size={28} color={colors.orangeDeep} />
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                const body = draft;
+                setDraft("");
+                setChannelMenu(false);
+                send(body);
+              }}
+              disabled={!draft.trim() || !data}
+              accessibilityLabel="Send"
+              style={{ height: 44, justifyContent: "center" }}
+            >
+              <View style={{ height: 40, borderRadius: 20, paddingHorizontal: 20, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center", opacity: !draft.trim() || !data ? 0.45 : 1 }}>
+                {sending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <AppText weight="bold" style={{ color: "#fff", fontSize: 15 }}>
+                    Send
+                  </AppText>
+                )}
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        // A customer's composer: one tidy row, the message, "+" for a photo, send.
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.edge, backgroundColor: colors.page, flexDirection: "row", alignItems: "flex-end", gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            multiline
+            onContentSizeChange={(e) => setInputHeight(Math.min(COMPOSER_MAX, Math.max(COMPOSER_MIN, e.nativeEvent.contentSize.height + 20)))}
+            placeholder="Type a message…"
+            placeholderTextColor={colors.text2}
+            accessibilityLabel="Message"
+            style={{ flex: 1, height: draft ? inputHeight : COMPOSER_MIN, borderRadius: 22, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.grey, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 16, lineHeight: 22, fontFamily: fonts.regular, color: colors.navy, textAlignVertical: "top" }}
+          />
+          <Pressable onPress={attach} accessibilityLabel="Send a photo" style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name="add-circle-outline" size={28} color={colors.navy} />
+          </Pressable>
+          <Pressable
             onPress={() => {
               const body = draft;
               setDraft("");
@@ -392,12 +476,12 @@ export function ChatThread({
             }}
             disabled={!draft.trim() || !data}
             accessibilityLabel="Send"
-            style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.orangeDeep }}
+            style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: colors.navy, opacity: !draft.trim() || !data ? 0.45 : 1 }}
           >
             {sending ? <ActivityIndicator color="#fff" /> : <Ionicons name="arrow-up" size={22} color="#fff" />}
-          </PressableScale>
+          </Pressable>
         </View>
-      </View>
+      )}
 
       <ImageViewer uri={viewing} onClose={() => setViewing(null)} />
       {actions && (

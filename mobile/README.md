@@ -46,12 +46,15 @@ picked up.
   open invoice with Tap to Pay.
 - **Chat** (`app/(tabs)/chat.tsx`, `components/chat-thread.tsx`): the
   customer's chat with the team, photos from the camera or library,
-  live. The team see their inbox instead (Kanvas Academy's): the team chat
-  pinned, then whoever's waiting on a reply, then the rest, then the ones
-  done; search, filters (All, Unread, Open, Done), swipe left to mark one
-  done, live. In a conversation (`app/chat/[id].tsx`) they reply by chat,
-  text or email; the "+" books a visit, sends an invoice or call-out fee,
-  takes a payment, starts a quote or sends a photo
+  live. The team see their inbox instead, laid out as Kanvas Academy's:
+  the big "Inbox" title, search edge to edge with the filter (All, Unread,
+  Open, Done) at its end, the team chat pinned as a card, then everyone,
+  newest first, with a phone on the avatar of anyone writing from the app;
+  swipe left to mark one done. A conversation (`app/chat/[id].tsx`) has
+  the Academy's header (their name and how they last got in touch, round
+  Call and Done buttons) and composer: the message full width, then send
+  as Live chat, Text or Email, the "+" (book a visit, invoice or call-out
+  fee, take a payment, start a quote, send a photo) and Send
   (`components/action-sheet.tsx`); and the name at the top opens the
   customer (`app/customer/[id].tsx`): call, chat, directions, jobs
   underway (each opens its job page to move, finish or take payment),

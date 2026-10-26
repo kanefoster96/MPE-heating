@@ -4,7 +4,8 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText, PressableScale, haptic } from "@/components/ui";
 import { apiPost } from "@/lib/api";
-import { openDirections, openExternal } from "@/lib/open-link";
+import { useBusinessCall } from "@/components/business-call";
+import { openDirections } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 import type { StaffJob } from "@/lib/types";
 
@@ -60,6 +61,7 @@ export function StaffJobCard({ job, day, onChanged, onPay }: { job: StaffJob; da
   const router = useRouter();
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
+  const businessCall = useBusinessCall();
   const status = STATUS[job.status];
   const place = [job.address, job.postcode].filter(Boolean).join(", ");
 
@@ -153,7 +155,7 @@ export function StaffJobCard({ job, day, onChanged, onPay }: { job: StaffJob; da
       )}
 
       <View style={{ flexDirection: "row", gap: 8 }}>
-        {job.customer?.phone && <Small icon="call" label="Call" onPress={() => openExternal(`tel:${job.customer!.phone}`)} />}
+        {job.customer?.phone && <Small icon="call" label="Call" onPress={() => businessCall.call({ name: job.customer!.name ?? "the customer", to: job.customer!.phone, directNumber: job.customer!.phone })} />}
         {place ? <Small icon="navigate" label="Directions" onPress={() => openDirections(place)} /> : null}
         {job.customer?.conversationId && <Small icon="chatbubbles" label="Chat" onPress={() => router.push(`/chat/${job.customer!.conversationId}`)} />}
       </View>
@@ -202,6 +204,7 @@ export function StaffJobCard({ job, day, onChanged, onPay }: { job: StaffJob; da
       {(job.status === "no_access" || (job.status === "requested" && !onPay)) && (
         <Big label={job.status === "requested" ? "Answer the request" : "Pick a new time"} icon="calendar" tone="plain" onPress={() => router.push(job.status === "requested" ? `/job/${job.id}` : `/visit-form?id=${job.id}`)} />
       )}
+      {businessCall.modal}
     </View>
   );
 }

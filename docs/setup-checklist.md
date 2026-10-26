@@ -105,6 +105,17 @@ deployment.
 **Check:** text the number; it appears in the team inbox. Ring it and hang
 up; you get a text back with the chat link.
 
+Calls from the app: once the number's set, the team's Call buttons offer
+**Call as MPE**. The engineer's phone rings first, and when they answer
+they're put through; the customer sees the Twilio number. For now the phone
+that rings first is MPE's main number, 07448 628 101, unless an engineer
+saves their own mobile (Call → "Ring my own mobile instead"). Until the
+number's set, Call dials from the engineer's own phone.
+
+**Check:** in the app, open a chat with your own number and tap Call →
+Call as MPE. 07448 628 101 rings; answer it and your phone rings showing
+the Twilio number.
+
 ## 4. The follow-up job (reminders, follow-ups, monthly payments)
 
 - [ ] `CRON_SECRET` = any long random string (e.g. from a password

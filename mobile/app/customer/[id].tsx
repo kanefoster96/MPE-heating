@@ -6,6 +6,7 @@ import { ScreenHeader } from "@/components/screen-header";
 import { Avatar } from "@/components/avatar";
 import { PaymentSheet } from "@/components/payment-sheet";
 import { FileAdder } from "@/components/file-adder";
+import { useBusinessCall } from "@/components/business-call";
 import { TapToPayProvider } from "@/components/tap-to-pay";
 import { AppText, Card, FadeIn, LoadError, PressableScale, PrimaryButton, Skeleton, haptic } from "@/components/ui";
 import { useAuth } from "@/contexts/auth";
@@ -158,6 +159,7 @@ function Customer() {
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [files, setFiles] = useState<Files | null>(null);
+  const businessCall = useBusinessCall();
   const [adding, setAdding] = useState(false);
 
   const loadFiles = useCallback(async () => {
@@ -305,7 +307,7 @@ function Customer() {
                 </View>
               </View>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                {data.phone && <Quick icon="call" label="Call" onPress={() => openExternal(`tel:${data.phone}`)} />}
+                {data.phone && <Quick icon="call" label="Call" onPress={() => businessCall.call({ name: data.name, to: data.phone, directNumber: data.phone })} />}
                 <Quick icon="chatbubbles" label="Chat" onPress={openChat} />
                 {place ? <Quick icon="navigate" label="Directions" onPress={() => openDirections(place)} /> : null}
                 {data.email && <Quick icon="mail" label="Email" onPress={() => openExternal(`mailto:${data.email}`)} />}
@@ -487,7 +489,7 @@ function Customer() {
 
           <Section title="Details">
             <Card style={{ paddingVertical: 4 }}>
-              {data.phone && <Row icon="call-outline" label="Phone" value={data.phone} onPress={() => openExternal(`tel:${data.phone}`)} />}
+              {data.phone && <Row icon="call-outline" label="Phone" value={data.phone} onPress={() => businessCall.call({ name: data.name, to: data.phone, directNumber: data.phone })} />}
               {data.email && <Row icon="mail-outline" label="Email" value={data.email} onPress={() => openExternal(`mailto:${data.email}`)} />}
               <Row icon="home-outline" label="Address" value={place || "Not given yet"} onPress={place ? () => openDirections(place) : undefined} last />
             </Card>
@@ -605,6 +607,7 @@ function Customer() {
           )}
         </ScrollView>
       )}
+      {businessCall.modal}
       {data && (
         <PaymentSheet
           visible={sheet}

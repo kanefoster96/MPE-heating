@@ -12,9 +12,30 @@ export function AppText({ style, weight = "regular", ...props }: TextProps & { w
   return <Text {...props} style={[{ fontFamily: fonts[weight], color: colors.navy }, style]} />;
 }
 
-function tap() {
-  if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
-}
+/**
+ * The phone's taps (none on the web preview): a light one on every press,
+ * a "done" on a message sent or a payment taken, a warning when something
+ * didn't go through.
+ */
+export const haptic = {
+  tap() {
+    if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+  },
+  success() {
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  },
+  warning() {
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+  },
+};
+
+const tap = haptic.tap;
+
+const OUTER_KEYS = new Set([
+  "flex", "flexGrow", "flexShrink", "flexBasis", "alignSelf", "width", "minWidth", "maxWidth",
+  "margin", "marginTop", "marginBottom", "marginLeft", "marginRight", "marginHorizontal", "marginVertical",
+  "position", "top", "left", "right", "bottom", "zIndex",
+]);
 
 /**
  * Anything tappable: it eases down a touch while pressed and springs back
@@ -37,8 +58,17 @@ export function PressableScale({
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const to = (value: number) => Animated.spring(scale, { toValue: value, useNativeDriver: Platform.OS !== "web", speed: 40, bounciness: 6 }).start();
+  // How it sits in its row or column (flex, width, margins) belongs on the
+  // touchable itself; how it looks scales with the press.
+  const flat = StyleSheet.flatten(style) ?? {};
+  const outer: ViewStyle = {};
+  const inner: ViewStyle = {};
+  for (const [key, value] of Object.entries(flat)) {
+    (OUTER_KEYS.has(key) ? outer : inner)[key as keyof ViewStyle] = value as never;
+  }
   return (
     <Pressable
+      style={outer}
       onPress={() => {
         tap();
         onPress();
@@ -50,7 +80,7 @@ export function PressableScale({
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }, disabled && { opacity: 0.5 }]}>{children}</Animated.View>
+      <Animated.View style={[inner, { transform: [{ scale }] }, disabled && { opacity: 0.5 }]}>{children}</Animated.View>
     </Pressable>
   );
 }

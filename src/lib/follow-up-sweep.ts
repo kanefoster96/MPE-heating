@@ -6,7 +6,7 @@ import { openEnquiriesSince } from "@/lib/enquiries";
 import { sendVisitNotice } from "@/lib/visit-notify";
 import { sendEnquiryFollowUp } from "@/lib/enquiry-follow-up";
 import { chatRecipientIds } from "@/lib/chat-routing";
-import { pushToUsers } from "@/lib/push";
+import { checkPushReceipts, pushToUsers } from "@/lib/push";
 import { sendUnpaidReminder } from "@/lib/payments";
 import { REVIEW_REMIND_AFTER_DAYS, sendReviewAsk } from "@/lib/job-completion";
 import { takeDueInstalments } from "@/lib/instalments";
@@ -295,6 +295,12 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
   await stage("monthly-report", async () => {
     if (minutes < STAFF_FROM) return;
     await sendDueMonthReport(today);
+  });
+
+  // 6f. Once an hour: Expo's receipts for the app's pushes, dropping phones that have gone (lib/push.ts).
+  await stage("push-receipts", async () => {
+    if (minutes % 60 >= 5) return;
+    await checkPushReceipts();
   });
 
   // 7. Unpaid: reminders at 3 and 7 days, then the team chases it.

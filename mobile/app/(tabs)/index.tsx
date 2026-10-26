@@ -1,101 +1,59 @@
-import { useCallback, useState, type ComponentProps } from "react";
-import { Image, RefreshControl, ScrollView, View, useWindowDimensions } from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useMemo, useState } from "react";
+import { RefreshControl, ScrollView, TextInput, View } from "react-native";
+import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { AppText, Card, FadeIn, LoadError, PressableScale, PrimaryButton, SecondaryButton, SectionHeading, Skeleton } from "@/components/ui";
-import { apiGet, readCached } from "@/lib/api";
+import { AppText, Card, FadeIn, LoadError, PressableScale, SecondaryButton } from "@/components/ui";
+import { GuideRow, RowSkeleton, SectionTitle, ServiceRow } from "@/components/rows";
+import { CountBadge } from "@/components/count-badge";
+import { useAuth } from "@/contexts/auth";
+import { useHomeData } from "@/lib/use-home";
 import { openExternal, openInApp } from "@/lib/open-link";
 import { SITE_URL } from "@/lib/site";
-import { colors } from "@/lib/theme";
-import type { HomeData, ServiceIcon } from "@/lib/types";
+import { colors, fonts } from "@/lib/theme";
 
-type IconName = ComponentProps<typeof Ionicons>["name"];
-
-const HOME_PATH = "/api/mobile/home";
 const PAD = 20;
+/** The call-out tile: the deep end of the site's orange, so its small white text stays at 4.5:1 or better. */
+const TILE_GRADIENT = [colors.orangeDeep, "#c44a22"] as const;
+const PHONE = { display: "07448 628 101", href: "tel:07448628101", whatsapp: "https://wa.me/447448628101" };
+
+function greeting(): string {
+  const hour = new Date().getHours();
+  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+}
 
 /**
- * Until the site answers (or with no signal at all), the call-out still
- * works: the website's own words and numbers, bundled with the app. The
- * site's copy replaces it as soon as it arrives.
- */
-const FALLBACK: Pick<HomeData, "business" | "callout"> = {
-  business: {
-    name: "MPE",
-    fullName: "MPE Gas, Heating, Plumbing & Electrics",
-    phoneDisplay: "07448 628 101",
-    phoneHref: "tel:07448628101",
-    whatsappHref: "https://wa.me/447448628101",
-    gasSafeNumber: "552052",
-    base: "Whitley Bay",
-  },
-  callout: {
-    title: "Boiler broken down?",
-    em: "We'll be round today.",
-    text: "A Gas Safe engineer at your door for a £50 call-out. Go ahead with the repair and the £50 comes off your bill. Most faults fixed on the spot with parts from the van.",
-    cta: "Request a call-out",
-    bookUrl: `${SITE_URL}/emergency`,
-    sameDay: "Call our engineers directly, for the best chance of a same-day call-out.",
-    steps: [
-      { title: "We find the fault", text: "A Gas Safe engineer, usually the same day if you book by midday." },
-      { title: "You hear the price first", text: "Nothing starts until you've said yes." },
-      { title: "Go ahead: the £50 comes off", text: "Taken off your repair bill, in full." },
-      { title: "Don't: £50 is all you pay", text: "No pressure, no extra charges." },
-    ],
-    foot: "Every repair guaranteed for 3 months.",
-    fee: "£50 call-out. Refunded in full when we do the repair.",
-  },
-};
-
-const SERVICE_ICON: Record<ServiceIcon, IconName> = {
-  boiler: "flame",
-  service: "build",
-  newboiler: "cube",
-  plumbing: "water",
-  electrics: "flash",
-  landlord: "document-text",
-};
-
-/**
- * Home: three things, in the order someone needs them. If the boiler's
- * broken, the call-out right at the top: request it, ring, or WhatsApp,
- * with the £50 explained. If it isn't, every service with its price and a
- * Book button. And if they're not sure what's wrong, the help guides.
- * Everything below the call-out comes from the website, so prices and
- * guides stay the same in both places.
+ * Home, top to bottom: book a call-out or a service (the two big buttons),
+ * three more services and All services, the help guides with a search,
+ * and live chat at the bottom. Prices and guides come from the website
+ * (/api/mobile/home), so they're the same in both places; the two big
+ * buttons work before it answers.
  */
 export default function HomeScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const [data, setData] = useState<HomeData | null>(() => readCached<HomeData>(HOME_PATH) ?? null);
-  const [error, setError] = useState<string | null>(null);
+  const { me, signedIn, unreadChats } = useAuth();
+  const { data, error, load } = useHomeData();
   const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      setData(await apiGet<HomeData>(HOME_PATH));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    }
-  }, []);
+  const firstName = signedIn && me?.user.name ? me.user.name.split(" ")[0] : null;
+  const callout = data?.services.find((s) => s.id === "repair");
+  const servicing = data?.services.find((s) => s.id === "servicing");
+  // The two big buttons cover repairs and servicing; the list shows the rest.
+  const more = (data?.services ?? []).filter((s) => s.id !== "repair" && s.id !== "servicing").slice(0, 3);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
-
-  const business = data?.business ?? FALLBACK.business;
-  const callout = data?.callout ?? FALLBACK.callout;
-  const guideWidth = Math.min(280, width * 0.72);
+  const guides = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const all = data?.guides ?? [];
+    if (!q) return all;
+    return all.filter((g) => `${g.title} ${g.description} ${g.category}`.toLowerCase().includes(q));
+  }, [data, search]);
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.cream }}
-      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingTop: 18, paddingBottom: 36 }}
+      keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -108,226 +66,167 @@ export default function HomeScreen() {
         />
       }
     >
-      {/* Top: the logo, and a call button that's always one tap away. */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: PAD, paddingBottom: 12 }}>
-        <Image source={require("@/assets/mpe-logo.png")} style={{ width: 104, height: 45 }} resizeMode="contain" accessibilityLabel={business.fullName} />
-        <PressableScale
-          onPress={() => openExternal(business.phoneHref)}
-          accessibilityLabel={`Call ${business.phoneDisplay}`}
-          style={{ flexDirection: "row", alignItems: "center", gap: 6, height: 44, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge }}
-        >
-          <Ionicons name="call" size={18} color={colors.navy} />
-          <AppText weight="semibold" style={{ fontSize: 15 }}>
-            Call us
-          </AppText>
-        </PressableScale>
-      </View>
-
-      {/* 1. Broken down: the call-out. */}
+      {/* 1. Book: a call-out or a service. */}
       <View style={{ paddingHorizontal: PAD }}>
-        <Card style={{ padding: 22, borderColor: colors.orangeLight, borderWidth: 2 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: colors.whatsappTint, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 14 }}>
-            <Ionicons name="shield-checkmark" size={14} color={colors.success} />
-            <AppText weight="semibold" style={{ color: colors.success, fontSize: 12 }}>
-              Gas Safe registered {business.gasSafeNumber}
-            </AppText>
-          </View>
-          <AppText weight="extrabold" style={{ fontSize: 34, lineHeight: 37, letterSpacing: -0.8 }}>
-            {callout.title}
-          </AppText>
-          <AppText weight="extrabold" style={{ fontSize: 34, lineHeight: 38, letterSpacing: -0.8, color: colors.orangeDeep }}>
-            {callout.em}
-          </AppText>
-          <AppText style={{ color: colors.text2, fontSize: 16, lineHeight: 23, marginTop: 10 }}>{callout.text}</AppText>
+        <AppText weight="extrabold" accessibilityRole="header" style={{ fontSize: 28, lineHeight: 32, letterSpacing: -0.5 }}>
+          {firstName ? `${greeting()}, ${firstName}` : greeting()}
+        </AppText>
+        <AppText style={{ color: colors.text2, fontSize: 16, marginTop: 4 }}>What can we help with today?</AppText>
 
-          <View style={{ marginTop: 20, gap: 10 }}>
-            <PrimaryButton title={callout.cta} icon="flame" onPress={() => openInApp(callout.bookUrl)} />
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <SecondaryButton title="Call" icon="call" onPress={() => openExternal(business.phoneHref)} />
+        <View style={{ flexDirection: "row", gap: 12, marginTop: 16 }}>
+          <PressableScale onPress={() => openInApp(callout?.bookUrl ?? `${SITE_URL}/emergency`)} accessibilityLabel="Book a call-out. Boiler broken down? £50 call-out, taken off the repair." style={{ flex: 1 }}>
+            <LinearGradient colors={TILE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 24, padding: 16, minHeight: 176, justifyContent: "space-between" }}>
+              <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="flame" size={26} color="#fff" />
               </View>
-              <View style={{ flex: 1 }}>
-                <SecondaryButton title="WhatsApp" icon="logo-whatsapp" tone="whatsapp" onPress={() => openExternal(business.whatsappHref)} />
-              </View>
-            </View>
-            <AppText style={{ color: colors.text3, fontSize: 13, textAlign: "center", marginTop: 2 }}>{callout.sameDay}</AppText>
-          </View>
-
-          <View style={{ marginTop: 20, borderRadius: 18, backgroundColor: colors.cream, padding: 16, gap: 14 }}>
-            <AppText weight="bold" style={{ fontSize: 16 }}>
-              Your £50 call-out
-            </AppText>
-            {callout.steps.map((step, i) => (
-              <View key={step.title} style={{ flexDirection: "row", gap: 12 }}>
-                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center" }}>
-                  <AppText weight="bold" style={{ color: "#fff", fontSize: 13 }}>
-                    {i + 1}
-                  </AppText>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <AppText weight="semibold" style={{ fontSize: 15 }}>
-                    {step.title}
-                  </AppText>
-                  <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 19, marginTop: 1 }}>{step.text}</AppText>
-                </View>
-              </View>
-            ))}
-            <AppText weight="medium" style={{ color: colors.text2, fontSize: 13 }}>
-              {callout.foot}
-            </AppText>
-          </View>
-        </Card>
-      </View>
-
-      {/* 2. Not broken down: every service, its price, and Book. */}
-      <View style={{ paddingHorizontal: PAD, marginTop: 36 }}>
-        <SectionHeading label="Services and prices" lead="Not broken down?" em="We do the rest too." />
-        {error && !data ? (
-          <LoadError message={error} onRetry={load} />
-        ) : !data ? (
-          <View style={{ gap: 12 }}>
-            {[0, 1, 2, 3].map((i) => (
-              <View key={i} style={{ flexDirection: "row", gap: 14, alignItems: "center", backgroundColor: colors.card, borderRadius: 22, borderWidth: 1, borderColor: colors.edge, padding: 16 }}>
-                <Skeleton width={52} height={52} radius={16} />
-                <View style={{ flex: 1, gap: 8 }}>
-                  <Skeleton width="45%" height={16} radius={8} />
-                  <Skeleton width="80%" height={13} radius={7} />
-                  <Skeleton width={90} height={22} radius={11} />
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={{ gap: 12 }}>
-            {data.services.map((s, i) => (
-              <FadeIn key={s.id} index={i}>
-                <PressableScale onPress={() => openInApp(s.bookUrl)} accessibilityLabel={`${s.title}, ${s.price}. Book`}>
-                  <Card style={{ flexDirection: "row", alignItems: "center", gap: 14, padding: 16 }}>
-                    <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.orangeLight, alignItems: "center", justifyContent: "center" }}>
-                      <Ionicons name={SERVICE_ICON[s.icon] ?? "build"} size={26} color={colors.orangeDeep} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <AppText weight="bold" style={{ fontSize: 17 }}>
-                        {s.title}
-                      </AppText>
-                      <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 19, marginTop: 2 }} numberOfLines={2}>
-                        {s.headline}
-                      </AppText>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
-                        <View style={{ backgroundColor: colors.cream, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                          <AppText weight="bold" style={{ fontSize: 13 }}>
-                            {s.price}
-                          </AppText>
-                        </View>
-                        <AppText weight="bold" style={{ color: colors.orangeDeep, fontSize: 14 }}>
-                          Book
-                        </AppText>
-                      </View>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={colors.text3} />
-                  </Card>
-                </PressableScale>
-              </FadeIn>
-            ))}
-
-            <FadeIn index={data.services.length}>
-              <PressableScale onPress={() => openInApp(data.plan.bookUrl)} accessibilityLabel={`${data.plan.title}. ${data.plan.price ?? "Get the details"}`}>
-                <View style={{ backgroundColor: colors.navy, borderRadius: 22, padding: 20 }}>
-                  <AppText weight="bold" style={{ color: "#ffc53d", fontSize: 12, letterSpacing: 1.6, textTransform: "uppercase" }}>
-                    {data.plan.title}
-                  </AppText>
-                  <AppText weight="extrabold" style={{ color: "#fff", fontSize: 24, marginTop: 4 }}>
-                    {data.plan.headline}
-                  </AppText>
-                  <View style={{ gap: 8, marginTop: 12 }}>
-                    {data.plan.points.map((p) => (
-                      <View key={p} style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                        <Ionicons name="checkmark-circle" size={18} color="#ffc53d" />
-                        <AppText style={{ color: "#fff", fontSize: 15 }}>{p}</AppText>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
-                    <AppText weight="bold" style={{ color: "#fff", fontSize: 16 }}>
-                      {data.plan.price ?? "Get the plan details"}
-                    </AppText>
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.orange, alignItems: "center", justifyContent: "center" }}>
-                      <Ionicons name="arrow-forward" size={20} color="#fff" />
-                    </View>
-                  </View>
-                </View>
-              </PressableScale>
-            </FadeIn>
-          </View>
-        )}
-      </View>
-
-      {/* 3. Not sure what's wrong: help and guides. */}
-      <View style={{ marginTop: 36 }}>
-        <View style={{ paddingHorizontal: PAD }}>
-          <SectionHeading label="Help and guides" lead="Not sure what's wrong?" em="Start here." />
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: PAD, gap: 12 }} decelerationRate="fast" snapToInterval={guideWidth + 12}>
-          {!data
-            ? [0, 1].map((i) => (
-                <View key={i} style={{ width: guideWidth, backgroundColor: colors.card, borderRadius: 22, borderWidth: 1, borderColor: colors.edge, padding: 18, gap: 10 }}>
-                  <Skeleton width={110} height={22} radius={11} />
-                  <Skeleton width="90%" height={18} radius={8} />
-                  <Skeleton width="70%" height={18} radius={8} />
-                  <Skeleton width="100%" height={13} radius={7} style={{ marginTop: 6 }} />
-                  <Skeleton width="85%" height={13} radius={7} />
-                </View>
-              ))
-            : data.guides.map((g, i) => (
-                <FadeIn key={g.slug} index={i}>
-                  <PressableScale onPress={() => router.push(`/guide/${g.slug}`)} accessibilityLabel={g.title} style={{ width: guideWidth }}>
-                    <Card style={{ minHeight: 240, justifyContent: "space-between" }}>
-                      <View>
-                        <View style={{ alignSelf: "flex-start", backgroundColor: colors.orangeLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                          <AppText weight="semibold" style={{ color: colors.orangeDeep, fontSize: 12 }}>
-                            {g.category}
-                          </AppText>
-                        </View>
-                        <AppText weight="bold" style={{ fontSize: 18, lineHeight: 23, marginTop: 12 }} numberOfLines={3}>
-                          {g.title}
-                        </AppText>
-                        <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 19, marginTop: 6 }} numberOfLines={2}>
-                          {g.description}
-                        </AppText>
-                      </View>
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
-                        <AppText style={{ color: colors.text3, fontSize: 13 }}>{g.readTime}</AppText>
-                        <Ionicons name="arrow-forward-circle" size={28} color={colors.orangeDeep} />
-                      </View>
-                    </Card>
-                  </PressableScale>
-                </FadeIn>
-              ))}
-        </ScrollView>
-
-        {/* Gas safety: the one thing never to wait on. The National Gas Emergency number, as on every guide. */}
-        <View style={{ paddingHorizontal: PAD, marginTop: 16 }}>
-          <PressableScale onPress={() => openExternal("tel:0800111999")} accessibilityLabel="Smell gas? Call the National Gas Emergency Service on 0800 111 999">
-            <View style={{ flexDirection: "row", gap: 14, alignItems: "center", backgroundColor: "#fdecec", borderRadius: 22, padding: 16, borderWidth: 1, borderColor: "#f6caca" }}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.danger, alignItems: "center", justifyContent: "center" }}>
-                <Ionicons name="warning" size={22} color="#fff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppText weight="bold" style={{ fontSize: 16, color: colors.danger }}>
-                  Smell gas?
+              <View>
+                <AppText weight="extrabold" style={{ color: "#fff", fontSize: 20, lineHeight: 23 }}>
+                  Book a call{"\u2011"}out
                 </AppText>
-                <AppText style={{ color: colors.navy, fontSize: 14, lineHeight: 19, marginTop: 2 }}>
-                  Leave the property and call the National Gas Emergency Service on 0800 111 999.
+                <AppText weight="medium" style={{ color: "#fff", fontSize: 14, lineHeight: 19, marginTop: 4 }}>
+                  Boiler broken down? £50, taken off the repair.
+                </AppText>
+              </View>
+            </LinearGradient>
+          </PressableScale>
+          <PressableScale onPress={() => openInApp(servicing?.bookUrl ?? `${SITE_URL}/book/service`)} accessibilityLabel={`Book a service. ${servicing?.price ?? "From £79"}.`} style={{ flex: 1 }}>
+            <View style={{ borderRadius: 24, padding: 16, minHeight: 176, justifyContent: "space-between", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge }}>
+              <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: colors.orangeLight, alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="build" size={24} color={colors.orangeDeep} />
+              </View>
+              <View>
+                <AppText weight="extrabold" style={{ fontSize: 20, lineHeight: 23 }}>
+                  Book a service
+                </AppText>
+                <AppText weight="medium" style={{ color: colors.text2, fontSize: 14, lineHeight: 19, marginTop: 4 }}>
+                  Annual boiler service, {(servicing?.price ?? "From £79").toLowerCase()}.
                 </AppText>
               </View>
             </View>
           </PressableScale>
         </View>
+
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+          <PressableScale onPress={() => openExternal(PHONE.href)} accessibilityLabel={`Call ${PHONE.display}`} style={{ flex: 1 }}>
+            <View style={{ height: 48, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <Ionicons name="call" size={18} color={colors.navy} />
+              <AppText weight="semibold" style={{ fontSize: 15 }}>
+                Call us
+              </AppText>
+            </View>
+          </PressableScale>
+          <PressableScale onPress={() => openExternal(PHONE.whatsapp)} accessibilityLabel="WhatsApp us" style={{ flex: 1 }}>
+            <View style={{ height: 48, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <Ionicons name="logo-whatsapp" size={18} color={colors.whatsapp} />
+              <AppText weight="semibold" style={{ fontSize: 15, color: colors.whatsapp }}>
+                WhatsApp
+              </AppText>
+            </View>
+          </PressableScale>
+        </View>
       </View>
 
-      <AppText style={{ color: colors.text3, fontSize: 12, textAlign: "center", marginTop: 32, paddingHorizontal: PAD }}>
-        {business.fullName} · Gas Safe registered {business.gasSafeNumber} · {business.base}
-      </AppText>
+      {/* 2. Three more services, then All services. */}
+      <View style={{ paddingHorizontal: PAD, marginTop: 32 }}>
+        <SectionTitle title="Services" action="See all" onAction={() => router.push("/services")} />
+        {error && !data ? (
+          <LoadError message={error} onRetry={load} />
+        ) : !data ? (
+          <View style={{ gap: 10 }}>
+            {[0, 1, 2].map((i) => (
+              <RowSkeleton key={i} />
+            ))}
+          </View>
+        ) : (
+          <View style={{ gap: 10 }}>
+            {more.map((s, i) => (
+              <FadeIn key={s.id} index={i}>
+                <ServiceRow service={s} onPress={() => openInApp(s.bookUrl)} />
+              </FadeIn>
+            ))}
+            <SecondaryButton title="All services" icon="grid" onPress={() => router.push("/services")} />
+          </View>
+        )}
+      </View>
+
+      {/* 3. Help and advice, with a search. */}
+      <View style={{ paddingHorizontal: PAD, marginTop: 32 }}>
+        <SectionTitle title="Help and advice" />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, height: 50, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, paddingHorizontal: 14, marginBottom: 10 }}>
+          <Ionicons name="search" size={20} color={colors.text3} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search: pressure, noises, servicing…"
+            placeholderTextColor={colors.text3}
+            returnKeyType="search"
+            accessibilityLabel="Search help guides"
+            style={{ flex: 1, fontSize: 16, fontFamily: fonts.regular, color: colors.navy, height: 48 }}
+          />
+          {!!search && (
+            <PressableScale onPress={() => setSearch("")} accessibilityLabel="Clear search" style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="close-circle" size={20} color={colors.text3} />
+            </PressableScale>
+          )}
+        </View>
+        {!data ? (
+          <View style={{ gap: 10 }}>
+            {[0, 1, 2].map((i) => (
+              <RowSkeleton key={i} />
+            ))}
+          </View>
+        ) : guides.length ? (
+          <View style={{ gap: 10 }}>
+            {guides.map((g, i) => (
+              <FadeIn key={g.slug} index={i}>
+                <GuideRow guide={g} onPress={() => router.push(`/guide/${g.slug}`)} />
+              </FadeIn>
+            ))}
+          </View>
+        ) : (
+          <Card style={{ alignItems: "center", gap: 6 }}>
+            <AppText weight="semibold" style={{ fontSize: 16 }}>
+              No guide for that yet
+            </AppText>
+            <AppText style={{ color: colors.text2, textAlign: "center" }}>Ask us in chat and an engineer will help.</AppText>
+          </Card>
+        )}
+
+        <PressableScale onPress={() => openExternal("tel:0800111999")} accessibilityLabel="Smell gas? Call the National Gas Emergency Service on 0800 111 999" style={{ marginTop: 12 }}>
+          <View style={{ flexDirection: "row", gap: 12, alignItems: "center", backgroundColor: "#fdecec", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#f6caca" }}>
+            <Ionicons name="warning" size={22} color={colors.danger} />
+            <AppText style={{ flex: 1, color: colors.navy, fontSize: 14, lineHeight: 19 }}>
+              <AppText weight="bold" style={{ color: colors.danger }}>
+                Smell gas?{" "}
+              </AppText>
+              Leave the property and call the National Gas Emergency Service on 0800 111 999.
+            </AppText>
+          </View>
+        </PressableScale>
+      </View>
+
+      {/* 4. Live chat. */}
+      <View style={{ paddingHorizontal: PAD, marginTop: 32 }}>
+        <PressableScale onPress={() => router.push("/chat")} accessibilityLabel={unreadChats ? `Chat with the MPE team, ${unreadChats} unread` : "Chat with the MPE team"}>
+          <View style={{ backgroundColor: colors.navy, borderRadius: 24, padding: 20, flexDirection: "row", alignItems: "center", gap: 16 }}>
+            <View>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.orange, alignItems: "center", justifyContent: "center" }}>
+                <Ionicons name="chatbubbles" size={28} color="#fff" />
+              </View>
+              <CountBadge count={unreadChats} top={-2} right={-2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText weight="bold" style={{ color: "#fff", fontSize: 18 }}>
+                Chat with the MPE team
+              </AppText>
+              <AppText style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, lineHeight: 19, marginTop: 2 }}>
+                Questions, or a photo of the boiler or its error code. Our engineers reply here.
+              </AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="#fff" />
+          </View>
+        </PressableScale>
+      </View>
     </ScrollView>
   );
 }

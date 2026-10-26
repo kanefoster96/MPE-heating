@@ -212,6 +212,18 @@ export async function paymentsForCustomer(customerId: string): Promise<PaymentRe
   return ((data ?? []) as Row[]).map(mapRow);
 }
 
+/** Open payments, newest first: what the team can take by Tap to Pay in the app. Monthly plans are left out. */
+export async function openPaymentRequests(limit = 50): Promise<PaymentRequest[]> {
+  const { data } = await createAdminClient()
+    .from("payment_requests")
+    .select("*")
+    .eq("status", "open")
+    .is("plan_status", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return ((data ?? []) as Row[]).map(mapRow);
+}
+
 /**
  * The call-out fee already paid on this visit and not yet taken off an
  * invoice: the site's promise is that it comes off the repair.
@@ -678,7 +690,11 @@ export async function handlePaymentIntent(intent: Stripe.PaymentIntent): Promise
     .filter(Boolean)
     .map(Number)
     .filter((i) => Number.isInteger(i) && i >= 0 && i < MAX_OFFERS);
+  // Tap to Pay is taken in person, so it gets the receipt an in-person
+  // payment on the website gets. Once: Stripe can send the event twice.
+  const wasOpen = via === "tap_to_pay" && (await getPaymentRequest(id))?.status === "open";
   await markPaid(id, intent.id, via, { offersTaken });
+  if (wasOpen) await sendReceipt(id, null).catch((err) => console.error("tap to pay receipt failed", err));
   return true;
 }
 

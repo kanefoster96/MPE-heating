@@ -1,22 +1,21 @@
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { ScreenHeader } from "@/components/screen-header";
 import { RowSkeleton, ServiceRow } from "@/components/rows";
-import { AppText, FadeIn, LoadError, PressableScale } from "@/components/ui";
+import { AppText, FadeIn, LoadError, PressableScale, SectionHeading } from "@/components/ui";
 import { openInApp } from "@/lib/open-link";
 import { useHomeData } from "@/lib/use-home";
 import { colors } from "@/lib/theme";
 
-/** Every service MPE offers, with its price and Book, then the maintenance plan. */
+/** The Services tab: every service MPE offers, with its price and Book, then the maintenance plan. */
 export default function ServicesScreen() {
   const insets = useSafeAreaInsets();
   const { data, error, load } = useHomeData();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScreenHeader title="All services" />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 32, gap: 10 }}>
+        <SectionHeading label="Services and prices" lead="Everything we do." em="Price agreed first." />
         {error && !data ? (
           <LoadError message={error} onRetry={load} />
         ) : !data ? (

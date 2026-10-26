@@ -12,9 +12,24 @@ export function AppText({ style, weight = "regular", ...props }: TextProps & { w
   return <Text {...props} style={[{ fontFamily: fonts[weight], color: colors.navy }, style]} />;
 }
 
-function tap() {
-  if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
-}
+/**
+ * The phone's taps (none on the web preview): a light one on every press,
+ * a "done" on a message sent or a payment taken, a warning when something
+ * didn't go through.
+ */
+export const haptic = {
+  tap() {
+    if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+  },
+  success() {
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  },
+  warning() {
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+  },
+};
+
+const tap = haptic.tap;
 
 /**
  * Anything tappable: it eases down a touch while pressed and springs back

@@ -1,5 +1,7 @@
 import { Linking } from "react-native";
 import * as WebBrowser from "expo-web-browser";
+import { apiPost } from "@/lib/api";
+import { SITE_URL } from "@/lib/site";
 
 /**
  * Opens a page of the website without leaving the app: Safari View
@@ -18,6 +20,17 @@ export async function openInApp(url: string): Promise<void> {
   } catch {
     await Linking.openURL(url).catch(() => {});
   }
+}
+
+/**
+ * A website page that needs them signed in (their account, the team's
+ * pages): the site makes a one-time sign-in link for it
+ * (/api/mobile/web-session), so the in-app browser doesn't ask again.
+ */
+export async function openSignedIn(path: string): Promise<void> {
+  const fallback = `${SITE_URL}${path}`;
+  const result = await apiPost<{ url: string }>("/api/mobile/web-session", { path }).catch(() => ({ url: fallback }));
+  await openInApp(result.url || fallback);
 }
 
 /** A phone call, WhatsApp or email: the phone's own app. */

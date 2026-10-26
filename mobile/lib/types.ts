@@ -24,3 +24,52 @@ export type GuideSummary = { slug: string; title: string; description: string; c
 export type ContentBlock = { type: "p"; text: string } | { type: "h2"; text: string } | { type: "list"; items: string[] } | { type: "callout"; text: string };
 
 export type Guide = GuideSummary & { content: ContentBlock[]; relatedService: { label: string; url: string }; webUrl: string };
+
+/** A chat message, as /api/mobile/chat/conversation sends it (src/lib/chat.ts on the site). */
+export type ChatMessage = {
+  id: string;
+  conversationId: string;
+  /** Null for MPE's automatic messages (the welcome). */
+  senderId: string | null;
+  senderIsCoach: boolean;
+  body: string;
+  channel: "chat" | "email" | "sms";
+  attachmentPath: string | null;
+  attachmentType: "image" | "video" | "file" | null;
+  attachmentName: string | null;
+  attachmentUrl?: string | null;
+  senderName?: string | null;
+  senderAvatarUrl?: string | null;
+  createdAt: string;
+  /** Only in the app: still sending, or (localUri) a photo still uploading. */
+  pending?: boolean;
+  localUri?: string;
+};
+
+export type ChatConversation = { id: string; title: string; phone: string | null; completed: boolean; isTeam: boolean };
+
+export type ConversationResponse = { conversation: ChatConversation; messages: ChatMessage[]; viewer: { id: string; staff: boolean } };
+
+export type InboxItem = {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  guest: boolean;
+  isTeam: boolean;
+  preview: string;
+  fromUs: boolean;
+  lastMessageAt: string;
+  unread: boolean;
+  completed: boolean;
+};
+
+export type AppNotice = {
+  id: string;
+  icon: "card" | "document-text" | "calendar" | "shield-checkmark" | "time" | "construct" | "chatbubbles";
+  title: string;
+  text: string;
+  at: string;
+  action: boolean;
+  url?: string;
+  route?: string;
+};

@@ -690,7 +690,11 @@ export async function handlePaymentIntent(intent: Stripe.PaymentIntent): Promise
     .filter(Boolean)
     .map(Number)
     .filter((i) => Number.isInteger(i) && i >= 0 && i < MAX_OFFERS);
+  // Tap to Pay is taken in person, so it gets the receipt an in-person
+  // payment on the website gets. Once: Stripe can send the event twice.
+  const wasOpen = via === "tap_to_pay" && (await getPaymentRequest(id))?.status === "open";
   await markPaid(id, intent.id, via, { offersTaken });
+  if (wasOpen) await sendReceipt(id, null).catch((err) => console.error("tap to pay receipt failed", err));
   return true;
 }
 

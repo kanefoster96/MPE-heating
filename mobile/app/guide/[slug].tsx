@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { AppText, FadeIn, LoadError, PressableScale, PrimaryButton, SecondaryButton, Skeleton } from "@/components/ui";
+import { AppText, FadeIn, LoadError, PrimaryButton, SecondaryButton, Skeleton } from "@/components/ui";
+import { ScreenHeader } from "@/components/screen-header";
 import { apiGet, readCached } from "@/lib/api";
 import { openInApp } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
@@ -18,7 +19,6 @@ const PAD = 20;
  */
 export default function GuideScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const path = `/api/mobile/guides/${slug}`;
   const [guide, setGuide] = useState<Guide | null>(() => readCached<Guide>(path) ?? null);
@@ -39,20 +39,9 @@ export default function GuideScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <View style={{ paddingTop: insets.top + 6, paddingHorizontal: PAD - 6, paddingBottom: 6, flexDirection: "row", alignItems: "center" }}>
-        <PressableScale
-          onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
-          accessibilityLabel="Back"
-          style={{ flexDirection: "row", alignItems: "center", gap: 2, height: 44, paddingHorizontal: 6 }}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.orangeDeep} />
-          <AppText weight="semibold" style={{ color: colors.orangeDeep, fontSize: 16 }}>
-            Help
-          </AppText>
-        </PressableScale>
-      </View>
+      <ScreenHeader title="Help and advice" />
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: PAD, paddingBottom: insets.bottom + 40 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: PAD, paddingTop: 16, paddingBottom: insets.bottom + 40 }}>
         {error && !guide ? (
           <LoadError message={error} onRetry={load} />
         ) : !guide ? (

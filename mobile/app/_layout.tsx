@@ -92,6 +92,7 @@ export default function RootLayout() {
           <Stack.Screen name="metrics" />
           <Stack.Screen name="certificates" />
           <Stack.Screen name="customers" />
+          <Stack.Screen name="new-chat" />
           <Stack.Screen name="plan" />
           <Stack.Screen name="days-off" />
           <Stack.Screen name="settings" />

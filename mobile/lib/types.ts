@@ -58,7 +58,22 @@ export type ChatConversation = {
   lastFrom?: "web" | "app" | null;
 };
 
-export type ConversationResponse = { conversation: ChatConversation; messages: ChatMessage[]; viewer: { id: string; staff: boolean } };
+export type EnquiryStatus = "new" | "contacted" | "booked" | "done" | "closed";
+/** A booking from the website's forms, in a conversation, with where it's up to. */
+export type EnquiryCard = { id: string; category: string; status: EnquiryStatus; sameDay: boolean; postcode: string | null; issue: string | null };
+/** Someone on the team and when they last opened the team chat ("Seen by"). */
+export type ChatReader = { userId: string; name: string; avatarUrl: string | null; lastReadAt: string | null };
+
+export type ConversationResponse = {
+  conversation: ChatConversation;
+  messages: ChatMessage[];
+  viewer: { id: string; staff: boolean };
+  /** For the team: the booking enquiries in it, and the steps they move through. */
+  enquiries?: EnquiryCard[];
+  enquirySteps?: { key: EnquiryStatus; label: string }[];
+  /** For the team chat: who's read up to where. */
+  receipts?: ChatReader[];
+};
 
 export type InboxItem = {
   id: string;

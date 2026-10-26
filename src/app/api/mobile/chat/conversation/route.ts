@@ -4,7 +4,8 @@ import { mobileCaller, mobileJson } from "@/lib/mobile-api";
 import { getConversationForCoachById, getMessagesForApp, getOrCreateConversation, isGuestUser } from "@/lib/chat-db";
 import { ensureWelcome } from "@/lib/chat-welcome";
 import { resolveDisplayName } from "@/lib/display-name";
-import { TEAM_CHAT_NAME } from "@/lib/team-chat";
+import { TEAM_CHAT_NAME, teamReadReceipts } from "@/lib/team-chat";
+import { ENQUIRY_STEPS, enquiryCards } from "@/lib/app-chat";
 import { customerIdForConversation } from "@/lib/app-customer";
 
 /**
@@ -32,6 +33,11 @@ export async function GET(request: Request) {
     }
     // Who they are, for the name at the top: their customer page, if they're one yet.
     const customerId = conversation.isTeam || after ? null : await customerIdForConversation(conversation.id);
+    // Their bookings with where each is up to; for the team chat, who's seen what.
+    const [enquiries, receipts] = await Promise.all([
+      conversation.isTeam || after ? Promise.resolve([]) : enquiryCards(conversation.id),
+      conversation.isTeam ? teamReadReceipts(caller.user.id).catch(() => []) : Promise.resolve([]),
+    ]);
     return mobileJson({
       conversation: {
         id: conversation.id,
@@ -45,6 +51,9 @@ export async function GET(request: Request) {
       },
       messages: await getMessagesForApp(conversation.id, after),
       viewer: { id: caller.user.id, staff: true },
+      enquiries,
+      enquirySteps: ENQUIRY_STEPS,
+      receipts: receipts.map((r) => ({ userId: r.userId, name: r.name, avatarUrl: r.avatarUrl, lastReadAt: r.lastReadAt })),
     });
   }
 

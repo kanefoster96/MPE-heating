@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ComponentProps, type ReactNode } from "react";
-import { Image, RefreshControl, ScrollView, TextInput, View } from "react-native";
+import { Image, Pressable, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "@/components/screen-header";
@@ -207,6 +207,29 @@ function Customer() {
     }
   }
 
+  // Their chat: the one they have, else one started by their mobile (to text them first).
+  async function openChat() {
+    if (!data) return;
+    if (data.conversationId) return router.push(`/chat/${data.conversationId}`);
+    try {
+      const res = await apiPost<{ id: string }>("/api/mobile/chat/open", { customerId: data.id });
+      router.push(`/chat/${res.id}`);
+    } catch (err) {
+      notify("Couldn't open a chat", err instanceof Error ? err.message : "Please try again.");
+    }
+  }
+
+  async function removeNote(noteId: string) {
+    if (!(await confirmAction("Delete this note?", "It's gone for the whole team.", "Delete"))) return;
+    try {
+      await apiPost(`${path}/notes`, { noteId }, "DELETE");
+      haptic.success();
+      load();
+    } catch (err) {
+      notify("Not deleted", err instanceof Error ? err.message : "Please try again.");
+    }
+  }
+
   async function plan(intent: string) {
     try {
       const res = await apiPost<{ message: string }>(`${path}/plan`, { intent });
@@ -283,7 +306,7 @@ function Customer() {
               </View>
               <View style={{ flexDirection: "row", gap: 8 }}>
                 {data.phone && <Quick icon="call" label="Call" onPress={() => openExternal(`tel:${data.phone}`)} />}
-                {data.conversationId && <Quick icon="chatbubbles" label="Chat" onPress={() => router.push(`/chat/${data.conversationId}`)} />}
+                <Quick icon="chatbubbles" label="Chat" onPress={openChat} />
                 {place ? <Quick icon="navigate" label="Directions" onPress={() => openDirections(place)} /> : null}
                 {data.email && <Quick icon="mail" label="Email" onPress={() => openExternal(`mailto:${data.email}`)} />}
               </View>
@@ -446,9 +469,14 @@ function Customer() {
             {data.notes.length ? (
               <Card style={{ gap: 12 }}>
                 {data.notes.map((n) => (
-                  <View key={n.id} style={{ gap: 2 }}>
-                    <AppText style={{ fontSize: 15, lineHeight: 21 }}>{n.body}</AppText>
-                    <AppText style={{ color: colors.text3, fontSize: 12 }}>{[n.author, n.when].filter(Boolean).join(" · ")}</AppText>
+                  <View key={n.id} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <AppText style={{ fontSize: 15, lineHeight: 21 }}>{n.body}</AppText>
+                      <AppText style={{ color: colors.text2, fontSize: 12 }}>{[n.author, n.when].filter(Boolean).join(" · ")}</AppText>
+                    </View>
+                    <Pressable onPress={() => removeNote(n.id)} accessibilityLabel="Delete this note" style={({ pressed }) => [{ width: 44, height: 44, alignItems: "center", justifyContent: "center", marginTop: -10, marginRight: -10 }, pressed && { opacity: 0.7 }]}>
+                      <Ionicons name="trash-outline" size={18} color={colors.text2} />
+                    </Pressable>
                   </View>
                 ))}
               </Card>

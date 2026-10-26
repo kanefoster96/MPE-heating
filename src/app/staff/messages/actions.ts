@@ -11,6 +11,7 @@ import { deliverCoachMessage } from "@/lib/coach-send";
 import { normalizeUkPhone } from "@/lib/twilio";
 import type { ChatMessage, SendMessageInput } from "@/lib/chat";
 import { isTeamConversation, markTeamRead, teamReadReceipts, type TeamReadReceipt } from "@/lib/team-chat";
+import { setConversationPhone } from "@/lib/app-chat";
 
 async function requireCoach() {
   const supabase = await createClient();
@@ -42,27 +43,8 @@ export async function updateConversationPhone(
 ): Promise<{ success: true } | { success: false; error: string }> {
   await requireCoach();
 
-  const normalized = normalizeUkPhone(phone);
-  if (!normalized) return { success: false, error: "That doesn't look like a valid phone number." };
-  if (await isTeamConversation(conversationId)) return { success: false, error: "The team chat has no phone number." };
-
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("chat_conversations")
-    .update({ phone: normalized })
-    .eq("id", conversationId);
-
-  if (error) {
-    // A unique-index violation means another conversation already has this
-    // number — most likely the same person already has a thread going
-    // under a different account.
-    if (error.code === "23505") {
-      return { success: false, error: "Another conversation already uses that number." };
-    }
-    return { success: false, error: "Could not save that number." };
-  }
-
-  return { success: true };
+  const result = await setConversationPhone(conversationId, phone);
+  return result.ok ? { success: true } : { success: false, error: result.error };
 }
 
 export async function markConversationReadAsCoach(

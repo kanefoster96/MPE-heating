@@ -244,5 +244,6 @@ export type StaffCustomer = {
     open: JobPayment[];
     paidCount: number;
   };
+  fields: Record<string, string>;
   links: { book: string; invoice: string; quote: string; page: string };
 };

@@ -86,6 +86,15 @@ picked up.
   summary and the review ask, and photos and certificates for the job from
   the camera, photos or a PDF (`components/file-adder.tsx`, straight to
   the private job-files storage). Opened again, it edits what was saved.
+- **New invoice or call-out fee** (`app/new-payment.tsx`): the call-out
+  fee (not for plan members), and the invoice: lines, his products as
+  one-tap lines, the call-out fee they paid taken off, referral money off,
+  extras offered on their pay page, and paying monthly. Then send it to
+  them, or take payment now on the Payment sheet. **Invoices**
+  (`app/invoices.tsx`, `app/invoice/[id].tsx`): unpaid, monthly and paid,
+  each with what's left; take it, send the link or receipt again, cancel,
+  record a monthly payment, stop or restart monthly payments. **New
+  customer** and their details (`app/customer-form.tsx`).
 - **Menu** (`app/(tabs)/menu.tsx`, the team only, in Services' place):
   cards that turn orange when something needs Fergal (requests, unread
   messages, overdue invoices, failed monthly or plan payments, accepted

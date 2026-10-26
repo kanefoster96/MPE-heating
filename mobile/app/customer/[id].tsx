@@ -230,7 +230,7 @@ function Customer() {
             {(
               [
                 ["calendar", "Book a visit", `app:/visit-form?customer=${data.id}`],
-                ["receipt", "Invoice", data.links.invoice],
+                ["receipt", "Invoice", `app:/new-payment?customer=${data.id}`],
                 ["document-text", "Quote", data.links.quote],
               ] as [IconName, string, string][]
             ).map(([icon, label, link]) => (

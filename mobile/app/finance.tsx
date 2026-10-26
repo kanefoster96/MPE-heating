@@ -1,11 +1,10 @@
 import { useCallback, useState } from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { ScreenHeader } from "@/components/screen-header";
 import { Bars, Stat, StatRow } from "@/components/stat";
 import { AppText, Card, LoadError, SecondaryButton, Skeleton } from "@/components/ui";
 import { apiFetch, readCached } from "@/lib/api";
-import { openSignedIn } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 import type { StaffFinance } from "@/lib/types";
 
@@ -17,6 +16,7 @@ const PATH = "/api/mobile/staff/finance";
  * income and quotes out. As the site recorded it, before Stripe's fees.
  */
 export default function FinanceScreen() {
+  const router = useRouter();
   const [data, setData] = useState<StaffFinance | null>(() => readCached<StaffFinance>(PATH) ?? null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,7 +74,7 @@ export default function FinanceScreen() {
                 Invoices, call-out fees and monthly payments, as the site recorded them, before Stripe&apos;s fees. Maintenance plan payments aren&apos;t included: those are in Stripe.
               </AppText>
             </Card>
-            <SecondaryButton title="Invoices" icon="receipt" onPress={() => openSignedIn("/staff/invoices")} />
+            <SecondaryButton title="Invoices" icon="receipt" onPress={() => router.push("/invoices")} />
           </>
         )}
       </ScrollView>

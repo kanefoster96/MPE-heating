@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { freeOffers } from "@/lib/content";
-import { NewBoilerIcon, VanIcon, WhatsAppIcon } from "./icons";
+import { ChatIcon, NewBoilerIcon, VanIcon } from "./icons";
 
 type Offer = (typeof freeOffers.items)[number];
 
@@ -10,10 +10,10 @@ type Offer = (typeof freeOffers.items)[number];
 export const offerIcons = {
   callout: VanIcon,
   quote: NewBoilerIcon,
-  chat: WhatsAppIcon,
+  chat: ChatIcon,
 } as const;
 
-// A free offer's link: a page link, or WhatsApp in a new tab.
+// A free offer's link: a page link, or an email link until live chat is on.
 export function FreeOfferLink({
   item,
   className,
@@ -26,7 +26,7 @@ export function FreeOfferLink({
   children: ReactNode;
 }) {
   return item.external ? (
-    <a href={item.href} target="_blank" rel="noopener noreferrer" onClick={onClick} className={className}>
+    <a href={item.href} onClick={onClick} className={className}>
       {children}
     </a>
   ) : (

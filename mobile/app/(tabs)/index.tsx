@@ -10,13 +10,13 @@ import { CountBadge } from "@/components/count-badge";
 import { useAuth } from "@/contexts/auth";
 import { useHomeData } from "@/lib/use-home";
 import { openExternal, openInApp } from "@/lib/open-link";
-import { MPE_PHONE, MPE_WHATSAPP, SITE_URL } from "@/lib/site";
+import { MPE_PHONE, SITE_URL } from "@/lib/site";
 import { colors, fonts } from "@/lib/theme";
 
 const PAD = 20;
 /** The call-out tile: the deep end of the site's orange, so its small white text stays at 4.5:1 or better. */
 const TILE_GRADIENT = [colors.orangeDeep, "#c44a22"] as const;
-const PHONE = { display: MPE_PHONE.display, href: MPE_PHONE.href, whatsapp: MPE_WHATSAPP };
+const PHONE = { display: MPE_PHONE.display, href: MPE_PHONE.href };
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -143,11 +143,11 @@ function CustomerHome() {
               </AppText>
             </View>
           </PressableScale>
-          <PressableScale onPress={() => openExternal(PHONE.whatsapp)} accessibilityLabel="WhatsApp us" style={{ flex: 1 }}>
+          <PressableScale onPress={() => router.push("/chat")} accessibilityLabel="Live chat" style={{ flex: 1 }}>
             <View style={{ height: 48, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <Ionicons name="logo-whatsapp" size={18} color={colors.whatsapp} />
-              <AppText weight="semibold" style={{ fontSize: 15, color: colors.whatsapp }}>
-                WhatsApp
+              <Ionicons name="chatbubbles" size={18} color={colors.navy} />
+              <AppText weight="semibold" style={{ fontSize: 15 }}>
+                Live chat
               </AppText>
             </View>
           </PressableScale>

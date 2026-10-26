@@ -69,7 +69,7 @@ export default async function AccountPage({
         <Eyebrow>Your account</Eyebrow>
         <Heading as="h1" lead="Your account." em="Coming soon." emLine className="mt-3 text-[36px] sm:text-5xl" />
         <div className={`mt-8 ${CARD}`}>
-          <p className="text-text-2">Soon you&rsquo;ll be able to see your visits and keep your details up to date here. In the meantime, we&rsquo;re a call, a WhatsApp or an email away.</p>
+          <p className="text-text-2">Soon you&rsquo;ll be able to see your visits and keep your details up to date here. In the meantime, we&rsquo;re a call, a message or an email away.</p>
           <ContactOptions className="mt-6" />
         </div>
       </Shell>

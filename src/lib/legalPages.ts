@@ -45,7 +45,7 @@ const PRIVACY_COOKIES: ContentBlock[] = META_PIXEL_ID
       },
       {
         type: "p",
-        text: `If you allow it, we also use the Meta (Facebook and Instagram) Pixel. It tells Meta which of our pages you visit, when you tap to call or WhatsApp us, and when you send a booking form. Your browser sends Meta your IP address and browser details as it does this. ${
+        text: `If you allow it, we also use the Meta (Facebook and Instagram) Pixel. It tells Meta which of our pages you visit, when you tap to call us, and when you send a booking form. Your browser sends Meta your IP address and browser details as it does this. ${
           // Only said when the server-side copy (lib/meta-capi.ts) is switched on.
           process.env.META_CONVERSIONS_API_ACCESS_TOKEN
             ? 'When you send a booking form, our server also sends Meta your email address and phone number in scrambled ("hashed") form, with your IP address and browser details. '

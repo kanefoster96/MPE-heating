@@ -99,10 +99,8 @@ deployment.
   - [ ] **A message comes in:** `<site>/api/webhooks/twilio`
 - [ ] Optional: create an API key (**Account → API keys & tokens →
       Create**, Standard) for sending.
-- [ ] The number takes calls and texts **in** only. Calls to it ring
-      Fergal's mobile (07448 628 101, or each admin's saved mobile),
-      showing the caller's number. Not
-      answered in 18 seconds: MPE's voicemail. Either way the call's logged
+- [ ] Calls to it ring Fergal's mobile (07448 628 101, or each admin's
+      saved mobile), showing the caller's number. Not answered in 18 seconds: MPE's voicemail. Either way the call's logged
       in their chat, and after their first ever call they get one text
       (never again to that number, and not if they have the app) pointing
       them at the app and live chat.
@@ -128,22 +126,20 @@ deployment.
       `src/lib/twilio-usage.ts`.
 - [ ] Optional, as a backstop: in the Twilio console, **Monitor → Usage
       triggers**, add one at about $40 to email you if something runs away.
-- [ ] **WhatsApp Business on the MPE number** (free calls and messages
-      from it, so Twilio credit's only for what has to be a call or text):
-      in the WhatsApp Business app on Fergal's phone, register the MPE
-      number and pick "Call me" for the code. Before you do, point the
-      number's "A call comes in" webhook at
+- [ ] Customers reach MPE by **call, live chat or email**: the site and
+      the app don't show WhatsApp. (Until live chat's switched on, the
+      site's chat links are email links.)
+- [ ] Optional: **WhatsApp Business on the MPE number**, for engineers who
+      want to call customers on WhatsApp (free, and outside the
+      allowance): in the WhatsApp Business app on Fergal's phone, register
+      the MPE number and pick "Call me" for the code. Before you do, point
+      the number's "A call comes in" webhook at
       `<site>/api/webhooks/twilio/voice?mode=forward` so the code call
-      rings straight through; put it back after. Then set
-      `NEXT_PUBLIC_WHATSAPP_NUMBER` and `EXPO_PUBLIC_WHATSAPP_NUMBER` to
-      the MPE number, so the site's and app's WhatsApp links use it. In
-      the app, the team's Call buttons offer **WhatsApp call**, **Send app
-      link on WhatsApp** (a message ready to send, pointing them to the
-      MPE app) and **Use my own phone**.
-- [ ] In WhatsApp Business (Settings → Business tools), turn on a
+      rings straight through; put it back after.
+- [ ] Then in WhatsApp Business (Settings → Business tools), turn on a
       **greeting message** and an **away message** pointing customers to
-      the MPE app (`<site>/app`), so job chat stays in the app where the
-      rest of the job is.
+      live chat in the MPE app (`<site>/app`) for a quicker reply, so job
+      chat stays in the app where the rest of the job is.
 - [ ] Once it's working, show it everywhere instead of Fergal's own number:
       set `NEXT_PUBLIC_MPE_PHONE` on the site and `EXPO_PUBLIC_MPE_PHONE`
       for the app build (both as `+44…`), and redeploy.
@@ -158,22 +154,25 @@ deployment.
 | `NEXT_PUBLIC_MPE_PHONE` | The same number: the site shows it instead of Fergal's | Public |
 | `TWILIO_ALLOWANCE_PENCE` | Optional: the month's calls and texts allowance, excluding VAT (default 2000, £20) | Config |
 | `TWILIO_USD_TO_GBP` | Optional: the fixed exchange rate for Twilio's dollar prices (default 0.79) | Config |
-| `OUTBOUND_CALLS_ON` | Leave unset. `1` brings back "Call as MPE" from the Twilio number (paid calls out) | Config |
-| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Optional: the WhatsApp number for the site's links, once WhatsApp Business is on the MPE number | Public |
+| `OUTBOUND_CALLS_ON` | Leave unset. `0` switches off calls out from the Twilio number | Config |
 
 **Check:** text the number; it appears in the team inbox. Ring it: Fergal's
 phone rings with your number. Answer, then hang up: you get the "get the
 MPE app" text. Ring again and don't answer: voicemail, and no second text.
 
-Calls from the app go on WhatsApp Business, or the engineer's own phone if
-that doesn't get through: the Twilio number doesn't make calls out. "Call
-as MPE" (the engineer's phone rings first, then they're put through and the
-customer sees the Twilio number) is built but off; `OUTBOUND_CALLS_ON=1`
-brings it back, for instance as a paid extra later.
+Calls from the app: once the number's set, the team's Call buttons offer
+**Call (uses call allowance)**: the engineer's phone rings first, and when
+they answer they're put through; the customer sees the Twilio number. The
+minutes come out of the £20 allowance, and it's hidden while calls and
+texts are paused. Then **Call using WhatsApp** (opens their WhatsApp chat)
+and **Use my own phone**. The phone that rings first is 07448 628 101,
+unless an engineer saves their own mobile (Call → "Ring my own mobile
+instead"). Until the number's set, Call dials from the engineer's own phone.
 
-**Check:** in the app, open a chat with your own number and tap Call. You
-get WhatsApp call, Send app link on WhatsApp and Use my own phone; no Call
-as MPE.
+**Check:** in the app, open a chat with your own number and tap Call →
+Call (uses call allowance). 07448 628 101 rings; answer it and your phone
+rings showing the Twilio number. Settings → Calls and texts shows the
+minutes a few seconds after you hang up.
 
 ## 4. The follow-up job (reminders, follow-ups, monthly payments)
 
@@ -290,7 +289,7 @@ pages (visits, invoices, the plan link, accounts, the team's pages).
 
 Events sent: **PageView** (public pages), **ViewContent** (the boiler
 repair, servicing, new boilers and commercial pages), **Contact** (a tap
-on the phone number or WhatsApp) and **Lead** (a booking form sent, from
+on the phone number) and **Lead** (a booking form sent, from
 the browser and the server, counted once).
 
 ## 8. The app (mobile/): before it's published

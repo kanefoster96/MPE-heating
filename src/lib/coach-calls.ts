@@ -9,6 +9,7 @@ import { twilioClient } from "@/lib/twilio";
 import { CLUB } from "@/lib/club";
 import { business } from "@/lib/content";
 import { formatPhone } from "@/lib/phone";
+import { usagePaused } from "@/lib/twilio-usage";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any>;
@@ -49,20 +50,21 @@ export function ringPhoneOf(user: User | null | undefined): string | null {
 
 /** Whether calls can go out from the MPE number: Twilio's set up, with a number. */
 /**
- * "Call as MPE" from the Twilio number. Off unless OUTBOUND_CALLS_ON=1:
- * the number takes calls in only, and Fergal calls customers back on
- * WhatsApp Business or his own phone. Kept so it can come back later.
+ * Calls out from the Twilio number, once it's set up. They come out of the
+ * month's calls and texts allowance (lib/twilio-usage.ts), and stop while
+ * calls and texts are paused. OUTBOUND_CALLS_ON=0 switches them off.
  */
 export function businessCallsOn(): boolean {
-  return process.env.OUTBOUND_CALLS_ON === "1" && !!(process.env.TWILIO_PHONE_NUMBER && (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_API_KEY_SECRET));
+  return process.env.OUTBOUND_CALLS_ON !== "0" && !!(process.env.TWILIO_PHONE_NUMBER && (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_API_KEY_SECRET));
 }
 
-/** For the app's Call sheet: whether it's on, the number customers see, and the phone that rings first. */
-export function callSetup(user: User) {
+/** For the app's Call sheet: whether it's on (and not paused), the number customers see, and the phone that rings first. */
+export async function callSetup(user: User) {
   const ring = ringPhoneOf(user);
   const twilioNumber = process.env.TWILIO_PHONE_NUMBER ?? null;
   return {
     on: businessCallsOn(),
+    paused: businessCallsOn() && (await usagePaused()),
     businessNumber: twilioNumber ? formatPhone(twilioNumber) : null,
     ringPhone: ring ? formatPhone(ring) : null,
     ownPhone: !!coachPhoneOf(user),

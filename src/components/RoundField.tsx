@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { business, sameDay as sameDayCopy } from "@/lib/content";
 import { ENQUIRY_TYPES, type EnquiryType } from "@/lib/enquiry";
 import { isValidEmail, isValidPhone } from "@/lib/validation";
-import { PhoneIcon, WhatsAppIcon } from "./icons";
+import { MailIcon, PhoneIcon } from "./icons";
 import { fillMsSince } from "./BotCheck";
 
 type Status = "idle" | "sending" | "sent" | "unavailable" | "failed";
@@ -121,13 +121,11 @@ export function RoundField({
         {business.phoneDisplay}
       </a>
       <a
-        href={business.whatsappHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex h-12 items-center justify-center gap-2 rounded-full bg-whatsapp-dark text-base font-semibold text-white"
+        href={business.emailHref}
+        className="flex h-12 items-center justify-center gap-2 rounded-full border border-navy/20 bg-white text-base font-semibold text-navy"
       >
-        <WhatsAppIcon className="h-[18px] w-[18px]" aria-hidden="true" />
-        WhatsApp
+        <MailIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+        Email us
       </a>
     </div>
   );
@@ -257,7 +255,7 @@ export function RoundField({
             <p className="font-bold">
               {status === "unavailable" ? "Online booking is taking a short break." : "That didn’t send."}
             </p>
-            <p className="mt-1 text-sm text-text-2">Call or WhatsApp us and we&rsquo;ll sort it straight away.</p>
+            <p className="mt-1 text-sm text-text-2">Call or email us and we&rsquo;ll sort it straight away.</p>
             {contactButtons}
           </div>
         )}

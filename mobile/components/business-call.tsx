@@ -5,8 +5,6 @@ import { apiFetch, apiPost, ApiError } from "@/lib/api";
 import { notify } from "@/lib/confirm";
 import { openExternal } from "@/lib/open-link";
 import { colors, fonts } from "@/lib/theme";
-import { SITE_URL } from "@/lib/site";
-import { useAuth } from "@/contexts/auth";
 
 type CallTarget = {
   /** Who's being called, for the prompts. */
@@ -19,7 +17,7 @@ type CallTarget = {
   directNumber?: string | null;
 };
 
-type Setup = { on: boolean; businessNumber: string | null; ringPhone: string | null; ownPhone: boolean };
+type Setup = { on: boolean; paused: boolean; businessNumber: string | null; ringPhone: string | null; ownPhone: boolean };
 
 // Asked once and shared: a day's job cards each have a Call button.
 let setupOnce: Promise<Setup | null> | null = null;
@@ -32,20 +30,20 @@ function loadSetup(): Promise<Setup | null> {
 }
 
 /**
- * The team's Call buttons. The MPE number takes calls in only, so calls
- * out go on WhatsApp (WhatsApp Business, on the MPE number once it's set
- * up there), or from their own phone if WhatsApp doesn't get through.
- * "Send app link" opens the same WhatsApp chat with a message ready,
- * pointing the customer to the MPE app so the job's chat stays in one place.
- *
- * "Call as MPE" (Kanvas Academy's business call: their phone rings first,
- * then they're put through, and the customer sees MPE's number) only shows
- * when OUTBOUND_CALLS_ON is set on the site (lib/coach-calls.ts).
+ * The team's Call buttons. "Call" is Kanvas Academy's business call: their
+ * phone rings first, then they're put through, and the customer sees MPE's
+ * number. It comes out of the month's calls and texts allowance, so the
+ * sheet says so, and it's hidden while calls and texts are paused. "Call
+ * using WhatsApp" opens their chat in WhatsApp (Business, on the MPE number
+ * once it's set up there); its greeting and away messages point customers
+ * to the app. "Use my own phone" dials straight from theirs. Until MPE's
+ * Twilio number is set up, Call just dials from their phone. The phone
+ * that rings first is their own mobile once they've saved one, else MPE's
+ * main number.
  *
  * Returns `call` for the buttons and `modal` to render once in the screen.
  */
 export function useBusinessCall() {
-  const { me } = useAuth();
   const [setup, setSetup] = useState<Setup | null>(null);
   const [choosing, setChoosing] = useState<CallTarget | null>(null);
   const [askPhone, setAskPhone] = useState<CallTarget | "change" | null>(null);
@@ -68,13 +66,12 @@ export function useBusinessCall() {
   /**
    * Opens their chat in WhatsApp (WhatsApp Business, if that's the one on
    * the phone), with its call button at the top. No way to start the call
-   * itself from a link, so it's one more tap there. With `text`, the
-   * message is typed in ready to send.
+   * itself from a link, so it's one more tap there.
    */
-  function whatsapp(target: CallTarget, text?: string) {
+  function whatsapp(target: CallTarget) {
     const number = waNumber(target);
     if (!number) return;
-    openExternal(`https://wa.me/${number}${text ? `?text=${encodeURIComponent(text)}` : ""}`);
+    openExternal(`https://wa.me/${number}`);
     // A reply, as far as their bookings go: the same-day nudge stops.
     apiPost("/api/mobile/staff/call/whatsapp", { conversationId: target.conversationId, to: target.to ?? target.directNumber ?? undefined }).catch(() => {});
   }
@@ -98,14 +95,8 @@ export function useBusinessCall() {
     }
   }
 
-  /** The message for "Send app link": who it's from, and where to keep in touch. */
-  function appLinkText(): string {
-    const first = me?.user.name?.trim().split(/\s+/)[0];
-    return `Hi, it's ${first ? `${first} from MPE` : "MPE"}. For updates on your job and to chat with us, use the MPE app: ${SITE_URL}/app`;
-  }
-
   function call(target: CallTarget) {
-    // WhatsApp first, so there's always a choice when we have their number.
+    // Nothing to choose between: straight to their own phone.
     if (!setup?.on && !waNumber(target)) return direct(target);
     setChoosing(target);
   }
@@ -148,43 +139,35 @@ export function useBusinessCall() {
             Call {choosing?.name}
           </AppText>
           <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 6, lineHeight: 20 }}>
-            {choosing && waNumber(choosing)
-              ? "WhatsApp opens their chat: tap the call button at the top. If it doesn't get through, use your own phone."
-              : "No WhatsApp number for them, so it's your own phone."}
-            {setup?.on ? ` Calling as MPE uses call credit; they see ${setup.businessNumber ?? "MPE's number"}.` : ""}
+            {setup?.on
+              ? setup.paused
+                ? "Calls from the MPE number are paused until the 1st (Settings → Calls and texts)."
+                : `Call rings you first, then puts you through; they see ${setup.businessNumber ?? "MPE's number"}. It comes out of your calls and texts allowance.`
+              : ""}
+            {choosing && waNumber(choosing) ? `${setup?.on ? " " : ""}WhatsApp opens their chat: tap the call button at the top.` : ""}
           </AppText>
           <View style={{ gap: 10, marginTop: 18 }}>
-            {!!choosing &&
-              !!waNumber(choosing) &&
+            {setup?.on &&
+              !setup.paused &&
               button(
-                "WhatsApp call",
+                "Call (uses call allowance)",
                 () => {
                   const target = choosing;
                   setChoosing(null);
-                  if (target) whatsapp(target);
+                  if (target) void place(target);
                 },
                 "orange",
               )}
             {!!choosing &&
               !!waNumber(choosing) &&
               button(
-                "Send app link on WhatsApp",
+                "Call using WhatsApp",
                 () => {
                   const target = choosing;
                   setChoosing(null);
-                  if (target) whatsapp(target, appLinkText());
+                  if (target) whatsapp(target);
                 },
-                "outline",
-              )}
-            {setup?.on &&
-              button(
-                "Call as MPE",
-                () => {
-                  const target = choosing;
-                  setChoosing(null);
-                  if (target) void place(target);
-                },
-                choosing && waNumber(choosing) ? "outline" : "orange",
+                setup?.on && !setup.paused ? "outline" : "orange",
               )}
             {!!(choosing?.directNumber ?? choosing?.to) &&
               button(
@@ -196,7 +179,7 @@ export function useBusinessCall() {
                 },
                 "outline",
               )}
-            {setup?.on && button(
+            {setup?.on && !setup.paused && button(
               setup?.ownPhone ? "Change the phone we ring" : "Ring my own mobile instead",
               () => {
                 setChoosing(null);

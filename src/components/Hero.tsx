@@ -15,9 +15,7 @@ export function Hero() {
       <div className="mx-auto max-w-6xl px-5 text-center sm:px-6 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-center lg:gap-16 lg:text-left">
         <div className="flex flex-col items-center lg:items-start">
           <a
-            href={business.whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={business.chatHref}
             className="inline-flex items-center gap-2.5 rounded-full bg-grey py-[5px] pr-4 pl-[5px] text-left text-sm leading-[1.3] text-text-2 transition-colors hover:bg-[#ebe8e3]"
           >
             <span aria-hidden="true" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-[image:var(--grad)] text-white">
@@ -47,13 +45,8 @@ export function Hero() {
                 Prefer to talk first? Call {business.phoneDisplay}
               </a>
               <span aria-hidden="true"> &middot; </span>
-              <a
-                href={business.whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center font-semibold text-navy"
-              >
-                WhatsApp
+              <a href={business.chatHref} className="inline-flex min-h-11 items-center font-semibold text-navy">
+                {business.chatLabel}
               </a>
             </p>
           </div>

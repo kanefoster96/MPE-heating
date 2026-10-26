@@ -4,6 +4,7 @@
 import type { ContentBlock } from "./richContent";
 import { formatPhone, normalizePhone } from "./phone";
 import type { EnquiryType } from "./enquiry";
+import { CHAT_ON } from "./chat-on";
 
 // Single source of truth for the towns served — backs both the prose
 // sentence below (business.areas) and the structured areaServed list used
@@ -54,6 +55,7 @@ function joinWithAnd(items: string[]): string {
 // NEXT_PUBLIC_MPE_PHONE is set, so every call rings Fergal through it and is
 // logged in their chat. Until then, Fergal's own mobile.
 const ENGINEER_MOBILE = "+447448628101";
+const EMAIL = "fergal@mpenortheast.co.uk";
 const MPE_PHONE = (process.env.NEXT_PUBLIC_MPE_PHONE && normalizePhone(process.env.NEXT_PUBLIC_MPE_PHONE)) || ENGINEER_MOBILE;
 
 export const business = {
@@ -64,9 +66,12 @@ export const business = {
   phoneE164: MPE_PHONE,
   /** Fergal's own mobile: what a call to the MPE number rings. Never shown to customers once the MPE number is set. */
   engineerMobile: ENGINEER_MOBILE,
-  // Fergal's WhatsApp until WhatsApp Business is on the MPE number (NEXT_PUBLIC_WHATSAPP_NUMBER).
-  whatsappHref: `https://wa.me/${(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+447448628101").replace(/\D/g, "")}`,
-  email: "fergal@mpenortheast.co.uk",
+  email: EMAIL,
+  emailHref: `mailto:${EMAIL}`,
+  // Customers reach MPE by call, live chat or email: live chat once it's
+  // switched on (lib/chat-on.ts), email until then, so it's never a dead end.
+  chatHref: CHAT_ON ? "/messages" : `mailto:${EMAIL}`,
+  chatLabel: CHAT_ON ? "Live chat" : "Email us",
   gasSafeNumber: "552052",
   base: "Whitley Bay",
   baseRegion: "Tyne and Wear",
@@ -86,7 +91,7 @@ export type TwoTone = { lead: string; em: string };
 // boiler, with the £50 explained up front. Layout as on kanvas.one.
 export const hero = {
   // Proof pill above the headline: who we are, then a way to ask.
-  proof: { line1: "Family-run and Gas Safe registered", line2: "Got a question? WhatsApp us" },
+  proof: { line1: "Family-run and Gas Safe registered", line2: CHAT_ON ? "Got a question? Live chat with us" : "Got a question? Email us" },
   // Dream outcome and time.
   headline: { lead: "Boiler broken down?", em: "We'll be round today." },
   // Likelihood (Gas Safe, parts on the van) and the £50, risk removed.
@@ -162,10 +167,10 @@ export const freeOffers = {
     {
       key: "chat",
       title: "Free advice from an engineer",
-      note: "Chat to us on WhatsApp.",
-      cta: "Start a chat",
-      href: business.whatsappHref,
-      external: true,
+      note: CHAT_ON ? "Live chat with us." : "Email us your question.",
+      cta: CHAT_ON ? "Start a chat" : "Email us",
+      href: business.chatHref,
+      external: !CHAT_ON,
     },
   ],
 } as const;
@@ -316,7 +321,7 @@ export const aboutPageContent: ContentBlock[] = [
 export const howItWorks = {
   heading: ["From cold house", "to cosy, in three steps."],
   steps: [
-    { title: "You book", text: "Online, by phone or on WhatsApp." },
+    { title: "You book", text: "Online or by phone." },
     { title: "We come out today", text: "Book by midday and we're usually with you the same day. A Gas Safe engineer finds the fault and agrees the price first." },
     { title: "Fixed. Heating's back on.", text: "Your £50 call-out comes back in full, and the repair's guaranteed for 3\u00a0months." },
   ],

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { business, freeOffers } from "@/lib/content";
 import { FreeOfferLink, offerIcons } from "./FreeOfferLink";
 import { ChatButton } from "./ChatButton";
-import { MenuIcon, CloseIcon, WhatsAppIcon } from "./icons";
+import { MenuIcon, CloseIcon } from "./icons";
 
 // The logo on the left, call, chat and menu on the right, nothing else.
 // A white glass bar with 44px tap targets.
@@ -50,15 +50,6 @@ export function Nav() {
             className="inline-flex h-11 items-center rounded-full border border-navy/20 px-4 text-sm font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
           >
             Call us
-          </a>
-          <a
-            href={business.whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Chat with us on WhatsApp"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-whatsapp transition-colors hover:bg-grey"
-          >
-            <WhatsAppIcon className="h-6 w-6" />
           </a>
           <ChatButton />
           <button

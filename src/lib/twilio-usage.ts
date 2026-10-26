@@ -143,6 +143,7 @@ export function ratesInPence(): { label: string; price: string }[] {
     { label: "Text received", price: p(RATES_USD.text_in) },
     { label: "Call in, per minute", price: p(RATES_USD.call_in) },
     { label: "Call put through to your phone, per minute (on top of the call in)", price: p(RATES_USD.call_forward) },
+    { label: "Call out from the MPE number, per minute (your phone and theirs)", price: p(RATES_USD.call_forward * 2) },
     { label: "Voicemail written out, per minute", price: p(RATES_USD.transcription) },
     { label: "The MPE number, per month", price: `£${(pence(RATES_USD.number) / 100).toFixed(2)}` },
   ];

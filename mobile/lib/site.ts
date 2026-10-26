@@ -18,5 +18,5 @@ export const MPE_PHONE = {
   display: national.startsWith("07") ? `${national.slice(0, 5)} ${national.slice(5)}` : `${national.slice(0, 4)} ${national.slice(4, 7)} ${national.slice(7)}`,
 };
 
-/** WhatsApp: Fergal's for now; the MPE number's once WhatsApp Business is on it (EXPO_PUBLIC_WHATSAPP_NUMBER). */
-export const MPE_WHATSAPP = `https://wa.me/${(process.env.EXPO_PUBLIC_WHATSAPP_NUMBER || "+447448628101").replace(/\D/g, "")}`;
+/** Customers reach MPE by call, live chat (the Chat tab) or email. */
+export const MPE_EMAIL = "mailto:fergal@mpenortheast.co.uk";

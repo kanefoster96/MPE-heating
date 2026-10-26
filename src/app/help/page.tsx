@@ -29,7 +29,7 @@ export default function HelpIndexPage() {
           cta="Ask us a question"
           type="other"
           shortCta="Ask us"
-          reassurance="If it's quicker to ask than to read, WhatsApp us and an engineer will answer."
+          reassurance="If it's quicker to ask than to read, message us and an engineer will answer."
         />
 
         <HelpList posts={helpArticles} />

@@ -33,7 +33,6 @@ export async function GET() {
       fullName: business.fullName,
       phoneDisplay: business.phoneDisplay,
       phoneHref: business.phoneHref,
-      whatsappHref: business.whatsappHref,
       gasSafeNumber: business.gasSafeNumber,
       base: business.base,
     },

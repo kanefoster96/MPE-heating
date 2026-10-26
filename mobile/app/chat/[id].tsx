@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ChatThread } from "@/components/chat-thread";
 import { Avatar } from "@/components/avatar";
-import { AppText, PressableScale, haptic } from "@/components/ui";
+import { AppText, haptic } from "@/components/ui";
 import type { SheetAction } from "@/components/action-sheet";
 import { apiPost } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/confirm";
@@ -15,18 +15,37 @@ import type { ConversationResponse } from "@/lib/types";
 
 type Conversation = ConversationResponse["conversation"];
 
+/** One line under their name: done, or how they last got in touch (Kanvas Academy's subtitle). */
 function statusLine(c: Conversation): string {
+  if (c.isTeam) return "The team chat";
   if (c.completed) return "Marked done";
-  if (c.customerId) return "Tap for their details";
-  return c.guest ? "Website visitor · tap to add" : "Tap to add as a customer";
+  if (c.lastFrom === "app") return "Messaging from the app";
+  if (c.lastFrom === "web") return "From the website chat";
+  if (c.guest) return "Website visitor";
+  return "Open conversation";
+}
+
+/** A round button in the header (call, done): Kanvas Academy's IconButton. */
+function IconButton({ icon, label, onPress }: { icon: "call-outline" | "checkmark" | "arrow-undo-outline"; label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityLabel={label} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
+      {({ pressed }) => (
+        <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.grey, opacity: pressed ? 0.7 : 1 }}>
+          <Ionicons name={icon} size={20} color={colors.navy} />
+        </View>
+      )}
+    </Pressable>
+  );
 }
 
 /**
  * One customer's conversation, for the team (Kanvas Academy's coach
- * thread). Their name at the top opens everything about them: details,
- * jobs underway, what they owe, notes (app/customer/[id].tsx). The "+" by
- * the message box books a visit, sends an invoice or call-out fee, takes
- * a payment, starts a quote, or sends a photo. Call and Done on the right.
+ * thread, laid out the same): back, their avatar and name with how they
+ * last got in touch, then Call and Done as round buttons. Their name opens
+ * everything about them: details, jobs underway, what they owe, notes
+ * (app/customer/[id].tsx). The "+" in the composer's toolbar books a
+ * visit, sends an invoice or call-out fee, takes a payment, starts a quote,
+ * or sends a photo.
  */
 export default function TeamConversation() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -80,55 +99,50 @@ export default function TeamConversation() {
 
   const openDetails = withCustomer((c) => router.push(`/customer/${c}`));
   const team = !!conversation?.isTeam;
-  const nameBlock = (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+  const identity = (
+    <>
       {team ? (
-        <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center" }}>
           <Ionicons name="people" size={20} color="#fff" />
         </View>
       ) : (
-        <Avatar name={conversation?.title ?? "?"} url={null} size={38} />
+        <Avatar name={conversation?.title ?? "?"} url={null} size={40} />
       )}
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <AppText weight="bold" numberOfLines={1} accessibilityRole="header" style={{ fontSize: 17, flexShrink: 1 }}>
-            {conversation?.title ?? "Chat"}
-          </AppText>
-          {!team && conversation && <Ionicons name="chevron-forward" size={15} color={colors.text3} />}
-        </View>
-        {conversation && !team && (
-          <AppText style={{ color: conversation.completed ? colors.success : colors.text2, fontSize: 12 }} numberOfLines={1}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <AppText weight="bold" numberOfLines={1} accessibilityRole="header" style={{ fontSize: 16 }}>
+          {conversation?.title ?? "Chat"}
+        </AppText>
+        {conversation && (
+          <AppText numberOfLines={1} style={{ color: colors.text2, fontSize: 12, marginTop: 1 }}>
             {statusLine(conversation)}
           </AppText>
         )}
       </View>
-    </View>
+    </>
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.page }}>
       <View style={{ paddingTop: insets.top, backgroundColor: colors.page, borderBottomWidth: 1, borderBottomColor: colors.edge }}>
-        <View style={{ height: 60, flexDirection: "row", alignItems: "center", paddingHorizontal: 6, gap: 4 }}>
-          <PressableScale onPress={() => (router.canGoBack() ? router.back() : router.replace("/chat"))} accessibilityLabel="Back" style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 4, paddingVertical: 6 }}>
+          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/chat"))} accessibilityLabel="Back" style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
             <Ionicons name="chevron-back" size={26} color={colors.navy} />
-          </PressableScale>
+          </Pressable>
           {team || !conversation ? (
-            <View style={{ flex: 1 }}>{nameBlock}</View>
+            <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 }}>{identity}</View>
           ) : (
-            <PressableScale onPress={openDetails} accessibilityLabel={`${conversation.title}. ${conversation.customerId ? "Open their details" : "Add them as a customer"}`} style={{ flex: 1 }}>
-              {nameBlock}
-            </PressableScale>
+            <Pressable
+              onPress={openDetails}
+              accessibilityLabel={`${conversation.title}. ${conversation.customerId ? "Open their details" : "Add them as a customer"}`}
+              style={({ pressed }) => [{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4, paddingRight: 6, borderRadius: 999 }, pressed && { backgroundColor: colors.cream }]}
+            >
+              {identity}
+            </Pressable>
           )}
           {conversation && !team && (
             <>
-              {conversation.phone && (
-                <PressableScale onPress={() => openExternal(`tel:${conversation.phone}`)} accessibilityLabel={`Call ${conversation.title}`} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
-                  <Ionicons name="call-outline" size={22} color={colors.navy} />
-                </PressableScale>
-              )}
-              <PressableScale onPress={toggleDone} accessibilityLabel={conversation.completed ? "Reopen" : "Mark done"} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}>
-                <Ionicons name={conversation.completed ? "arrow-undo-outline" : "checkmark-done-outline"} size={24} color={colors.navy} />
-              </PressableScale>
+              {conversation.phone && <IconButton icon="call-outline" label={`Call ${conversation.title}`} onPress={() => openExternal(`tel:${conversation.phone}`)} />}
+              <IconButton icon={conversation.completed ? "arrow-undo-outline" : "checkmark"} label={conversation.completed ? "Reopen" : "Mark done"} onPress={toggleDone} />
             </>
           )}
         </View>

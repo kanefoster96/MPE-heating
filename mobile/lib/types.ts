@@ -71,6 +71,8 @@ export type InboxItem = {
   lastMessageAt: string;
   unread: boolean;
   completed: boolean;
+  /** Where the customer last wrote from: the app gets a phone on their avatar. */
+  lastFrom?: "web" | "app" | null;
 };
 
 export type AppNotice = {

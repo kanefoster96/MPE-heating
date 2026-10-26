@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Animated, FlatList, LayoutAnimation, PanResponder, Platform, RefreshControl, TextInput, UIManager, View } from "react-native";
+import { Animated, FlatList, LayoutAnimation, PanResponder, Platform, Pressable, RefreshControl, TextInput, UIManager, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ChatThread } from "@/components/chat-thread";
 import { Avatar } from "@/components/avatar";
-import { AppText, Card, FadeIn, LoadError, PressableScale, SecondaryButton, haptic } from "@/components/ui";
+import { AppText, Card, LoadError, SecondaryButton, haptic } from "@/components/ui";
 import { RowSkeleton } from "@/components/rows";
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost, readCached } from "@/lib/api";
@@ -106,15 +106,18 @@ function ChatComingSoon() {
   );
 }
 
-/** "14:05" today, "Yesterday", "Tuesday" this week, then "3 Oct". */
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "14:05" today, "Yesterday", "Tue" this week, then "3 Oct" (Kanvas Academy's inbox). */
 function when(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
-  const days = Math.floor((new Date(now.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 86_400_000);
+  const days = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86_400_000);
   if (days <= 0) return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   if (days === 1) return "Yesterday";
-  if (days < 7) return d.toLocaleDateString("en-GB", { weekday: "long" });
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (days < 7) return WEEKDAYS[d.getDay()];
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
 type Filter = "all" | "unread" | "open" | "done";
@@ -157,21 +160,19 @@ function SwipeRow({ done, onAction, children }: { done: boolean; onAction: () =>
   );
   return (
     <View style={{ overflow: "hidden" }}>
-      <PressableScale
+      <Pressable
         onPress={() => {
           settle(0);
           onAction();
         }}
         accessibilityLabel={done ? "Reopen" : "Mark done"}
-        style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: SWIPE }}
+        style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: SWIPE, backgroundColor: done ? colors.navy : colors.success, alignItems: "center", justifyContent: "center", gap: 4 }}
       >
-        <View style={{ flex: 1, backgroundColor: done ? colors.navy : colors.success, alignItems: "center", justifyContent: "center", gap: 4 }}>
-          <Ionicons name={done ? "arrow-undo" : "checkmark-done"} size={22} color="#fff" />
-          <AppText weight="bold" style={{ color: "#fff", fontSize: 12 }}>
-            {done ? "Reopen" : "Done"}
-          </AppText>
-        </View>
-      </PressableScale>
+        <Ionicons name={done ? "arrow-undo" : "checkmark-done"} size={22} color="#fff" />
+        <AppText weight="bold" style={{ color: "#fff", fontSize: 12 }}>
+          {done ? "Reopen" : "Done"}
+        </AppText>
+      </Pressable>
       <Animated.View style={{ transform: [{ translateX: x }], backgroundColor: colors.page }} {...responder.panHandlers}>
         {children}
       </Animated.View>
@@ -180,11 +181,95 @@ function SwipeRow({ done, onAction, children }: { done: boolean; onAction: () =>
 }
 
 /**
- * The team's inbox (Kanvas Academy's coach inbox): the team chat pinned,
- * then whoever's waiting on a reply, then the rest of the open ones, then
- * the ones marked done. Search by name or message, and filter (All,
- * Unread, Open, Done). Swipe a conversation left to mark it done. New
- * messages arrive live.
+ * One inbox row, messenger-style (Kanvas Academy's ConversationRow):
+ * avatar, bold name, the latest message ("You:" when it was ours), the time
+ * on the right and a dot for unread. Someone who last wrote from the app
+ * has a phone on their avatar; a done one reads muted with a tick.
+ */
+function ConversationRow({ c, onPress }: { c: InboxItem; onPress: () => void }) {
+  const unread = c.unread && !c.completed;
+  const preview = c.preview ? `${c.fromUs ? "You: " : ""}${c.preview}` : "No messages yet";
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={`${c.name}${unread ? ", unread" : ""}${c.completed ? ", done" : ""}. ${preview}`}
+      accessibilityHint="Swipe left to mark it done"
+      style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 14 }, pressed && { backgroundColor: colors.cream }]}
+    >
+      <View>
+        <Avatar name={c.name} url={c.avatarUrl} size={50} />
+        {c.lastFrom === "app" && (
+          <View style={{ position: "absolute", right: -2, bottom: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.page, alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name="phone-portrait" size={12} color={colors.text2} />
+          </View>
+        )}
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <AppText weight={unread ? "bold" : "semibold"} numberOfLines={1} style={{ fontSize: 16, flex: 1, minWidth: 0, color: c.completed ? colors.text2 : colors.navy }}>
+            {c.name}
+            {c.guest ? <AppText style={{ color: colors.text2, fontSize: 16 }}> · Visitor</AppText> : null}
+          </AppText>
+          <AppText style={{ color: unread ? colors.navy : colors.text2, fontSize: 12 }}>{when(c.lastMessageAt)}</AppText>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 3 }}>
+          <AppText weight={unread ? "medium" : "regular"} numberOfLines={1} style={{ flex: 1, color: unread ? colors.navy : colors.text2, fontSize: 14 }}>
+            {preview}
+          </AppText>
+          {unread ? (
+            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: colors.orangeDeep }} />
+          ) : c.completed ? (
+            <Ionicons name="checkmark-circle" size={16} color={colors.text2} />
+          ) : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+/** The team chat: pinned above everything as a card, so it reads as the team's noticeboard (Kanvas Academy's TeamCard). */
+function TeamCard({ c, onPress }: { c: InboxItem; onPress: () => void }) {
+  const preview = c.preview ? `${c.fromUs ? "You: " : ""}${c.preview}` : "No messages yet";
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={`${c.name}, the team chat${c.unread ? ", unread" : ""}. ${preview}`}
+      style={({ pressed }) => [
+        { marginHorizontal: 16, marginTop: 12, marginBottom: 8, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: c.unread ? colors.orangeDeep : colors.edge, backgroundColor: colors.cream, flexDirection: "row", alignItems: "center", gap: 14 },
+        pressed && { opacity: 0.85 },
+      ]}
+    >
+      <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center" }}>
+        <Ionicons name="people" size={24} color="#fff" />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
+            <AppText weight="bold" numberOfLines={1} style={{ fontSize: 16, flexShrink: 1 }}>
+              {c.name}
+            </AppText>
+            <Ionicons name="pin" size={13} color={colors.text2} />
+          </View>
+          <AppText style={{ color: c.unread ? colors.navy : colors.text2, fontSize: 12 }}>{when(c.lastMessageAt)}</AppText>
+        </View>
+        <AppText style={{ color: colors.text2, fontSize: 12, marginTop: 1 }}>The team chat</AppText>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
+          <AppText weight={c.unread ? "medium" : "regular"} numberOfLines={2} style={{ flex: 1, color: c.unread ? colors.navy : colors.text2, fontSize: 14 }}>
+            {preview}
+          </AppText>
+          {c.unread ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: colors.orangeDeep }} /> : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+/**
+ * The team's inbox (Kanvas Academy's coach inbox, laid out the same): the
+ * big "Inbox" title and how many are unread, a search bar edge to edge
+ * with the filter (All, Unread, Open, Done) at its end, the team chat
+ * pinned as a card, then every customer, newest first. Swipe one left to
+ * mark it done. New messages arrive live.
  */
 function Inbox() {
   const router = useRouter();
@@ -241,102 +326,75 @@ function Inbox() {
 
   const all = items ?? [];
   const team = all.find((c) => c.isTeam);
-  const unreadCount = all.filter((c) => !c.isTeam && c.unread && !c.completed).length;
+  const unreadCount = all.filter((c) => c.unread && !c.completed).length;
   const q = search.trim().toLowerCase();
-  const rank = (c: InboxItem) => (c.completed ? 2 : c.unread ? 0 : 1);
   const list = all
     .filter((c) => !c.isTeam)
     .filter((c) => (filter === "unread" ? c.unread && !c.completed : filter === "open" ? !c.completed : filter === "done" ? c.completed : true))
     .filter((c) => !q || c.name.toLowerCase().includes(q) || c.preview.toLowerCase().includes(q))
-    .sort((a, b) => rank(a) - rank(b) || b.lastMessageAt.localeCompare(a.lastMessageAt));
-  const showTeam = team && filter !== "done" && (!q || team.name.toLowerCase().includes(q) || team.preview.toLowerCase().includes(q));
+    .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
+  const showTeam = team && (filter === "all" || (filter === "unread" && team.unread)) && (!q || team.name.toLowerCase().includes(q) || team.preview.toLowerCase().includes(q));
 
-  const header = (
-    <View style={{ gap: 12, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 }}>
-      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10 }}>
-        <AppText weight="extrabold" accessibilityRole="header" style={{ fontSize: 30, letterSpacing: -0.5 }}>
-          Inbox
-        </AppText>
-        {unreadCount > 0 && (
-          <AppText weight="bold" style={{ color: colors.orangeDeep, fontSize: 15, marginBottom: 5 }}>
-            {unreadCount} unread
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.page }}>
+      <View style={{ backgroundColor: colors.page }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, flexDirection: "row", alignItems: "baseline", gap: 10 }}>
+          <AppText weight="extrabold" accessibilityRole="header" style={{ fontSize: 30, letterSpacing: -0.5 }}>
+            Inbox
           </AppText>
-        )}
-      </View>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <View style={{ flex: 1, flexDirection: "row", alignItems: "center", height: 46, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge, paddingHorizontal: 14, gap: 8 }}>
-          <Ionicons name="search" size={18} color={colors.text3} />
+          {unreadCount > 0 && <AppText style={{ color: colors.text2, fontSize: 14 }}>{unreadCount} unread</AppText>}
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 16, paddingRight: 6, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.edge }}>
+          <Ionicons name="search-outline" size={20} color={colors.text2} />
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search names and messages"
-            placeholderTextColor={colors.text3}
+            placeholder="Search"
+            placeholderTextColor={colors.text2}
             accessibilityLabel="Search conversations"
+            autoCapitalize="none"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
             returnKeyType="search"
-            style={{ flex: 1, fontSize: 15, fontFamily: fonts.regular, color: colors.navy }}
+            style={{ flex: 1, height: 48, fontSize: 16, fontFamily: fonts.regular, color: colors.navy }}
           />
-          {search ? (
-            <PressableScale onPress={() => setSearch("")} accessibilityLabel="Clear the search" style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name="close-circle" size={18} color={colors.text3} />
-            </PressableScale>
-          ) : null}
+          <Pressable
+            onPress={() => {
+              ease();
+              setFiltersOpen((v) => !v);
+            }}
+            accessibilityLabel={`Filter conversations: ${FILTERS.find((f) => f.key === filter)!.label}`}
+            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+          >
+            <Ionicons name="options-outline" size={22} color={filter === "all" ? colors.navy : colors.orangeDeep} />
+          </Pressable>
         </View>
-        <PressableScale
-          onPress={() => {
-            ease();
-            setFiltersOpen((v) => !v);
-          }}
-          accessibilityLabel={`Filter: ${FILTERS.find((f) => f.key === filter)!.label}`}
-          style={{ width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: filter !== "all" ? colors.orangeDeep : colors.card, borderWidth: filter !== "all" ? 0 : 1, borderColor: colors.edge }}
-        >
-          <Ionicons name="options-outline" size={20} color={filter !== "all" ? "#fff" : colors.navy} />
-        </PressableScale>
-      </View>
-      {filtersOpen && (
-        <View style={{ flexDirection: "row", gap: 8 }} accessibilityRole="radiogroup">
-          {FILTERS.map((f) => (
-            <PressableScale
-              key={f.key}
-              onPress={() => {
-                ease();
-                setFilter(f.key);
-              }}
-              accessibilityLabel={`${f.label}${filter === f.key ? ", selected" : ""}`}
-              style={{ height: 36, paddingHorizontal: 14, borderRadius: 999, justifyContent: "center", backgroundColor: filter === f.key ? colors.navy : colors.card, borderWidth: 1, borderColor: filter === f.key ? colors.navy : colors.edge }}
-            >
-              <AppText weight="semibold" style={{ color: filter === f.key ? "#fff" : colors.navy, fontSize: 14 }}>
-                {f.label}
-              </AppText>
-            </PressableScale>
-          ))}
-        </View>
-      )}
-      {showTeam && team && (
-        <PressableScale onPress={() => router.push(`/chat/${team.id}`)} accessibilityLabel={`${team.name}${team.unread ? ", unread" : ""}. ${team.preview}`}>
-          <View style={{ flexDirection: "row", gap: 12, alignItems: "center", backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: team.unread ? colors.orangeDeep : colors.edge, padding: 12 }}>
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name="people" size={22} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Ionicons name="pin" size={13} color={colors.text3} />
-                <AppText weight={team.unread ? "bold" : "semibold"} style={{ fontSize: 15, flex: 1 }} numberOfLines={1}>
-                  {team.name}
-                </AppText>
-                <AppText style={{ color: colors.text3, fontSize: 12 }}>{when(team.lastMessageAt)}</AppText>
-              </View>
-              <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 2 }} numberOfLines={2}>
-                {team.fromUs ? `You: ${team.preview}` : team.preview}
-              </AppText>
-            </View>
+        {filtersOpen && (
+          <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 6, borderBottomWidth: 1, borderColor: colors.edge }} accessibilityRole="radiogroup">
+            {FILTERS.map((f) => {
+              const active = filter === f.key;
+              return (
+                <Pressable
+                  key={f.key}
+                  onPress={() => {
+                    ease();
+                    setFilter(f.key);
+                  }}
+                  accessibilityLabel={`${f.label}${active ? ", selected" : ""}`}
+                  style={{ minHeight: 44, justifyContent: "center" }}
+                >
+                  <View style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: active ? colors.navy : colors.edge, backgroundColor: active ? colors.navy : "transparent" }}>
+                    <AppText weight="semibold" style={{ color: active ? "#fff" : colors.text2, fontSize: 12 }}>
+                      {f.label}
+                    </AppText>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
-        </PressableScale>
-      )}
-    </View>
-  );
+        )}
+      </View>
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
       {error && !items ? (
         <View style={{ padding: 20 }}>
           <LoadError message={error} onRetry={load} />
@@ -351,14 +409,19 @@ function Inbox() {
         <FlatList
           data={list}
           keyExtractor={(c) => c.id}
-          ListHeaderComponent={header}
+          ListHeaderComponent={
+            <>
+              {error ? <AppText style={{ color: colors.danger, paddingHorizontal: 16, marginTop: 12 }}>{error}</AppText> : null}
+              {showTeam && team ? <TeamCard c={team} onPress={() => router.push(`/chat/${team.id}`)} /> : null}
+            </>
+          }
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingBottom: 32 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              tintColor={colors.orangeDeep}
+              tintColor={colors.navy}
               onRefresh={async () => {
                 setRefreshing(true);
                 await load();
@@ -368,41 +431,14 @@ function Inbox() {
           }
           ListEmptyComponent={
             <AppText style={{ color: colors.text2, textAlign: "center", marginTop: 32, paddingHorizontal: 24 }}>
-              {q ? `No conversations match "${search.trim()}".` : filter === "unread" ? "Nothing waiting on a reply." : filter === "done" ? "Nothing marked done yet." : "No conversations yet."}
+              {q ? `No conversations match “${search.trim()}”.` : filter === "all" ? "No conversations yet." : "Nothing here."}
             </AppText>
           }
-          ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.edge, marginLeft: 78 }} />}
-          renderItem={({ item, index }) => (
-            <FadeIn index={index}>
-              <SwipeRow done={item.completed} onAction={() => toggle(item)}>
-                <PressableScale onPress={() => router.push(`/chat/${item.id}`)} accessibilityLabel={`${item.name}${item.unread ? ", unread" : ""}${item.completed ? ", done" : ""}. ${item.preview}`} accessibilityHint="Swipe left to mark it done">
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 13, opacity: item.completed ? 0.65 : 1 }}>
-                    <Avatar name={item.name} url={item.avatarUrl} size={48} />
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <AppText weight={item.unread ? "bold" : "semibold"} style={{ fontSize: 16, flex: 1 }} numberOfLines={1}>
-                          {item.name}
-                          {item.guest ? <AppText style={{ color: colors.text3, fontSize: 14 }}> · Visitor</AppText> : null}
-                        </AppText>
-                        <AppText weight={item.unread ? "bold" : "regular"} style={{ color: item.unread ? colors.orangeDeep : colors.text3, fontSize: 12 }}>
-                          {when(item.lastMessageAt)}
-                        </AppText>
-                      </View>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }}>
-                        <AppText weight={item.unread ? "semibold" : "regular"} style={{ flex: 1, color: item.unread ? colors.navy : colors.text2, fontSize: 14 }} numberOfLines={1}>
-                          {item.fromUs ? `You: ${item.preview}` : item.preview || "Photo"}
-                        </AppText>
-                        {item.unread && !item.completed ? (
-                          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.orangeDeep }} />
-                        ) : item.completed ? (
-                          <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                        ) : null}
-                      </View>
-                    </View>
-                  </View>
-                </PressableScale>
-              </SwipeRow>
-            </FadeIn>
+          ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.edge, marginLeft: 80 }} />}
+          renderItem={({ item }) => (
+            <SwipeRow done={item.completed} onAction={() => toggle(item)}>
+              <ConversationRow c={item} onPress={() => router.push(`/chat/${item.id}`)} />
+            </SwipeRow>
           )}
         />
       )}

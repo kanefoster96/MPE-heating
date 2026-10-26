@@ -20,6 +20,7 @@ export async function GET(request: Request) {
       lastMessageAt: c.lastMessageAt,
       unread: !!c.lastMessageAt && !c.lastMessageFromCoach && (!c.coachLastReadAt || c.coachLastReadAt < c.lastMessageAt),
       completed: !!c.completedAt,
+      lastFrom: c.memberLastSource ?? null,
     })),
   });
 }

@@ -2,14 +2,16 @@ import { useState } from "react";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText, PressableScale } from "@/components/ui";
-import { openInApp, openSignedIn } from "@/lib/open-link";
-import { SITE_URL } from "@/lib/site";
+import { router } from "expo-router";
+import { openInApp } from "@/lib/open-link";
+import { targetFor } from "@/lib/links";
 import { colors } from "@/lib/theme";
 import type { JobCard as Job, JobStep } from "@/lib/types";
 
-/** The site's account pages need them signed in; everything else opens as it is. */
+/** Their account's sections are screens of the app; everything else (pay, quote, visit pages) opens as it is. */
 function open(url: string) {
-  if (url.startsWith(`${SITE_URL}/account`)) openSignedIn(url.slice(SITE_URL.length));
+  const target = targetFor(url);
+  if ("route" in target) router.push(target.route as never);
   else openInApp(url);
 }
 

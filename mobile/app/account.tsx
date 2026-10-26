@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { Alert, Linking, ScrollView, View } from "react-native";
+import { Alert, Linking, ScrollView, Share, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,7 +8,8 @@ import { Avatar } from "@/components/avatar";
 import { AppText, Card, PressableScale, haptic } from "@/components/ui";
 import { useAuth } from "@/contexts/auth";
 import { apiPost } from "@/lib/api";
-import { openExternal, openInApp, openSignedIn } from "@/lib/open-link";
+import { openExternal, openInApp } from "@/lib/open-link";
+import { useMyAccount } from "@/lib/my-account";
 import { SITE_URL } from "@/lib/site";
 import { colors } from "@/lib/theme";
 
@@ -46,16 +47,21 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 /**
- * Their account (the avatar, top left). The records themselves (visits,
- * invoices, cards, the boiler) live on the website's account page, which
- * opens here already signed in. The team get a link to their Menu. Sign out
- * and Delete account are at the bottom, as Apple asks.
+ * Their account (the avatar, top left): their visits (the Jobs tab),
+ * invoices and quotes, certificates and photos, the maintenance plan,
+ * saved cards, their details and boiler, asking for a visit, and their
+ * link to recommend us, each a screen of the app (lib/my-account.ts). The
+ * team get a link to their Menu. Sign out and Delete account are at the
+ * bottom, as Apple asks.
  */
 export default function AccountScreen() {
   const router = useRouter();
-  const { me, signedIn, staff, signOut } = useAuth();
+  const { me, ready, signedIn, staff, signOut } = useAuth();
+  const { data } = useMyAccount();
+  const refer = data?.customer ? data.refer : null;
 
-  if (!signedIn) return <Redirect href="/sign-in" />;
+  // Once the saved login has been read: opened cold (a link to their account), it isn't yet.
+  if (ready && !signedIn) return <Redirect href="/sign-in" />;
 
   const name = me?.user.name ?? null;
   const email = me?.user.email ?? null;
@@ -124,14 +130,35 @@ export default function AccountScreen() {
             <Row icon="grid" label="Menu" hint="Everything to run MPE, in one place" onPress={() => router.push("/menu")} last />
           </Section>
         ) : (
-          <Section title="Your account">
-            <Row icon="calendar" label="Visits" hint="Coming up and past" onPress={() => openSignedIn("/account#visits")} />
-            <Row icon="receipt" label="Invoices and receipts" onPress={() => openSignedIn("/account#payments")} />
-            <Row icon="shield-checkmark" label="Certificates and photos" onPress={() => openSignedIn("/account#files")} />
-            <Row icon="refresh-circle" label="Maintenance plan" onPress={() => openSignedIn("/account#plan")} />
-            <Row icon="card" label="Saved cards" onPress={() => openSignedIn("/account#cards")} />
-            <Row icon="flame" label="Details and boiler" hint="Address, boiler, access notes" onPress={() => openSignedIn("/account#details")} last />
-          </Section>
+          <>
+            <Section title="Your account">
+              <Row icon="calendar" label="Visits" hint="Coming up and past" onPress={() => router.push("/jobs")} />
+              <Row icon="add-circle" label="Request a visit" hint="A service, call-out or repair" onPress={() => router.push("/request-visit")} />
+              <Row icon="receipt" label="Invoices and receipts" hint="And your quotes" onPress={() => router.push("/my-payments")} />
+              <Row icon="shield-checkmark" label="Certificates and photos" onPress={() => router.push("/my-files")} />
+              <Row icon="refresh-circle" label="Maintenance plan" onPress={() => router.push("/my-plan")} />
+              <Row icon="card" label="Saved cards" onPress={() => router.push("/my-cards")} />
+              <Row icon="flame" label="Details and boiler" hint="Address, boiler, access notes" onPress={() => router.push("/my-details")} last />
+            </Section>
+            {refer && (
+              <Section title="Recommend us">
+                <View style={{ gap: 8, paddingVertical: 10 }}>
+                  <AppText style={{ fontSize: 15, lineHeight: 21 }}>{refer.line}</AppText>
+                  {refer.referred > 0 && (
+                    <AppText style={{ color: colors.text2, fontSize: 13 }}>
+                      You&apos;ve recommended {refer.referred} {refer.referred === 1 ? "person" : "people"}. Thank you!
+                    </AppText>
+                  )}
+                  {refer.credit && (
+                    <AppText weight="semibold" style={{ color: colors.success, fontSize: 14 }}>
+                      {refer.credit}
+                    </AppText>
+                  )}
+                </View>
+                <Row icon="share-social" label="Share your link" onPress={() => Share.share({ message: `${refer.share} ${refer.link}` }).catch(() => {})} last />
+              </Section>
+            )}
+          </>
         )}
 
         <Section title="App">

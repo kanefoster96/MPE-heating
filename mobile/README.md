@@ -128,9 +128,14 @@ picked up.
 - **Bell** (`app/notifications.tsx`): what's waiting on them (an invoice
   to pay, a quote, a plan payment that failed) and what's coming up. For
   the team, new bookings and requests.
-- **Account** (`app/account.tsx`): their visits, invoices, certificates,
-  plan, cards and boiler (the website's account page, opened signed in),
-  Sign out and Delete account. The team get a link to their Menu.
+- **Account** (`app/account.tsx`): each part of the website's account
+  page as a screen of the app (`lib/my-account.ts`,
+  `src/lib/app-account.ts` on the site): visits (the Jobs tab), Request a
+  visit, invoices, quotes and receipts, certificates and photos, the
+  maintenance plan (cancel or keep it, update the card), saved cards,
+  details and boiler, and their link to recommend us. Paying, accepting a
+  quote, joining the plan and Stripe's card pages open the website's own
+  page in the app, so Apple Pay works. Sign out and Delete account. The team get a link to their Menu.
 - **Sign in** (`app/sign-in.tsx`, `app/app-sign-in.tsx`): their email,
   then a "Confirm my email" button in the email. Tapped on the phone, it
   opens the app signed in. No code to type and no password

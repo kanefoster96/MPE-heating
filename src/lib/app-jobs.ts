@@ -17,8 +17,8 @@ import { closedDays } from "@/lib/days-off";
  * The app's Jobs tab (mobile/app/(tabs)/jobs.tsx), built fresh from the
  * records each time, nothing stored.
  *
- * A customer's job starts when there's something real: a booking form
- * they sent, a visit the team booked, or a quote. A chat message alone
+ * A customer's job starts when there's something real: a call-out or
+ * service booking form they sent, a visit the team booked, or a quote. A chat message alone
  * stays in chat until the team books it. Each job shows its steps:
  * requested, booked (when), on the way (from the engineer's "on my way"),
  * done (with what was done), and paid. A job finished today stays at the
@@ -143,10 +143,14 @@ export async function customerJobs(user: User): Promise<{ active: JobCard[]; pre
     (isActive ? active : previous).push(card);
   }
 
-  // A booking form with no visit yet: "we've got it", and their link to pick a time.
+  // A booking form with no visit yet: "we've got it", and their link to pick
+  // a time. Only real bookings (a call-out or a service): a new boiler or
+  // commercial quote request, a plan question or anything else stays in
+  // chat until a visit's booked or a quote's sent.
   const booked = new Set(visits.map((v) => v.enquiryId).filter(Boolean));
   const monthAgo = addDays(today, -30);
   for (const e of enquiries) {
+    if (e.category !== "callout" && e.category !== "service") continue;
     if (booked.has(e.id) || (e.status !== "new" && e.status !== "contacted") || e.createdAt.slice(0, 10) < monthAgo) continue;
     active.push({
       id: `request-${e.id}`,

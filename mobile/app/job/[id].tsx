@@ -252,6 +252,7 @@ function Job() {
               {data.job.customer && data.job.status !== "requested" && (
                 <ActionRow icon="paper-plane-outline" label={busy === "send" ? "Sending…" : "Send them the details again"} onPress={() => act("send")} />
               )}
+              {data.job.status === "done" && <ActionRow icon="create-outline" label="What was done, photos and certificates" onPress={() => router.push(`/finish/${data.job.id}`)} />}
               {(data.job.status === "no_access" || data.job.status === "done") && <ActionRow icon="arrow-undo-outline" label="Back to booked" onPress={() => act("booked")} />}
               {data.job.status !== "done" && <ActionRow icon="close-circle-outline" label="Cancel the visit" tone="danger" onPress={cancelVisit} />}
               <ActionRow icon="trash-outline" label="Remove it from the calendar" tone="danger" onPress={removeVisit} last />

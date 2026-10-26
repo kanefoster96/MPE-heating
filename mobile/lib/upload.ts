@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import { File } from "expo-file-system";
 import { supabase } from "@/lib/supabase";
+import { apiPost } from "@/lib/api";
 
 /**
  * A photo from the camera or library, into the conversation's folder in
@@ -17,4 +18,20 @@ export async function uploadChatPhoto(conversationId: string, uri: string, mimeT
   const { error } = await supabase.storage.from("chat-attachments").upload(path, bytes, { contentType: mimeType });
   if (error) throw new Error("Couldn't send that photo. Please try again.");
   return path;
+}
+
+/**
+ * A photo or certificate for a customer's job, into the private job-files
+ * bucket: the site gives a one-time upload (lib/job-files.ts), the file
+ * goes straight there, and the site then saves it with the job. Returns
+ * what to save it with.
+ */
+export async function uploadJobFile(customerId: string, uri: string, mimeType: string): Promise<{ path: string; contentType: string; size: number }> {
+  if (!supabase) throw new Error("Uploads aren't switched on yet.");
+  const bytes = Platform.OS === "web" ? await (await fetch(uri)).arrayBuffer() : await new File(uri).arrayBuffer();
+  const contentType = mimeType || "image/jpeg";
+  const start = await apiPost<{ path: string; token: string }>("/api/mobile/staff/files/start", { customerId, contentType, size: bytes.byteLength });
+  const { error } = await supabase.storage.from("job-files").uploadToSignedUrl(start.path, start.token, bytes, { contentType });
+  if (error) throw new Error("The upload didn't go through. Check the signal and try again.");
+  return { path: start.path, contentType, size: bytes.byteLength };
 }

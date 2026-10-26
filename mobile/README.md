@@ -81,6 +81,11 @@ picked up.
   request. On a job's page: book a request as asked or pick another time,
   move it where they asked or keep the time, send the details again,
   cancel (telling them or not) or remove (`src/lib/app-schedule.ts`).
+- **Finish job** (`app/finish/[id].tsx`): what was done (the customer sees
+  it), their boiler, serviced today, a private note for next time, the
+  summary and the review ask, and photos and certificates for the job from
+  the camera, photos or a PDF (`components/file-adder.tsx`, straight to
+  the private job-files storage). Opened again, it edits what was saved.
 - **Menu** (`app/(tabs)/menu.tsx`, the team only, in Services' place):
   cards that turn orange when something needs Fergal (requests, unread
   messages, overdue invoices, failed monthly or plan payments, accepted

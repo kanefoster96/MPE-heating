@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText, PressableScale, haptic } from "@/components/ui";
 import { apiPost } from "@/lib/api";
-import { openDirections, openExternal, openSignedIn } from "@/lib/open-link";
+import { openDirections, openExternal } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 import type { StaffJob } from "@/lib/types";
 
@@ -51,7 +51,7 @@ function Big({ label, icon, onPress, tone = "orange" }: { label: string; icon: I
  * One of the day's visits, for the team: when, what, who and where, with
  * the buttons for the job in the order it happens. Call, directions and
  * their chat; then "On my way" (pick how long, they get a text), "Not in",
- * and Finish (the website's finish page: report, boiler, photos, invoice).
+ * and Finish (app/finish/[id].tsx: report, boiler, photos, certificates).
  * Once it's done and unpaid, Take payment. In a list, tapping the top
  * opens the job's page (app/job/[id].tsx); on that page `onPay` opens its
  * Payment sheet.
@@ -182,7 +182,7 @@ export function StaffJobCard({ job, day, onChanged, onPay }: { job: StaffJob; da
         ) : (
           <View style={{ flexDirection: "row", gap: 8 }}>
             <Big label={job.onMyWay ? "Send again" : "On my way"} icon="car" onPress={() => setPicking(true)} tone={job.onMyWay ? "plain" : "orange"} />
-            <Big label="Finish" icon="checkmark-done" tone="navy" onPress={() => openSignedIn(`/staff/jobs/${job.id}/finish`)} />
+            <Big label="Finish" icon="checkmark-done" tone="navy" onPress={() => router.push(`/finish/${job.id}`)} />
           </View>
         ))}
       {job.status === "booked" && !picking && (

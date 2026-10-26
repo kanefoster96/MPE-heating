@@ -4,12 +4,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ChatThread } from "@/components/chat-thread";
+import { useBusinessCall } from "@/components/business-call";
 import { Avatar } from "@/components/avatar";
 import { AppText, haptic } from "@/components/ui";
 import type { SheetAction } from "@/components/action-sheet";
 import { apiPost } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/confirm";
-import { openExternal } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 import type { ConversationResponse } from "@/lib/types";
 
@@ -54,6 +54,7 @@ export default function TeamConversation() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const onLoaded = useCallback((data: ConversationResponse) => setConversation((current) => ({ ...data.conversation, customerId: data.conversation.customerId ?? current?.customerId ?? null })), []);
   const first = conversation?.title.split(" ")[0] ?? "them";
+  const businessCall = useBusinessCall();
 
   async function toggleDone() {
     if (!conversation) return;
@@ -141,12 +142,13 @@ export default function TeamConversation() {
           )}
           {conversation && !team && (
             <>
-              {conversation.phone && <IconButton icon="call-outline" label={`Call ${conversation.title}`} onPress={() => openExternal(`tel:${conversation.phone}`)} />}
+              {conversation.phone && <IconButton icon="call-outline" label={`Call ${conversation.title}`} onPress={() => businessCall.call({ name: conversation.title, conversationId: conversation.id, directNumber: conversation.phone })} />}
               <IconButton icon={conversation.completed ? "arrow-undo-outline" : "checkmark"} label={conversation.completed ? "Reopen" : "Mark done"} onPress={toggleDone} />
             </>
           )}
         </View>
       </View>
+      {businessCall.modal}
       <ChatThread conversationId={id} onLoaded={onLoaded} actions={team ? undefined : actions} actionsTitle={`For ${first}`} />
     </View>
   );

@@ -59,7 +59,11 @@ picked up.
   sits above the chat with where it's up to (New, Contacted, Booked, Done,
   Closed), and the team chat shows who's seen what. New message (the
   inbox's top right, `app/new-chat.tsx`) texts a new number or messages any
-  customer first
+  customer first. Call (on a chat, a customer, a job) offers Call as MPE, Kanvas
+  Academy's business call (`components/business-call.tsx`): their phone
+  rings first, then they're put through, and the customer sees MPE's
+  Twilio number; or Use my own phone. Until Twilio's set up, Call dials
+  from their own phone
   (`components/action-sheet.tsx`); and the name at the top opens the
   customer (`app/customer/[id].tsx`): call, chat, directions, jobs
   underway (each opens its job page to move, finish or take payment),

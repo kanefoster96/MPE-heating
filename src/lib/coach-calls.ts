@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhone } from "@/lib/phone";
 import { twilioClient } from "@/lib/twilio";
 import { CLUB } from "@/lib/club";
+import { business } from "@/lib/content";
+import { formatPhone } from "@/lib/phone";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = SupabaseClient<any>;
@@ -36,6 +38,32 @@ export function coachPhoneOf(user: User | null | undefined): string | null {
   return callableUkNumber(typeof phone === "string" ? phone : null);
 }
 
+/**
+ * The phone a call from the MPE number rings first: their own mobile if
+ * they've saved one, else MPE's main number (Fergal's, 07448 628 101) for
+ * now, so no one's asked for a number before their first call.
+ */
+export function ringPhoneOf(user: User | null | undefined): string | null {
+  return coachPhoneOf(user) ?? callableUkNumber(business.phoneHref.replace(/^tel:/, ""));
+}
+
+/** Whether calls can go out from the MPE number: Twilio's set up, with a number. */
+export function businessCallsOn(): boolean {
+  return !!(process.env.TWILIO_PHONE_NUMBER && (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_API_KEY_SECRET));
+}
+
+/** For the app's Call sheet: whether it's on, the number customers see, and the phone that rings first. */
+export function callSetup(user: User) {
+  const ring = ringPhoneOf(user);
+  const twilioNumber = process.env.TWILIO_PHONE_NUMBER ?? null;
+  return {
+    on: businessCallsOn(),
+    businessNumber: twilioNumber ? formatPhone(twilioNumber) : null,
+    ringPhone: ring ? formatPhone(ring) : null,
+    ownPhone: !!coachPhoneOf(user),
+  };
+}
+
 /** Saves the coach's own mobile (user_metadata.phone, same place contact details keep it). */
 export async function saveCoachPhone(userId: string, input: string): Promise<string | null> {
   const phone = callableUkNumber(input);
@@ -56,7 +84,7 @@ function escapeXml(text: string): string {
  * when there is one, so everyone can see they've been called back.
  */
 export async function startBridgedCall(params: { coach: User; to: string; conversationId?: string | null }): Promise<void> {
-  const coachPhone = coachPhoneOf(params.coach);
+  const coachPhone = ringPhoneOf(params.coach);
   if (!coachPhone) throw new CoachPhoneMissingError();
   const businessNumber = process.env.TWILIO_PHONE_NUMBER;
   if (!businessNumber) throw new Error("The business number isn't set up yet.");
@@ -76,7 +104,7 @@ export async function startBridgedCall(params: { coach: User; to: string; conver
       sender_id: params.coach.id,
       sender_is_coach: true,
       channel: "sms",
-      body: `${(await staffIdentity(params.coach)).name} called from the ${CLUB.shortName} number`,
+      body: `${(await staffIdentity(params.coach)).name} called you from the ${CLUB.shortName} number`,
     });
     // A coach's own call, so read as well, as a coach's reply is (lib/coach-send.ts).
     const now = new Date().toISOString();

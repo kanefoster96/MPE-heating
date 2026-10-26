@@ -13,6 +13,9 @@ import { getCustomer, type Customer } from "@/lib/customers";
 import { visitEmailHtml } from "@/lib/emails/visit";
 import { noticeBody, noticeHeadline, smsText, type NoticeType } from "@/lib/visit-copy";
 import { staffIdentity } from "@/lib/staff-identity";
+import { renderEmailLayout } from "@/lib/emails/layout";
+import { KIND_LABEL } from "@/lib/day-plan";
+import { formatLondonClock } from "@/lib/schedule-time";
 
 /**
  * Letting a customer know about their visit: booked, moved, cancelled, the
@@ -233,4 +236,59 @@ export async function postCustomerVisitMessage(customer: Customer, body: string)
   } catch (err) {
     console.error("postCustomerVisitMessage failed", err);
   }
+}
+
+/** "On my way" ETAs the visit card offers, in minutes. */
+export const ON_MY_WAY_ETAS = [15, 30, 45, 60, 90] as const;
+
+/** "9:45am": the time they should arrive, to the nearest five minutes. */
+export function arrivalClock(fromIso: string, etaMinutes: number): string {
+  const at = new Date(Math.round((new Date(fromIso).getTime() + etaMinutes * 60_000) / 300_000) * 300_000);
+  const [h, m] = formatLondonClock(at).split(":").map(Number);
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "am" : "pm"}`;
+}
+
+/**
+ * "On my way": one tap on the visit card when the engineer sets off. The
+ * customer gets a text (an email only if there's no text, it'd arrive too
+ * late to matter), a message in their chat and the app: who's coming, and
+ * roughly when.
+ */
+export async function sendOnMyWay(appointmentId: string, staffId: string, etaMinutes: number): Promise<string[]> {
+  const appointment = await getAppointment(appointmentId);
+  const customer = appointment?.customerId ? await getCustomer(appointment.customerId) : null;
+  if (!appointment || !customer || appointment.status !== "booked") return [];
+  const eta = (ON_MY_WAY_ETAS as readonly number[]).includes(etaMinutes) ? etaMinutes : 30;
+  const now = new Date().toISOString();
+  let engineer: string | null = null;
+  try {
+    const { data } = await createAdminClient().auth.admin.getUserById(staffId);
+    const name = data?.user ? (await staffIdentity(data.user)).name : "";
+    const first = name.split(" ")[0]?.replace(/[^A-Za-z'-]/g, "");
+    engineer = first && !name.includes("@") ? first : null;
+  } catch {
+    engineer = null;
+  }
+  const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "";
+  const who = engineer ? `${engineer} from MPE` : hi ? "your MPE engineer" : "Your MPE engineer";
+  const what = appointment.kind === "other" ? "your visit" : `your ${KIND_LABEL[appointment.kind].toLowerCase()}`;
+  const arrive = arrivalClock(now, eta);
+  const body = `${hi}${who} is on the way for ${what} and should be with you in about ${eta} minutes (around ${arrive}). If anything's changed, call ${business.phoneDisplay}.`;
+  const via = await deliverToCustomer(customer, {
+    body,
+    headline: engineer ? `${engineer} is on the way` : "We're on the way",
+    staffId,
+    pushHref: `/visit/${appointment.publicToken}`,
+    email: "if-no-text",
+    emailHtml: () =>
+      renderEmailLayout({
+        previewText: `With you around ${arrive}`,
+        heading: "On the way",
+        bodyHtml: `<p style="margin:0 0 16px;font-size:16px;line-height:1.55;color:#1f2a3a">${body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`,
+        ctaLabel: "See your visit",
+        ctaUrl: visitLink(appointment),
+      }),
+  });
+  await createAdminClient().from("appointments").update({ on_my_way_at: now, on_my_way_eta: eta }).eq("id", appointment.id);
+  return via;
 }

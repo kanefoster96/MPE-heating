@@ -108,6 +108,7 @@ type Row = {
   reminded_at: string | null;
   created_at: string;
   offers: { product_id: string | null; label: string; pence: number; usual_pence: number | null; taken: boolean }[] | null;
+  quote_id: string | null;
   instalments: number | null;
   instalment_deposit_pence: number | null;
   plan_status: PlanStatus | null;
@@ -338,7 +339,8 @@ function onMonthly(row: Pick<Row, "plan_status">): string | null {
  * to pay if the charge didn't go through.
  */
 export async function createPaymentRequest(params: {
-  staffId: string;
+  /** Who asked for it; none for one the customer started (a quote's deposit). */
+  staffId: string | null;
   customerId: string;
   appointmentId?: string | null;
   kind: PaymentKind;
@@ -350,6 +352,8 @@ export async function createPaymentRequest(params: {
   offers?: Omit<PaymentOffer, "taken">[];
   /** Let them pay it monthly instead: over this many payments, with any deposit taken first. */
   instalments?: { months: number; depositPence: number } | null;
+  /** A quote's deposit, or the invoice for the rest of a quote (lib/quotes.ts). */
+  quoteId?: string | null;
 }): Promise<{ ok: true; request: PaymentRequest; sentVia: string[]; charge?: ChargeResult } | { ok: false; error: string }> {
   const customer = await getCustomer(params.customerId);
   if (!customer) return { ok: false, error: "Customer not found." };
@@ -376,6 +380,7 @@ export async function createPaymentRequest(params: {
         .filter((o) => o.pence > 0 && o.label.trim())
         .slice(0, MAX_OFFERS)
         .map((o) => ({ product_id: o.productId, label: o.label.trim().slice(0, 80), pence: o.pence, usual_pence: o.usualPence, taken: false })),
+      ...(params.quoteId ? { quote_id: params.quoteId } : {}),
       ...(params.instalments && params.kind === "invoice"
         ? { instalments: params.instalments.months, instalment_deposit_pence: Math.max(0, Math.round(params.instalments.depositPence)) }
         : {}),
@@ -411,7 +416,7 @@ export async function createPaymentRequest(params: {
 // Paying.
 
 /** Stripe Checkout for the pay page: Apple Pay, Google Pay or card, and the tick to save the card. */
-export async function checkoutUrl(id: string, opts: { saveCard: boolean; addOffers?: number[] }): Promise<{ url: string } | { error: string }> {
+export async function checkoutUrl(id: string, opts: { saveCard: boolean; addOffers?: number[]; returnTo?: string }): Promise<{ url: string } | { error: string }> {
   const row = await getRow(id);
   if (!row) return { error: "Payment not found." };
   if (row.status !== "open") return { error: row.status === "paid" ? "That's already paid. Thank you!" : "That payment was cancelled." };
@@ -442,8 +447,8 @@ export async function checkoutUrl(id: string, opts: { saveCard: boolean; addOffe
       metadata: { payment_request_id: row.id, via: "link", ...(picked.length ? { add_offers: picked.join(",") } : {}) },
     },
     metadata: { kind: "payment_request", payment_request_id: row.id },
-    success_url: `${link}?paid=1`,
-    cancel_url: link,
+    success_url: `${opts.returnTo ?? link}?paid=1`,
+    cancel_url: opts.returnTo ?? link,
   });
   if (!session.url) return { error: "Couldn't start the payment." };
   return { url: session.url };
@@ -601,6 +606,12 @@ export async function markPaid(id: string, paymentIntentId: string, via: PaidVia
       await alertTeam("Payment needs refunding", `${formatPence(current.amount_pence)} came in for ${current.description}, which was already ${current.status}, and couldn't be refunded automatically. Refund it in Stripe.`);
     }
     return;
+  }
+
+  // A quote's deposit: the quote's accepted (and the team told there).
+  if (row.quote_id && row.kind === "other") {
+    const { quoteDepositPaid } = await import("@/lib/quotes");
+    await quoteDepositPaid(row.quote_id);
   }
 
   const customer = row.customer_id ? await getCustomer(row.customer_id) : null;

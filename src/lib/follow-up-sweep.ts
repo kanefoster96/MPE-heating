@@ -10,6 +10,7 @@ import { pushToUsers } from "@/lib/push";
 import { sendUnpaidReminder } from "@/lib/payments";
 import { REVIEW_REMIND_AFTER_DAYS, sendReviewAsk } from "@/lib/job-completion";
 import { takeDueInstalments } from "@/lib/instalments";
+import { dropUnpaidDeposit, sendQuoteFollowUp } from "@/lib/quotes";
 
 /**
  * Every automatic message to customers, and the team's nudges, in one pass.
@@ -30,7 +31,10 @@ import { takeDueInstalments } from "@/lib/instalments";
  * - a finished job: "how did we do?" a couple of hours later, and one
  *   reminder three days on (lib/job-completion.ts);
  * - an invoice being paid monthly: on its date, that month's payment is
- *   taken from their saved card (lib/instalments.ts).
+ *   taken from their saved card (lib/instalments.ts);
+ * - a quote not yet answered: a nudge two days after it's sent, the last
+ *   word four days after that, and it lapses the day after it runs out
+ *   (lib/quotes.ts).
  *
  * Run every five minutes (vercel.json). Every stage checks its own "sent"
  * column first and sets it after, so a re-run never sends twice, and each
@@ -53,6 +57,8 @@ const FOLLOW_UP_WITHIN_DAYS = 14;
 const STAFF_NUDGE_AFTER_HOURS = 2;
 const SERVICE_DUE_AFTER_DAYS = 335;
 const SERVICE_DUE_UNTIL_DAYS = 400;
+const QUOTE_FIRST_FOLLOW_UP_DAYS = 2;
+const QUOTE_LAST_FOLLOW_UP_DAYS = 4;
 const UNPAID_FIRST_DAYS = 3;
 const UNPAID_SECOND_DAYS = 7;
 const UNPAID_TEAM_DAYS = 10;
@@ -60,6 +66,7 @@ const UNPAID_TEAM_DAYS = 10;
 const MAX_SENDS = 40;
 
 export type SweepResult = {
+  quoteFollowUps: number;
   monthlyPayments: number;
   reviewAsks: number;
   unpaidReminders: number;
@@ -74,7 +81,7 @@ export type SweepResult = {
 const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 3_600_000;
 
 export async function runFollowUpSweep(): Promise<SweepResult> {
-  const result: SweepResult = { monthlyPayments: 0, reviewAsks: 0, unpaidReminders: 0, hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
+  const result: SweepResult = { quoteFollowUps: 0, monthlyPayments: 0, reviewAsks: 0, unpaidReminders: 0, hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
   const { dateISO: today, minutes } = londonNow();
   const admin = createAdminClient();
   let budget = MAX_SENDS;
@@ -250,6 +257,27 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     result.monthlyPayments = await takeDueInstalments(spend);
   });
 
+  // 6c. Quotes: lapse the ones that ran out, then follow up open ones.
+  await stage("quotes", async () => {
+    const { data: lapsed } = await admin.from("quotes").update({ status: "expired", updated_at: new Date().toISOString() }).eq("status", "sent").lt("valid_until", today).select("id");
+    for (const q of lapsed ?? []) await dropUnpaidDeposit(q.id as string);
+    if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
+    const { data } = await admin
+      .from("quotes")
+      .select("id, sent_at, followup_count, followed_up_at")
+      .eq("status", "sent")
+      .lt("followup_count", 2)
+      .lte("sent_at", new Date(Date.now() - QUOTE_FIRST_FOLLOW_UP_DAYS * 86_400_000).toISOString())
+      .limit(50);
+    for (const q of data ?? []) {
+      const count = (q.followup_count as number) ?? 0;
+      if (count === 1 && hoursSince((q.followed_up_at as string | null) ?? (q.sent_at as string)) < QUOTE_LAST_FOLLOW_UP_DAYS * 24) continue;
+      if (!spend()) return;
+      if (await sendQuoteFollowUp(q.id as string, count === 0 ? 1 : 2)) result.quoteFollowUps++;
+      await admin.from("quotes").update({ followup_count: count + 1, followed_up_at: new Date().toISOString() }).eq("id", q.id as string);
+    }
+  });
+
   // 7. Unpaid: reminders at 3 and 7 days, then the team chases it.
   await stage("unpaid", async () => {
     if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
@@ -259,6 +287,8 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
       .eq("status", "open")
       // Being paid monthly: Stripe takes it, and chases a missed one itself.
       .is("plan_status", null)
+      // A quote's deposit isn't a bill: the quote's own follow-ups cover it.
+      .or("quote_id.is.null,kind.neq.other")
       .lt("reminder_count", 3)
       .lte("created_at", new Date(Date.now() - UNPAID_FIRST_DAYS * 86_400_000).toISOString());
     for (const row of data ?? []) {
@@ -323,7 +353,8 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
 export function remindersSent(a: Appointment): { label: string; at: string }[] {
   return [
     a.remindedAt ? { label: "Evening-before reminder", at: a.remindedAt } : null,
-    a.hourRemindedAt ? { label: "On-our-way message", at: a.hourRemindedAt } : null,
+    a.hourRemindedAt ? { label: "Hour-before confirmation", at: a.hourRemindedAt } : null,
+    a.onMyWayAt ? { label: "On my way", at: a.onMyWayAt } : null,
     a.missedFollowupAt ? { label: "Sorry we missed you", at: a.missedFollowupAt } : null,
     a.serviceDueSentAt ? { label: "Service due reminder", at: a.serviceDueSentAt } : null,
     a.reviewAskedAt ? { label: "Review ask", at: a.reviewAskedAt } : null,

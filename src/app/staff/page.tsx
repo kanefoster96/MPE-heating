@@ -50,6 +50,7 @@ export default async function StaffHome() {
     { n: snap.overdueCount, label: `invoice${snap.overdueCount === 1 ? "" : "s"} unpaid over a week`, href: "/staff/invoices" },
     { n: snap.monthlyFailedCount, label: `monthly payment${snap.monthlyFailedCount === 1 ? "" : "s"} failed`, href: "/staff/invoices?show=monthly" },
     { n: snap.plan.failed, label: `plan payment${snap.plan.failed === 1 ? "" : "s"} failed`, href: "/staff/plan" },
+    { n: snap.quotes.accepted, label: `accepted quote${snap.quotes.accepted === 1 ? "" : "s"} to book in`, href: "/staff/quotes?show=accepted" },
   ].filter((x) => x.n > 0);
 
   const change = snap.takenLastMonthPence ? Math.round(((snap.takenThisMonthPence - snap.takenLastMonthPence) / snap.takenLastMonthPence) * 100) : null;
@@ -194,6 +195,15 @@ export default async function StaffHome() {
         <p className="text-sm text-muted">
           {snap.leads.total} booking form{snap.leads.total === 1 ? "" : "s"}, {snap.leads.booked} booked in
           {snap.leads.total ? ` (${Math.round((snap.leads.booked / snap.leads.total) * 100)}%)` : ""}.
+          {snap.quotes.open > 0 && (
+            <>
+              {" "}
+              <Link href="/staff/quotes" className="font-semibold text-foreground underline underline-offset-4">
+                {snap.quotes.open} quote{snap.quotes.open === 1 ? "" : "s"} out, worth {formatPence(snap.quotes.openPence)}
+              </Link>
+              .
+            </>
+          )}
         </p>
         {snap.leads.bySource.length > 0 && (
           <ul className="mt-3 flex flex-col gap-1.5" data-lead-sources>
@@ -214,6 +224,7 @@ export default async function StaffHome() {
         {[
           { href: `/staff/schedule?view=day&date=${today}&add=1#add`, label: "Book a visit" },
           { href: "/staff/customers/new", label: "New customer" },
+          { href: "/staff/quotes", label: "Quotes" },
           { href: "/staff/invoices", label: "Invoices" },
           { href: "/staff/plan", label: "Plan members" },
           ...(admin ? [{ href: "/staff/settings", label: "Settings and prices" }] : []),

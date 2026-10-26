@@ -14,7 +14,7 @@ import {
   setAppointmentStatus,
   updateAppointment,
 } from "@/lib/appointments";
-import { sendVisitNotice } from "@/lib/visit-notify";
+import { sendOnMyWay, sendVisitNotice, viaPhrase } from "@/lib/visit-notify";
 import type { NoticeType } from "@/lib/visit-copy";
 import { createCustomer, customerFieldsFromForm, customerLabel, listCustomers } from "@/lib/customers";
 import type { AppointmentStatus } from "@/lib/day-plan";
@@ -141,6 +141,16 @@ function wantsNotice(formData: FormData): boolean {
 
 function sentParam(sent: string[] | null): Record<string, string> {
   return sent === null ? {} : { sent: sent.length ? sent.join(",") : "none" };
+}
+
+/** "On my way": tells the customer who's coming and roughly when. */
+export async function onMyWay(id: string, day: string, formData: FormData) {
+  const user = await requireStaff("/staff/schedule");
+  const eta = Number(formData.get("eta"));
+  const sent = await sendOnMyWay(id, user.id, eta);
+  revalidatePath("/staff/schedule");
+  const note = sent.length ? `Sent "on my way" by ${viaPhrase(sent)}.` : "Couldn't reach them: add a mobile or email to their customer page.";
+  redirect(dayHref(day, { success: "onmyway", note }) + `#visit-${id}`);
 }
 
 export async function removeAppointment(id: string, day: string) {

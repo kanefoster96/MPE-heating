@@ -20,6 +20,7 @@ import { BILLING_LABEL, PLAN_BENEFITS, earliestEnd, minTermLine, planDate, planF
 import { instalmentProgress } from "@/lib/instalments";
 import { addMyCard, cancelMyPlan, keepMyPlan, openBillingPortal, removeMyCard, requestVisit, sendSignInLink, signOut, startPlan, updateMyDetails } from "./actions";
 import { cardsFor, planPaymentsFor } from "@/lib/customer-cards";
+import { quoteNumber, quoteOpen, quotesForCustomer } from "@/lib/quotes";
 import { paymentsOn } from "@/lib/payments";
 
 export const metadata: Metadata = {
@@ -120,12 +121,13 @@ export default async function AccountPage({
   const payments = customer ? (await paymentsForCustomer(customer.id)).filter((x) => x.status !== "cancelled") : [];
   const upcoming = visits.filter((v) => v.day >= today && (v.status === "booked" || v.status === "requested")).reverse();
   const past = visits.filter((v) => v.status === "done").slice(0, 10);
-  const [plan, prices, progress, cards, planPayments] = await Promise.all([
+  const [plan, prices, progress, cards, planPayments, quotes] = await Promise.all([
     customer ? planFor(customer.id) : Promise.resolve(null),
     planPrices(),
     instalmentProgress(payments),
     customer ? cardsFor(customer.id) : Promise.resolve([]),
     customer ? planPaymentsFor(customer.id) : Promise.resolve([]),
+    customer ? quotesForCustomer(customer.id).then((list) => list.filter((q) => q.status !== "cancelled")) : Promise.resolve([]),
   ]);
   const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
   const canJoin = !onPlan && planOpen(prices);
@@ -149,6 +151,7 @@ export default async function AccountPage({
       <nav className="mt-6 flex flex-wrap gap-2" aria-label="On this page" data-account-nav>
         {[
           { href: "#visits", label: "Visits" },
+          ...(quotes.length ? [{ href: "#quotes", label: "Quotes" }] : []),
           ...(onPlan || canJoin ? [{ href: "#plan", label: "Maintenance plan" }] : []),
           ...(payments.length || planPayments.length ? [{ href: "#payments", label: "Payments and receipts" }] : []),
           ...(paymentsOn() ? [{ href: "#cards", label: "Cards" }] : []),
@@ -223,6 +226,35 @@ export default async function AccountPage({
                     <span className="text-sm text-text-2">{longDate(v.day)}</span>
                   </span>
                   {v.jobReport && <span className="mt-1 line-clamp-2 block text-sm text-text-2">{v.jobReport}</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {quotes.length > 0 && (
+        <section id="quotes" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="quotes-heading">
+          <h2 id="quotes-heading" className="text-xl font-semibold text-navy">
+            Your quotes
+          </h2>
+          <ul className="mt-4 flex flex-col gap-2" data-my-quotes>
+            {quotes.map((q) => (
+              <li key={q.id}>
+                <Link
+                  href={`/quote/${q.publicToken}`}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-cream px-4 py-3 transition-colors hover:border-navy/40"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-navy">Quote {quoteNumber(q.number)}</span>
+                    <span className="block truncate text-sm text-text-2">{q.title}</span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block font-bold text-navy">{formatPence(q.totalPence)}</span>
+                    <span className={`block text-xs font-semibold ${q.status === "accepted" ? "text-success" : quoteOpen(q) ? "text-terracotta-deep" : "text-text-2"}`}>
+                      {q.status === "accepted" ? "Accepted" : quoteOpen(q) ? "Open: see and accept" : q.status === "declined" ? "Declined" : "Ran out"}
+                    </span>
+                  </span>
                 </Link>
               </li>
             ))}

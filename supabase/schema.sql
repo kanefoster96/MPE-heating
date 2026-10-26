@@ -454,6 +454,10 @@ create unique index if not exists appointments_public_token_idx on public.appoin
 -- customer sees on their visit page and account; when, and by whom; and
 -- the review ask (sent a couple of hours later by the sweep, once, with one
 -- reminder).
+-- "On my way": sent from the visit card when the engineer sets off, with
+-- roughly how many minutes away they are. Shown on the customer's visit page.
+alter table public.appointments add column if not exists on_my_way_at timestamptz;
+alter table public.appointments add column if not exists on_my_way_eta integer;
 alter table public.appointments add column if not exists job_report text;
 alter table public.appointments add column if not exists completed_at timestamptz;
 alter table public.appointments add column if not exists completed_by uuid references auth.users (id) on delete set null;
@@ -570,6 +574,58 @@ alter table public.payment_requests add column if not exists offers jsonb not nu
 alter table public.chat_messages add column if not exists payment_request_id uuid references public.payment_requests (id) on delete set null;
 -- The customer in Stripe, once they've saved a card with MPE.
 alter table public.customers add column if not exists stripe_customer_id text;
+
+-- ---------------------------------------------------------------------------
+-- Quotes (lib/quotes.ts): mostly new boilers. Fergal writes it after the
+-- quote visit (a line per part and the labour, what's included, any
+-- deposit, how long it's open), and it's sent to the customer by text,
+-- message, email and the app. They accept it online, paying the deposit
+-- if there is one, or say no thanks. Open quotes are followed up twice,
+-- then lapse when they run out. Once the work's done, the rest is invoiced
+-- with the deposit taken off. Service-role only.
+create sequence if not exists public.quote_number_seq start 1001;
+
+create table if not exists public.quotes (
+  id uuid primary key default gen_random_uuid(),
+  -- Q-1001, Q-1002…
+  number integer not null default nextval('public.quote_number_seq'),
+  customer_id uuid not null references public.customers (id) on delete cascade,
+  -- The quote visit it came from, if any.
+  appointment_id uuid references public.appointments (id) on delete set null,
+  title text not null,
+  -- Each line: {"description": "Worcester Bosch 4000 30kW combi", "amount_pence": 150000}.
+  lines jsonb not null default '[]'::jsonb,
+  total_pence integer not null check (total_pence > 0),
+  deposit_pence integer not null default 0 check (deposit_pence >= 0),
+  -- What's included, in Fergal's words (e.g. flush, filter, warranty registration).
+  details text,
+  -- Let them pay what's left monthly when it's invoiced (2 to 12 payments).
+  balance_instalments integer check (balance_instalments is null or balance_instalments between 2 and 12),
+  valid_until date not null,
+  status text not null default 'sent' check (status in ('sent', 'accepted', 'declined', 'expired', 'cancelled')),
+  sent_at timestamptz,
+  viewed_at timestamptz,
+  accepted_at timestamptz,
+  declined_at timestamptz,
+  decline_reason text,
+  -- The deposit asked for on accepting, and the invoice for the rest.
+  deposit_request_id uuid references public.payment_requests (id) on delete set null,
+  balance_request_id uuid references public.payment_requests (id) on delete set null,
+  followup_count integer not null default 0,
+  followed_up_at timestamptz,
+  public_token text not null default replace(gen_random_uuid()::text, '-', ''),
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists quotes_number_idx on public.quotes (number);
+create unique index if not exists quotes_token_idx on public.quotes (public_token);
+create index if not exists quotes_customer_idx on public.quotes (customer_id, created_at desc);
+create index if not exists quotes_open_idx on public.quotes (status, sent_at) where status = 'sent';
+alter table public.quotes enable row level security;
+
+-- A deposit or invoice that belongs to a quote.
+alter table public.payment_requests add column if not exists quote_id uuid references public.quotes (id) on delete set null;
 
 -- Paying an invoice monthly (lib/instalments.ts). Fergal lets them spread
 -- an invoice over up to 12 monthly payments, interest-free, with any

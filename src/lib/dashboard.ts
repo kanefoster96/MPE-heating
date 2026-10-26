@@ -22,6 +22,8 @@ export type Snapshot = {
   plan: { members: number; monthlyPence: number; failed: number; leaving: number };
   reviews: { count: number; average: number | null; toGoogle: number };
   leads: { total: number; booked: number; bySource: { source: string; count: number }[] };
+  /** Quotes out with customers, and accepted ones still to book in and invoice. */
+  quotes: { open: number; openPence: number; accepted: number };
 };
 
 function monthStart(dayISO: string, monthsBack = 0): string {
@@ -36,14 +38,17 @@ export async function businessSnapshot(todayISO: string): Promise<Snapshot> {
   const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const ninetyDays = new Date(Date.now() - 90 * 86_400_000).toISOString();
 
-  const [paid, monthlyIn, open, members, reviews, leads] = await Promise.all([
+  const [paid, monthlyIn, open, members, reviews, leads, quotes] = await Promise.all([
     admin.from("payment_requests").select("amount_pence, paid_at").eq("status", "paid").neq("paid_via", "instalments").gte("paid_at", lastMonth),
     admin.from("instalment_payments").select("amount_pence, paid_at").gte("paid_at", lastMonth),
     admin.from("payment_requests").select("id, amount_pence, created_at, plan_status").eq("status", "open"),
     admin.from("plan_members").select("status, billing, price_pence, cancel_at").in("status", ["active", "past_due"]),
     admin.from("job_reviews").select("rating, public_clicked_at").gte("created_at", ninetyDays),
     admin.from("enquiries").select("id, status, traffic_source").gte("created_at", thisMonth),
+    admin.from("quotes").select("status, total_pence, balance_request_id, valid_until").in("status", ["sent", "accepted"]),
   ]);
+  const quoteRows = (quotes.data ?? []) as { status: string; total_pence: number; balance_request_id: string | null; valid_until: string }[];
+  const openQuotes = quoteRows.filter((q) => q.status === "sent" && q.valid_until >= todayISO);
 
   const sumSince = (rows: { amount_pence: number; paid_at: string }[] | null, from: string, to?: string) =>
     (rows ?? []).filter((r) => r.paid_at >= from && (!to || r.paid_at < to)).reduce((sum, r) => sum + r.amount_pence, 0);
@@ -82,6 +87,11 @@ export async function businessSnapshot(todayISO: string): Promise<Snapshot> {
       count: reviewRows.length,
       average: reviewRows.length ? Math.round((reviewRows.reduce((sum, r) => sum + r.rating, 0) / reviewRows.length) * 10) / 10 : null,
       toGoogle: reviewRows.filter((r) => r.public_clicked_at).length,
+    },
+    quotes: {
+      open: openQuotes.length,
+      openPence: openQuotes.reduce((sum, q) => sum + q.total_pence, 0),
+      accepted: quoteRows.filter((q) => q.status === "accepted" && !q.balance_request_id).length,
     },
     leads: {
       total: leadRows.length,

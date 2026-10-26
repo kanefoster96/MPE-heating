@@ -198,6 +198,73 @@ book in, and how many quotes are out and what they're worth. Once the work
 is done, **Work done: invoice the rest** sends the invoice with the deposit
 taken off, with monthly payments if the quote offered them.
 
+### Photos and certificates
+
+On a customer's page (**Photos and certificates**) and on the finish-job
+screen, Fergal adds:
+- **photos** of the job, taken on the phone and shrunk before upload;
+- **certificates** as a PDF or a photo: gas safety record, service record,
+  Benchmark, commissioning. Each has the date it was issued and, for a gas
+  safety record, the date it runs out, filled in a year on.
+
+Ticked ones show in the customer's account under **Certificates and
+photos**, and on that visit's page. A month before a gas safety record runs
+out, the customer gets a reminder to book the next check. That's for
+landlords, who need one every year. Files are private: they're only opened
+through links that last an hour.
+
+Customers can add up to 5 photos to the call-out and new boiler booking
+forms (the boiler, the error code, where it is). They show on the job in
+the inbox and on the customer's page.
+
+### Days off
+
+**Schedule → Days off** (from the month view or a day off): add a day or a
+run of days, with a note only the team sees. Customers aren't offered those
+days when they ask for a visit (booking forms, their account, the
+pick-a-time and visit pages). The schedule marks them **Off**. Fergal can
+still book a visit on one himself; the day's page reminds him it's a day
+off. Anything already booked during new days off is listed so it can be
+moved.
+
+### Postcode check
+
+On the booking forms, a postcode in the North East (NE, SR, DH, TS, DL)
+shows "Good news: we cover NE26". One outside says it looks outside the
+area but can still be sent. It never stops a booking, and the booking
+email says which. Change the list in `src/lib/content.ts` if MPE covers more
+or less.
+
+### Referrals
+
+Set the rewards under **Settings → Referrals**: what the customer who
+recommends gets off their next job, and what their friend gets off their
+first. Leave both blank and referrals are off.
+
+Every customer then has their own link (`/r/<code>`):
+- in their account under **Recommend us**, with a share button;
+- on the thank-you page after they give a job 4 or 5 stars.
+
+The link's page says who recommended MPE and what the newcomer gets. A
+booking form sent from that browser within 60 days is linked to them, and
+the newcomer's reward is ready on their account. When the newcomer's first
+job is paid, the customer who recommended them gets theirs and a thank-you
+message. Rewards show on the Take payment page as **They're owed** lines,
+one tap onto the invoice, used once.
+
+### The monthly report
+
+On the 1st of each month, from 8am, the admins are emailed last month's
+numbers:
+- money in, and jobs done;
+- new jobs, and where they came from;
+- quotes sent and won;
+- plan members joined and left;
+- reviews and referrals.
+
+**Email me last month's numbers** on Home sends it any time. Ad spend isn't
+in it: that's in Meta Ads Manager.
+
 ### Taking payment
 
 Tap **Take payment** on a visit card, or in a customer's chat (**+ → Take

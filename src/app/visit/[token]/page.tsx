@@ -14,6 +14,7 @@ import { KIND_LABEL, longDate } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { arrivalClock } from "@/lib/visit-notify";
+import { fileLabel, sharedFilesForVisit } from "@/lib/job-files";
 import { askForAnotherTime } from "./actions";
 import { getJobReview } from "@/lib/job-completion";
 import { formatPence, invoiceNumber, paymentsForAppointments } from "@/lib/payments";
@@ -53,6 +54,7 @@ export default async function VisitPage({
     .join(", ");
   const first = customer?.name?.split(" ")[0];
   const review = visit.status === "done" ? await getJobReview(visit.id) : null;
+  const files = visit.status === "done" ? await sharedFilesForVisit(visit.id).catch(() => []) : [];
   const payments = ((await paymentsForAppointments([visit.id])).get(visit.id) ?? []).filter((x) => x.status !== "cancelled");
 
   const heading =
@@ -133,6 +135,22 @@ export default async function VisitPage({
                 <p className="text-sm font-semibold text-navy">What we did</p>
                 <p className="mt-1 whitespace-pre-wrap text-text-2">{visit.jobReport}</p>
               </div>
+            )}
+            {files.length > 0 && (
+              <ul className="mt-4 flex flex-wrap gap-2" data-visit-files>
+                {files.map((f) => (
+                  <li key={f.id}>
+                    <a
+                      href={f.url ?? "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 items-center rounded-full border border-line bg-white px-4 text-sm font-semibold text-navy hover:border-navy/40"
+                    >
+                      {f.kind === "photo" ? "Photo" : fileLabel(f)}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             )}
             {visit.status === "done" && !review && (
               <Link

@@ -22,6 +22,7 @@ import { PaymentBuilder } from "@/components/staff/payment-builder";
 import { listProducts, upsellProducts } from "@/lib/products";
 import { managePayment, takePayment } from "./actions";
 import { planFor, planDate } from "@/lib/maintenance-plan";
+import { availableCredits } from "@/lib/referrals";
 import { instalmentProgress, type InstalmentProgress } from "@/lib/instalments";
 
 export const metadata: Metadata = { title: "Take payment" };
@@ -64,7 +65,7 @@ export default async function TakePaymentPage({
     visit ? calloutCreditFor(visit.id) : Promise.resolve(0),
   ]);
   const first = customer.name?.split(" ")[0] ?? "them";
-  const [plan, progress] = await Promise.all([planFor(customer.id), instalmentProgress(existing)]);
+  const [plan, progress, credits] = await Promise.all([planFor(customer.id), instalmentProgress(existing), availableCredits(customer.id).catch(() => [])]);
   const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
   const calloutAsked = existing.some((p) => p.kind === "callout_fee" && p.status !== "cancelled");
 
@@ -156,6 +157,7 @@ export default async function TakePaymentPage({
             offers={upsells.map((u) => ({ productId: u.id, label: u.name, usualPence: u.pricePence, offerPence: u.offerPence }))}
             products={products.map((pr) => ({ id: pr.id, name: pr.name, pricePence: pr.pricePence }))}
             repair={!visit || visit.kind === "callout" || visit.kind === "repair"}
+            credits={credits.map((c) => ({ id: c.id, label: c.reason, pence: c.amountPence }))}
           />
         </div>
       </section>

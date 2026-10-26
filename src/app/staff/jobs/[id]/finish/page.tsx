@@ -8,6 +8,8 @@ import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
 import { formatPence, invoiceNumber, paymentsForAppointments } from "@/lib/payments";
 import { getJobReview } from "@/lib/job-completion";
 import { finishJob } from "./actions";
+import { FileUploader } from "@/components/staff/file-uploader";
+import { londonNow } from "@/lib/schedule-time";
 
 export const metadata: Metadata = { title: "Finish job" };
 
@@ -145,6 +147,18 @@ export default async function FinishJobPage({ params, searchParams }: { params: 
           {done ? "Save" : "Mark job done"}
         </button>
       </form>
+
+      {customer && (
+        <section className="mt-10 rounded-2xl border border-border bg-surface p-5" aria-labelledby="job-files">
+          <h2 id="job-files" className="font-semibold">
+            Photos and certificates for this job
+          </h2>
+          <p className="mt-1 text-sm text-muted">The finished work, the gas safety record or Benchmark. Saved with the job and the customer.</p>
+          <div className="mt-4">
+            <FileUploader customerId={customer.id} appointmentId={visit.id} today={londonNow().dateISO} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

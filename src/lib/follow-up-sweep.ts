@@ -11,6 +11,8 @@ import { sendUnpaidReminder } from "@/lib/payments";
 import { REVIEW_REMIND_AFTER_DAYS, sendReviewAsk } from "@/lib/job-completion";
 import { takeDueInstalments } from "@/lib/instalments";
 import { dropUnpaidDeposit, sendQuoteFollowUp } from "@/lib/quotes";
+import { sendCertificateRenewals } from "@/lib/job-files";
+import { sendDueMonthReport } from "@/lib/monthly-report";
 
 /**
  * Every automatic message to customers, and the team's nudges, in one pass.
@@ -34,7 +36,11 @@ import { dropUnpaidDeposit, sendQuoteFollowUp } from "@/lib/quotes";
  *   taken from their saved card (lib/instalments.ts);
  * - a quote not yet answered: a nudge two days after it's sent, the last
  *   word four days after that, and it lapses the day after it runs out
- *   (lib/quotes.ts).
+ *   (lib/quotes.ts);
+ * - a gas safety record running out within a month: book the next check
+ *   (lib/job-files.ts);
+ * - on the 1st: last month's numbers emailed to the admins
+ *   (lib/monthly-report.ts).
  *
  * Run every five minutes (vercel.json). Every stage checks its own "sent"
  * column first and sets it after, so a re-run never sends twice, and each
@@ -66,6 +72,7 @@ const UNPAID_TEAM_DAYS = 10;
 const MAX_SENDS = 40;
 
 export type SweepResult = {
+  certificateRenewals: number;
   quoteFollowUps: number;
   monthlyPayments: number;
   reviewAsks: number;
@@ -81,7 +88,7 @@ export type SweepResult = {
 const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 3_600_000;
 
 export async function runFollowUpSweep(): Promise<SweepResult> {
-  const result: SweepResult = { quoteFollowUps: 0, monthlyPayments: 0, reviewAsks: 0, unpaidReminders: 0, hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
+  const result: SweepResult = { certificateRenewals: 0, quoteFollowUps: 0, monthlyPayments: 0, reviewAsks: 0, unpaidReminders: 0, hourBefore: 0, dayBefore: 0, missed: 0, followUps: 0, serviceDue: 0, staffNudged: 0 };
   const { dateISO: today, minutes } = londonNow();
   const admin = createAdminClient();
   let budget = MAX_SENDS;
@@ -276,6 +283,18 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
       if (await sendQuoteFollowUp(q.id as string, count === 0 ? 1 : 2)) result.quoteFollowUps++;
       await admin.from("quotes").update({ followup_count: count + 1, followed_up_at: new Date().toISOString() }).eq("id", q.id as string);
     }
+  });
+
+  // 6d. Gas safety records running out within a month (landlords): book the next check.
+  await stage("certificates", async () => {
+    if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
+    result.certificateRenewals = await sendCertificateRenewals(spend);
+  });
+
+  // 6e. The 1st, from 8am: last month's numbers to the admins.
+  await stage("monthly-report", async () => {
+    if (minutes < STAFF_FROM) return;
+    await sendDueMonthReport(today);
   });
 
   // 7. Unpaid: reminders at 3 and 7 days, then the team chases it.

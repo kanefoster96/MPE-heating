@@ -21,6 +21,9 @@ import { instalmentProgress } from "@/lib/instalments";
 import { addMyCard, cancelMyPlan, keepMyPlan, openBillingPortal, removeMyCard, requestVisit, sendSignInLink, signOut, startPlan, updateMyDetails } from "./actions";
 import { cardsFor, planPaymentsFor } from "@/lib/customer-cards";
 import { quoteNumber, quoteOpen, quotesForCustomer } from "@/lib/quotes";
+import { fileLabel, filesForCustomer } from "@/lib/job-files";
+import { availableCredits, referralCodeFor, referralLink, referralRewards, referralStats } from "@/lib/referrals";
+import { ShareLink } from "@/components/ShareLink";
 import { paymentsOn } from "@/lib/payments";
 
 export const metadata: Metadata = {
@@ -121,14 +124,20 @@ export default async function AccountPage({
   const payments = customer ? (await paymentsForCustomer(customer.id)).filter((x) => x.status !== "cancelled") : [];
   const upcoming = visits.filter((v) => v.day >= today && (v.status === "booked" || v.status === "requested")).reverse();
   const past = visits.filter((v) => v.status === "done").slice(0, 10);
-  const [plan, prices, progress, cards, planPayments, quotes] = await Promise.all([
+  const [plan, prices, progress, cards, planPayments, quotes, files] = await Promise.all([
     customer ? planFor(customer.id) : Promise.resolve(null),
     planPrices(),
     instalmentProgress(payments),
     customer ? cardsFor(customer.id) : Promise.resolve([]),
     customer ? planPaymentsFor(customer.id) : Promise.resolve([]),
     customer ? quotesForCustomer(customer.id).then((list) => list.filter((q) => q.status !== "cancelled")) : Promise.resolve([]),
+    customer ? filesForCustomer(customer.id, { sharedOnly: true }).catch(() => []) : Promise.resolve([]),
   ]);
+  const rewards = customer ? await referralRewards() : null;
+  const [refCode, refStats, credits] = rewards && customer ? await Promise.all([referralCodeFor(customer.id), referralStats(customer.id), availableCredits(customer.id)]) : [null, null, []];
+  const pounds = (p: number) => `£${Number.isInteger(p / 100) ? p / 100 : (p / 100).toFixed(2)}`;
+  const certificates = files.filter((f) => f.kind === "certificate");
+  const photos = files.filter((f) => f.kind === "photo");
   const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
   const canJoin = !onPlan && planOpen(prices);
   const paysMonthly = payments.some((p) => p.planStatus === "active" || p.planStatus === "past_due");
@@ -154,6 +163,7 @@ export default async function AccountPage({
           ...(quotes.length ? [{ href: "#quotes", label: "Quotes" }] : []),
           ...(onPlan || canJoin ? [{ href: "#plan", label: "Maintenance plan" }] : []),
           ...(payments.length || planPayments.length ? [{ href: "#payments", label: "Payments and receipts" }] : []),
+          ...(files.length ? [{ href: "#files", label: "Certificates and photos" }] : []),
           ...(paymentsOn() ? [{ href: "#cards", label: "Cards" }] : []),
           { href: "#details", label: "Details and boiler" },
         ].map((l) => (
@@ -230,6 +240,49 @@ export default async function AccountPage({
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {files.length > 0 && (
+        <section id="files" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="files-heading">
+          <h2 id="files-heading" className="text-xl font-semibold text-navy">
+            Certificates and photos
+          </h2>
+          {certificates.length > 0 && (
+            <ul className="mt-4 flex flex-col gap-2" data-my-certificates>
+              {certificates.map((f) => (
+                <li key={f.id}>
+                  <a
+                    href={f.url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-cream px-4 py-3 transition-colors hover:border-navy/40"
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-navy">{fileLabel(f)}</span>
+                      <span className="block text-sm text-text-2">
+                        {f.issuedOn ? `Issued ${longDate(f.issuedOn)}` : ""}
+                        {f.expiresOn ? `${f.issuedOn ? " · " : ""}Runs out ${longDate(f.expiresOn)}` : ""}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold text-navy underline underline-offset-4">Open</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          {photos.length > 0 && (
+            <ul className="mt-4 grid grid-cols-3 gap-2" data-my-photos>
+              {photos.map((f) => (
+                <li key={f.id}>
+                  <a href={f.url ?? "#"} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-xl bg-cream ring-1 ring-line">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {f.url && <img src={f.url} alt={fileLabel(f)} className="h-full w-full object-cover" loading="lazy" />}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
@@ -463,6 +516,32 @@ export default async function AccountPage({
             )}
           </div>
           {paysMonthly && <p className="mt-3 text-sm text-text-2">To change the card for monthly payments, open that invoice above.</p>}
+        </section>
+      )}
+
+      {rewards && refCode && (
+        <section id="refer" className={`mt-6 scroll-mt-24 ${CARD}`} aria-labelledby="refer-heading">
+          <h2 id="refer-heading" className="text-xl font-semibold text-navy">
+            Recommend us
+          </h2>
+          <p className="mt-1 text-text-2">
+            Know someone who needs a heating engineer? Share your link.
+            {rewards.friendPence ? ` They get ${pounds(rewards.friendPence)} off their first job.` : ""}
+            {rewards.referrerPence ? ` Once they've had it, you get ${pounds(rewards.referrerPence)} off your next.` : ""}
+          </p>
+          <div className="mt-4">
+            <ShareLink url={referralLink(refCode)} text={`I use ${"MPE"} for my boiler. Book through this link${rewards.friendPence ? ` and get ${pounds(rewards.friendPence)} off your first job` : ""}:`} />
+          </div>
+          {refStats && refStats.referred > 0 && (
+            <p className="mt-3 text-sm text-text-2">
+              You&rsquo;ve recommended {refStats.referred} {refStats.referred === 1 ? "person" : "people"}. Thank you!
+            </p>
+          )}
+          {credits.length > 0 && (
+            <p className="mt-2 text-sm font-semibold text-success" data-my-credits>
+              {pounds(credits.reduce((sum, c) => sum + c.amountPence, 0))} off your next job: it comes off your next invoice.
+            </p>
+          )}
         </section>
       )}
 

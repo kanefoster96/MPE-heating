@@ -4,7 +4,8 @@ import { requireStaff } from "@/lib/staff-auth";
 import { isAdmin } from "@/lib/coach";
 import { MAX_UPSELLS, SUGGESTED_PRODUCTS, defaultUpsellPrice, listProducts, type Product } from "@/lib/products";
 import { formatPence } from "@/lib/payments";
-import { addProduct, removeProduct, saveProduct, savePlanPrices, saveReviewLink, toggleUpsell } from "./actions";
+import { addProduct, removeProduct, saveProduct, savePlanPrices, saveReferralRewards, saveReviewLink, toggleUpsell } from "./actions";
+import { referralRewards } from "@/lib/referrals";
 import { PLAN_BENEFITS, planPrices } from "@/lib/maintenance-plan";
 import { getSetting } from "@/lib/settings";
 
@@ -22,12 +23,12 @@ const pounds = (pence: number | null | undefined) => (pence ? (pence / 100).toSt
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string; reviewDone?: string; reviewError?: string; planDone?: string; planError?: string }>;
+  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string; reviewDone?: string; reviewError?: string; planDone?: string; planError?: string; referralDone?: string; referralError?: string }>;
 }) {
   const params = await searchParams;
   const user = await requireStaff("/staff/settings");
   if (!(await isAdmin(user.id))) redirect("/staff/schedule");
-  const [products, googleReview, plan] = await Promise.all([listProducts(), getSetting("review_url").catch(() => null), planPrices()]);
+  const [products, googleReview, plan, referral] = await Promise.all([listProducts(), getSetting("review_url").catch(() => null), planPrices(), referralRewards()]);
   const upsellCount = products.filter((p) => p.upsell).length;
   const have = new Set(products.map((p) => p.name.toLowerCase()));
   const suggestions = SUGGESTED_PRODUCTS.filter((s) => !have.has(s.name.toLowerCase()));
@@ -77,6 +78,32 @@ export default async function SettingsPage({
         {!plan.monthPence && !plan.yearPence && (
           <p className="mt-2 text-xs text-muted">No price yet: the plan&rsquo;s booking form still takes enquiries, but no one can join online.</p>
         )}
+      </section>
+
+      <section id="referrals" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="referrals-heading">
+        <h2 id="referrals-heading" className="text-lg font-semibold">
+          Referrals
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Every customer gets their own link to share (in their account, and after a good review). Someone who books through it gets money off their
+          first job; once that job&rsquo;s paid, the customer who recommended them gets money off their next. Both come off as a line on the invoice.
+          Leave both blank to switch referrals off.
+        </p>
+        {params.referralDone && <p className="mt-3 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">{params.referralDone}</p>}
+        {params.referralError && <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{params.referralError}</p>}
+        <form action={saveReferralRewards} className="mt-4 grid gap-3 sm:grid-cols-2" data-referral-rewards>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted">The customer who recommends gets £ off</span>
+            <input name="referrerReward" inputMode="decimal" defaultValue={pounds(referral?.referrerPence)} placeholder="Nothing" className={`${FIELD} text-right`} />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted">Their friend gets £ off their first job</span>
+            <input name="friendReward" inputMode="decimal" defaultValue={pounds(referral?.friendPence)} placeholder="Nothing" className={`${FIELD} text-right`} />
+          </label>
+          <button type="submit" className="min-h-11 rounded-full bg-foreground px-5 text-sm font-semibold text-background hover:opacity-90 sm:col-span-2 sm:justify-self-start">
+            Save referral rewards
+          </button>
+        </form>
       </section>
 
       <section id="reviews" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="reviews-heading">

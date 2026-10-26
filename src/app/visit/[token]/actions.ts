@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isDayOff } from "@/lib/days-off";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppointmentByToken, setChangeRequest } from "@/lib/appointments";
@@ -27,6 +28,7 @@ export async function askForAnotherTime(token: string, formData: FormData) {
   if (!isISODate(day) || day < today || day > addDays(today, 60) || !isPart(part)) {
     redirect(`/visit/${token}?error=${encodeURIComponent("Pick a day and a time of day.")}#another-time`);
   }
+  if (await isDayOff(day)) redirect(`/visit/${token}?error=${encodeURIComponent("We're not working that day. Please pick another.")}#another-time`);
   const customer = await getCustomer(visit.customerId);
   if (!customer) redirect(`/visit/${token}`);
 

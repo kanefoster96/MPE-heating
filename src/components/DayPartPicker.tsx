@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { londonNow } from "@/lib/schedule-time";
 import { PART_LABEL, PARTS, addDays, isISODate, type Part } from "@/lib/day-plan";
 
@@ -32,8 +32,8 @@ const OFF = "border-line bg-white text-navy hover:border-navy/40";
  * Pick a day in the next two weeks, then morning, afternoon or any time:
  * how a customer asks for a visit (booking forms, their account) or for
  * another time (their visit page). A row of day chips that scrolls sideways
- * on a phone, then three part-of-day chips. Controlled; `DayPartFields`
- * wraps it for a plain form.
+ * on a phone, then three part-of-day chips. Days off (lib/days-off.ts)
+ * aren't offered. Controlled; `DayPartFields` wraps it for a plain form.
  */
 export function DayPartPicker({
   value,
@@ -47,7 +47,25 @@ export function DayPartPicker({
   days?: number;
 }) {
   const [today] = useState(() => londonNow().dateISO);
-  const [list] = useState(() => upcomingDays(days, fromToday));
+  const [all] = useState(() => upcomingDays(days, fromToday));
+  const [closed, setClosed] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    let live = true;
+    fetch("/api/closed-days")
+      .then((r) => (r.ok ? r.json() : { days: [] }))
+      .then((d: { days?: string[] }) => {
+        if (live) setClosed(new Set(d.days ?? []));
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  useEffect(() => {
+    // A day picked before the days off arrived (or saved in a draft) that turns out to be one.
+    if (value.day && closed.has(value.day)) onChange({ ...value, day: "" });
+  }, [closed, value, onChange]);
+  const list = all.filter((d) => !closed.has(d));
   return (
     <div className="flex flex-col gap-4" data-day-part>
       <div>

@@ -241,6 +241,10 @@ async function settle(requestId: string): Promise<void> {
     .select("id");
   if (!data?.length) return;
   await alertTeam("Paid off", `${invoiceNumber(p.number)} (${formatPence(p.amountPence)}) is paid off.`);
+  if (p.customerId) {
+    const { rewardReferralFor } = await import("@/lib/referrals");
+    await rewardReferralFor(p.customerId).catch((err) => console.error("instalments: referral reward failed", err));
+  }
   if (progress.paidPence > p.amountPence) {
     await alertTeam("Overpaid", `${invoiceNumber(p.number)} was overpaid by ${formatPence(progress.paidPence - p.amountPence)}. Refund the difference in Stripe.`);
   }

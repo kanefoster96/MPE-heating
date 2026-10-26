@@ -627,6 +627,94 @@ alter table public.quotes enable row level security;
 -- A deposit or invoice that belongs to a quote.
 alter table public.payment_requests add column if not exists quote_id uuid references public.quotes (id) on delete set null;
 
+-- ---------------------------------------------------------------------------
+-- Referrals (lib/referrals.ts): each customer can share their own link
+-- (/r/<code>). Someone who books through it is linked to them; once that
+-- new customer's first job is paid, the one who recommended them gets
+-- money off their next job, and the new customer gets theirs off their
+-- first. The amounts are Fergal's, set in Settings; none set, no referrals.
+alter table public.customers add column if not exists referral_code text;
+create unique index if not exists customers_referral_code_idx on public.customers (referral_code) where referral_code is not null;
+
+create table if not exists public.referrals (
+  id uuid primary key default gen_random_uuid(),
+  referrer_customer_id uuid not null references public.customers (id) on delete cascade,
+  referred_customer_id uuid not null unique references public.customers (id) on delete cascade,
+  enquiry_id uuid references public.enquiries (id) on delete set null,
+  status text not null default 'pending' check (status in ('pending', 'rewarded')),
+  rewarded_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists referrals_referrer_idx on public.referrals (referrer_customer_id, created_at desc);
+alter table public.referrals enable row level security;
+
+-- Money off a customer's next invoice (a referral reward, or a goodwill
+-- credit): offered as a line on their next invoice, and used once.
+create table if not exists public.customer_credits (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid not null references public.customers (id) on delete cascade,
+  amount_pence integer not null check (amount_pence > 0),
+  reason text not null,
+  referral_id uuid references public.referrals (id) on delete set null,
+  used_on_request_id uuid references public.payment_requests (id) on delete set null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists customer_credits_customer_idx on public.customer_credits (customer_id) where used_at is null;
+alter table public.customer_credits enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Days off and holidays (lib/days-off.ts): customers can't ask for a visit
+-- on them, and the schedule greys them out. Service-role only.
+create table if not exists public.days_off (
+  id uuid primary key default gen_random_uuid(),
+  starts_on date not null,
+  ends_on date not null check (ends_on >= starts_on),
+  note text,
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists days_off_range_idx on public.days_off (starts_on, ends_on);
+alter table public.days_off enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Photos and certificates (lib/job-files.ts): photos a customer adds to a
+-- booking form, and the team's photos and certificates for a customer or
+-- a visit (gas safety records, service records, Benchmark). Files live in
+-- the private "job-files" bucket and are only ever read through
+-- short-lived signed links made on the server. `shared` files show in the
+-- customer's account; a certificate with `expires_on` (a landlord's gas
+-- safety record) gets a renewal reminder a month before.
+-- Service-role only: no storage policies, nothing reads it directly.
+insert into storage.buckets (id, name, public)
+values ('job-files', 'job-files', false)
+on conflict (id) do nothing;
+
+create table if not exists public.job_files (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references public.customers (id) on delete cascade,
+  appointment_id uuid references public.appointments (id) on delete set null,
+  enquiry_id uuid references public.enquiries (id) on delete set null,
+  kind text not null check (kind in ('photo', 'certificate')),
+  cert_type text check (cert_type in ('gas_safety', 'service', 'benchmark', 'commissioning', 'other')),
+  title text,
+  -- The object's path in the job-files bucket.
+  path text not null unique,
+  content_type text,
+  size_bytes integer,
+  issued_on date,
+  expires_on date,
+  shared boolean not null default true,
+  renewal_reminded_at timestamptz,
+  uploaded_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists job_files_customer_idx on public.job_files (customer_id, created_at desc);
+create index if not exists job_files_appointment_idx on public.job_files (appointment_id);
+create index if not exists job_files_enquiry_idx on public.job_files (enquiry_id);
+create index if not exists job_files_expiring_idx on public.job_files (expires_on) where kind = 'certificate' and expires_on is not null;
+alter table public.job_files enable row level security;
+
 -- Paying an invoice monthly (lib/instalments.ts). Fergal lets them spread
 -- an invoice over up to 12 monthly payments, interest-free, with any
 -- deposit taken first (12 or fewer, within a year, nothing added: outside

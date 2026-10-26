@@ -195,8 +195,7 @@ export default async function CustomerQuotePage({
             <PrintButton className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline underline-offset-4" />
           </div>
           <div className="print:hidden">
-            <p className="mt-8 text-center text-sm text-text-2">Questions about your quote?</p>
-            <ContactOptions className="mt-2" />
+            <ContactOptions className="mt-8" />
           </div>
         </div>
       </main>

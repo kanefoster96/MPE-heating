@@ -1,4 +1,4 @@
-import { getAppointment } from "@/lib/appointments";
+import { getAppointment, returnVisitFor } from "@/lib/appointments";
 import { customerLabel, getCustomer } from "@/lib/customers";
 import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
 import { completeJob, getJobReview } from "@/lib/job-completion";
@@ -11,7 +11,8 @@ import { viaPhrase } from "@/lib/visit-notify";
  * Finishing a job in the app (mobile/app/finish/[id].tsx): the website's
  * /staff/jobs/[id]/finish. What was done (the customer sees it), their
  * boiler, a private note for next time, the summary and the review ask,
- * and photos and certificates for the job. Saved by completeJob, as the
+ * and photos and certificates for the job. Not fixed yet: "Coming back",
+ * with what for, then the return visit's booked (lib/job-completion.ts). Saved by completeJob, as the
  * website does; opened again later, it edits what was saved.
  */
 
@@ -19,10 +20,11 @@ export async function finishDraft(id: string) {
   const visit = await getAppointment(id);
   if (!visit) return null;
   const customer = visit.customerId ? await getCustomer(visit.customerId) : null;
-  const [payments, review, files] = await Promise.all([
+  const [payments, review, files, returnVisit] = await Promise.all([
     paymentsForAppointments([visit.id]).then((m) => (m.get(visit.id) ?? []).filter((p) => p.status !== "cancelled")),
     getJobReview(visit.id),
     customer ? filesForCustomer(customer.id).catch(() => []) : Promise.resolve([]),
+    returnVisitFor(visit.id),
   ]);
   const done = visit.status === "done";
   // Start from the invoice: its lines, less the call-out credit, as plain words.
@@ -47,6 +49,11 @@ export async function finishDraft(id: string) {
       boilerLocation: customer?.boilerLocation ?? "",
     },
     servicedToday: visit.kind === "service",
+    /** Fixed, or coming back to finish (a part to fit), and what for. */
+    outcome: visit.outcome ?? "fixed",
+    returnNote: visit.returnNote ?? "",
+    /** The return visit, once it's booked. */
+    returnVisit: returnVisit ? { id: returnVisit.id, when: `${KIND_LABEL[returnVisit.kind]} · ${longDate(returnVisit.day)}, ${windowLabel(returnVisit.start, returnVisit.end)}` } : null,
     sendSummary: !done,
     askReview: !done && !review,
     reviewed: review ? `${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}${review.comment ? `: “${review.comment}”` : ""}` : null,
@@ -66,6 +73,8 @@ export type FinishBody = {
   servicedToday?: boolean;
   sendSummary?: boolean;
   askReview?: boolean;
+  outcome?: "fixed" | "return";
+  returnNote?: string;
 };
 
 export async function finish(id: string, body: FinishBody, staffId: string): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
@@ -84,7 +93,10 @@ export async function finish(id: string, body: FinishBody, staffId: string): Pro
     servicedToday: body.servicedToday === true,
     sendSummary: body.sendSummary === true,
     askReview: body.askReview === true,
+    outcome: body.outcome === "return" ? "return" : "fixed",
+    returnNote: text(body.returnNote, 300),
   });
   if (!result.ok) return result;
-  return { ok: true, message: `Job done.${result.sentVia.length ? ` Summary sent by ${viaPhrase(result.sentVia)}.` : ""}` };
+  const sent = result.sentVia.length ? ` Summary sent by ${viaPhrase(result.sentVia)}.` : "";
+  return { ok: true, message: body.outcome === "return" ? `Saved: you're coming back.${sent} Now book the return visit.` : `Job done.${sent}` };
 }

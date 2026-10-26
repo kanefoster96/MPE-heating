@@ -52,6 +52,10 @@ function teamRoute(pathname: string, search: URLSearchParams): string | null {
     "/staff/settings": "/settings",
   };
   const bare = pathname.replace(/\/+$/, "") || "/";
+  // One invoice ("Still unpaid"), and the requests waiting on the team (the bell).
+  const invoice = search.get("invoice");
+  if (bare === "/staff/invoices" && invoice && /^[0-9a-f-]{36}$/.test(invoice)) return `/invoice/${invoice}`;
+  if (bare === "/staff/schedule" && search.get("waiting") === "1") return "/notifications";
   if (exact[bare]) return exact[bare];
   const patterns: [RegExp, (id: string) => string][] = [
     [new RegExp(`^/staff/messages/${ID}$`), (id) => `/chat/${id}`],

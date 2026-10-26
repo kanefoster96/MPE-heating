@@ -1,5 +1,6 @@
 import {
   acceptRequest,
+  clearReturn,
   appointmentFromForm,
   appointmentsBetween,
   clearChangeRequest,
@@ -10,10 +11,11 @@ import {
   setAppointmentStatus,
   updateAppointment,
 } from "@/lib/appointments";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createCustomer, customerFieldsFromForm, customerLabel, getCustomer, listCustomers } from "@/lib/customers";
 import { closedDays } from "@/lib/days-off";
 import { APPOINTMENT_KINDS, KIND_DEFAULT_MINUTES, KIND_LABEL, PART_LABEL, PART_WINDOW, addDays, longDate, toHHMM, type AppointmentKind } from "@/lib/day-plan";
-import { enquiriesForConversation } from "@/lib/enquiries";
+import { enquiriesForConversation, enquiryNotes, visitKindFor } from "@/lib/enquiries";
 import { londonNow } from "@/lib/schedule-time";
 import { sendVisitNotice, viaPhrase } from "@/lib/visit-notify";
 import type { NoticeType } from "@/lib/visit-copy";
@@ -58,6 +60,8 @@ export type VisitDraft = {
   notes: string;
   customer: { id: string; label: string } | null;
   enquiryId: string | null;
+  /** A return visit: the visit it finishes the job for. */
+  followUpOf: string | null;
   /** The customer asked to move it: to this day and part of the day. */
   change: { day: string; label: string; start: string; end: string; note: string | null } | null;
   /** A request: what they asked for. */
@@ -66,25 +70,37 @@ export type VisitDraft = {
 
 export const KINDS = APPOINTMENT_KINDS.map((k) => ({ key: k, label: KIND_LABEL[k], minutes: KIND_DEFAULT_MINUTES[k] }));
 
+/** Where a new visit's time starts: 9am, or on a day that's begun, the next hour (so not a time that's gone). */
+function firstSlot(day: string, kind: AppointmentKind): { start: string; end: string } {
+  const now = londonNow();
+  const start = day === now.dateISO ? Math.min(Math.max(9 * 60, Math.ceil((now.minutes + 30) / 60) * 60), 18 * 60) : 9 * 60;
+  return { start: toHHMM(start), end: toHHMM(Math.min(start + KIND_DEFAULT_MINUTES[kind], 23 * 60 + 59)) };
+}
+
 /** A visit as the form edits it, or a new one (for a customer, on a day). */
-export async function visitDraft(params: { id?: string | null; customerId?: string | null; day?: string | null }): Promise<VisitDraft | null> {
+export async function visitDraft(params: { id?: string | null; customerId?: string | null; day?: string | null; followUp?: string | null; conversationId?: string | null }): Promise<VisitDraft | null> {
   if (params.id) {
     const v = await getAppointment(params.id);
     if (!v) return null;
     const c = v.customerId ? await getCustomer(v.customerId) : null;
+    // A request whose day has gone: the form starts from today.
+    const gone = v.status === "requested" && v.day < londonNow().dateISO;
+    const day = gone ? londonNow().dateISO : v.day;
+    const slot = gone ? firstSlot(day, v.kind) : { start: toHHMM(v.start), end: toHHMM(v.end) };
     return {
       id: v.id,
       status: v.status,
       kind: v.kind,
-      day: v.day,
-      start: toHHMM(v.start),
-      end: toHHMM(v.end),
+      day,
+      start: slot.start,
+      end: slot.end,
       title: v.title ?? "",
       address: v.address ?? "",
       postcode: v.postcode ?? "",
       notes: v.notes ?? "",
       customer: c ? { id: c.id, label: customerLabel(c) } : null,
       enquiryId: v.enquiryId,
+      followUpOf: v.followUpOf,
       change: v.change
         ? {
             day: v.change.day,
@@ -97,21 +113,61 @@ export async function visitDraft(params: { id?: string | null; customerId?: stri
       asked: v.status === "requested" ? `${longDate(v.day)}, ${PART_LABEL[v.part ?? "any"].toLowerCase()}` : null,
     };
   }
-  const c = params.customerId ? await getCustomer(params.customerId) : null;
   const today = londonNow().dateISO;
+  const pickedDay = params.day && /^\d{4}-\d{2}-\d{2}$/.test(params.day) ? params.day : today;
+  // The return visit for a job finished as "coming back": a repair for the same customer and place.
+  const first = params.followUp && /^[0-9a-f-]{36}$/i.test(params.followUp) ? await getAppointment(params.followUp) : null;
+  if (first) {
+    const fc = first.customerId ? await getCustomer(first.customerId) : null;
+    const what = first.returnNote ?? "";
+    return {
+      id: null,
+      status: null,
+      kind: "repair",
+      day: pickedDay,
+      ...firstSlot(pickedDay, "repair"),
+      title: what ? what.charAt(0).toUpperCase() + what.slice(1) : "",
+      address: first.address ?? fc?.address ?? "",
+      postcode: first.postcode ?? fc?.postcode ?? "",
+      notes: `Return visit to finish the ${KIND_LABEL[first.kind].toLowerCase()} on ${longDate(first.day)}.${first.jobReport ? `\nFound: ${first.jobReport}` : ""}`,
+      customer: fc ? { id: fc.id, label: customerLabel(fc) } : null,
+      enquiryId: first.enquiryId,
+      followUpOf: first.id,
+      change: null,
+      asked: null,
+    };
+  }
+  const c = params.customerId ? await getCustomer(params.customerId) : null;
+  // They've asked for a visit already (the booking form's "when suits you"): book that, not a second one.
+  if (c) {
+    const { data: open } = await createAdminClient()
+      .from("appointments")
+      .select("id")
+      .eq("customer_id", c.id)
+      .eq("status", "requested")
+      .gte("day", addDays(today, -14))
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (open?.id) return visitDraft({ id: open.id as string });
+  }
+  // Else their latest booking still waiting in the chat: its kind, and the fault in their words.
+  const conversationId = params.conversationId ?? c?.conversationId ?? null;
+  const enquiry = conversationId ? (await enquiriesForConversation(conversationId).catch(() => [])).find((e) => e.status === "new" || e.status === "contacted") : undefined;
+  const kind: AppointmentKind = enquiry ? visitKindFor(enquiry.category) : "callout";
   return {
     id: null,
     status: null,
-    kind: "callout",
-    day: params.day && /^\d{4}-\d{2}-\d{2}$/.test(params.day) ? params.day : today,
-    start: "09:00",
-    end: "11:00",
+    kind,
+    day: pickedDay,
+    ...firstSlot(pickedDay, kind),
     title: "",
     address: c?.address ?? "",
-    postcode: c?.postcode ?? "",
-    notes: "",
+    postcode: c?.postcode ?? enquiry?.postcode ?? "",
+    notes: enquiry ? enquiryNotes(enquiry) : "",
     customer: c ? { id: c.id, label: customerLabel(c) } : null,
-    enquiryId: null,
+    enquiryId: enquiry?.id ?? null,
+    followUpOf: null,
     change: null,
     asked: null,
   };
@@ -140,6 +196,8 @@ export type VisitBody = {
   notes?: string;
   customerId?: string | null;
   enquiryId?: string | null;
+  /** A return visit: the visit it finishes the job for. */
+  followUpOf?: string | null;
   /** From a chat: its open booking forms are marked booked. */
   conversationId?: string | null;
   newCustomer?: { name?: string; phone?: string; email?: string } | null;
@@ -148,7 +206,7 @@ export type VisitBody = {
 
 function asForm(body: VisitBody): FormData {
   const form = new FormData();
-  for (const key of ["kind", "day", "start", "end", "title", "address", "postcode", "notes", "customerId", "enquiryId"] as const) {
+  for (const key of ["kind", "day", "start", "end", "title", "address", "postcode", "notes", "customerId", "enquiryId", "followUpOf"] as const) {
     const value = body[key];
     if (typeof value === "string") form.set(key, value);
   }
@@ -190,8 +248,10 @@ export async function saveVisit(
   if (!id) {
     const created = await createAppointment(input, staffId);
     if (!created) return { ok: false, error: "Couldn't add that visit." };
-    if (!input.enquiryId && body.conversationId) {
-      for (const e of await enquiriesForConversation(body.conversationId).catch(() => [])) {
+    // Their bookings waiting in the chat are booked now, from wherever the visit was added.
+    const conversationId = body.conversationId ?? customer?.conversationId ?? null;
+    if (!input.enquiryId && conversationId) {
+      for (const e of await enquiriesForConversation(conversationId).catch(() => [])) {
         if (e.status === "new" || e.status === "contacted") await markEnquiryBooked(e.id, staffId);
       }
     }
@@ -204,6 +264,8 @@ export async function saveVisit(
   const timeChanged = input.day !== before.day || input.start !== before.start || input.end !== before.end;
   // A request, or a missed visit given a new time, is booked on save.
   const wasRequest = before.status === "requested" || (before.status === "no_access" && timeChanged);
+  // Booking (or moving) onto a day that's gone would tell the customer a date that's passed.
+  if ((wasRequest || timeChanged) && input.day < londonNow().dateISO) return { ok: false, error: "That day's gone. Pick today or later." };
   const ok = await updateAppointment(id, input, { status: wasRequest ? "booked" : undefined, clearChange: wasRequest || timeChanged });
   if (!ok) return { ok: false, error: "Couldn't save that visit." };
   if (wasRequest && before.enquiryId) await markEnquiryBooked(before.enquiryId, staffId);
@@ -212,7 +274,7 @@ export async function saveVisit(
   return { ok: true, id, day: input.day, message: `${wasRequest ? "Booked" : timeChanged ? "Moved" : "Saved"}.${sentLine(sent, customer?.name ?? null)}` };
 }
 
-export const VISIT_ACTIONS = ["accept", "keep", "send", "booked", "cancel", "cancel_quietly", "remove"] as const;
+export const VISIT_ACTIONS = ["accept", "keep", "send", "booked", "cancel", "cancel_quietly", "remove", "no_return"] as const;
 export type VisitAction = (typeof VISIT_ACTIONS)[number];
 
 /** The buttons on a visit: accept a request as asked, keep the time they asked to move, send the details again, back to booked, cancel (telling them or not), remove. */
@@ -224,6 +286,7 @@ export async function visitAction(id: string, action: VisitAction, staffId: stri
   switch (action) {
     case "accept": {
       if (visit.status !== "requested") return { ok: false, error: "That's already been answered." };
+      if (visit.day < londonNow().dateISO) return { ok: false, error: "That day's gone. Pick a new time with Move or change." };
       await acceptRequest(id);
       if (visit.enquiryId) await markEnquiryBooked(visit.enquiryId, staffId);
       const sent = visit.customerId ? await sendVisitNotice(id, "booked", staffId) : null;
@@ -250,5 +313,9 @@ export async function visitAction(id: string, action: VisitAction, staffId: stri
     case "remove":
       if (!(await deleteAppointment(id))) return { ok: false, error: "Couldn't remove that visit." };
       return { ok: true, message: "Removed." };
+    case "no_return":
+      // Coming back, then not needed after all (they've gone elsewhere, say): off the to-book list.
+      if (!(await clearReturn(id))) return { ok: false, error: "Couldn't save that." };
+      return { ok: true, message: "Done: no return visit to book." };
   }
 }

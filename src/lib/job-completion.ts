@@ -1,8 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAppointment, type Appointment } from "@/lib/appointments";
+import { getAppointment, visitChain, type Appointment } from "@/lib/appointments";
 import { addCustomerNote, getCustomer, updateCustomer, type CustomerFields } from "@/lib/customers";
 import { deliverToCustomer, postCustomerVisitMessage, visitLink } from "@/lib/visit-notify";
-import { formatPence, invoiceNumber, payLink, paymentsForAppointments } from "@/lib/payments";
+import { calloutAskedFor, calloutCreditFor, formatPence, invoiceNumber, payLink, paymentsForAppointments } from "@/lib/payments";
 import { renderEmailLayout } from "@/lib/emails/layout";
 import { business } from "@/lib/content";
 import { KIND_LABEL, longDate } from "@/lib/day-plan";
@@ -15,6 +15,11 @@ import { recordPlanService } from "@/lib/maintenance-plan";
  * a private note for next time, and the customer gets a summary with their
  * invoice or receipt. A couple of hours later they're asked how it went
  * (the follow-up sweep), with one reminder.
+ *
+ * Not fixed first time (a part to order): finished as "coming back", with
+ * what for. They're told what was found and that we'll be back, there's no
+ * review ask until it's fixed, and the team are reminded to book the return
+ * visit (lib/app-notifications.ts). The return visit points back to it.
  *
  * Reviews: their stars and words go to MPE, and everyone is invited to post
  * a public review too, whatever they gave: inviting only the happy ones is
@@ -65,10 +70,18 @@ export async function completeJob(params: {
   servicedToday?: boolean;
   sendSummary: boolean;
   askReview: boolean;
+  /** "return": not fixed yet, coming back (a part to fit); `returnNote` says what for. */
+  outcome?: "fixed" | "return";
+  returnNote?: string;
 }): Promise<{ ok: true; sentVia: string[] } | { ok: false; error: string }> {
   const visit = await getAppointment(params.appointmentId);
   if (!visit) return { ok: false, error: "That visit's gone." };
   const report = params.report.trim().slice(0, 2000);
+  const coming = params.outcome === "return";
+  // Kept as the end of a sentence ("coming back to fit the new valve"), so a capital's dropped unless it's a name like "MPE".
+  const typed = coming ? (params.returnNote ?? "").trim().replace(/\.$/, "").slice(0, 300) : "";
+  const returnNote = /^[A-Z][a-z]/.test(typed) ? lowerFirst(typed) : typed;
+  if (coming && !returnNote) return { ok: false, error: "Say what you're coming back for, e.g. fit the new diverter valve." };
   const now = new Date();
   const admin = createAdminClient();
   const { error } = await admin
@@ -78,7 +91,9 @@ export async function completeJob(params: {
       job_report: report || null,
       completed_at: now.toISOString(),
       completed_by: params.staffId,
-      review_due_at: params.askReview && visit.customerId ? new Date(now.getTime() + REVIEW_ASK_AFTER_HOURS * 3_600_000).toISOString() : null,
+      review_due_at: params.askReview && !coming && visit.customerId ? new Date(now.getTime() + REVIEW_ASK_AFTER_HOURS * 3_600_000).toISOString() : null,
+      outcome: coming ? "return" : "fixed",
+      return_note: returnNote || null,
       change_day: null,
       change_part: null,
       change_note: null,
@@ -92,6 +107,8 @@ export async function completeJob(params: {
   if (!customer) return { ok: true, sentVia: [] };
 
   if (params.privateNote?.trim()) await addCustomerNote(customer.id, params.privateNote, params.staffId);
+  // Fixed: their booking (and the first visit's, for a return visit) is done.
+  if (!coming) await closeEnquiries(visit, params.staffId);
 
   // Boiler details, only the ones filled in; a service today updates "last serviced".
   const fields: Partial<CustomerFields> = {};
@@ -109,15 +126,42 @@ export async function completeJob(params: {
   if (!params.sendSummary) return { ok: true, sentVia: [] };
   const first = customer.name ? customer.name.split(" ")[0] : null;
   const pay = await paymentLine(visit.id);
-  const body = `${first ? `Hi ${first}, ` : "Hi, "}thanks for having us ${whenDone(visit.day)}.${report ? ` Here's what we did: ${report}` : ""}${pay ? ` ${pay.text}` : ""} Any questions, just reply.`;
+  // The call-out they paid comes off the repair, as the site says, however many visits it takes.
+  const credit = coming ? await calloutCreditFor(visit) : 0;
+  const feeOpen = coming && !credit && (await calloutAskedFor(visit));
+  const creditLine = credit ? ` The ${formatPence(credit)} call-out you paid comes off the final bill.` : feeOpen ? " The call-out fee comes off the final bill." : "";
+  const next = coming ? ` We'll be back to finish the job: ${lowerFirst(returnNote)}. We'll be in touch to book a time, or reply with a day that suits.${creditLine}` : "";
+  const body = coming
+    ? `${first ? `Hi ${first}, ` : "Hi, "}thanks for having us ${whenDone(visit.day)}.${report ? ` Here's what we found: ${endSentence(report)}` : ""}${next}${pay ? ` ${pay.text}` : ""}`
+    : `${first ? `Hi ${first}, ` : "Hi, "}thanks for having us ${whenDone(visit.day)}.${report ? ` Here's what we did: ${endSentence(report)}` : ""}${pay ? ` ${pay.text}` : ""} Any questions, just reply.`;
   const sentVia = await deliverToCustomer(customer, {
     body,
-    headline: `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we did`,
+    headline: coming ? `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we found, and what's next` : `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we did`,
     staffId: params.staffId,
     pushHref: `/visit/${visit.publicToken}`,
-    emailHtml: () => jobSummaryEmailHtml({ name: first, visit, report, pay, link: visitLink(visit) }),
+    emailHtml: () => jobSummaryEmailHtml({ name: first, visit, report, pay, link: visitLink(visit), returnNote: coming ? returnNote : null, creditLine }),
   });
   return { ok: true, sentVia };
+}
+
+/** So the next sentence doesn't run on from the report. */
+function endSentence(text: string): string {
+  return /[.!?)]$/.test(text) ? text : `${text}.`;
+}
+
+function lowerFirst(text: string): string {
+  return text ? text.charAt(0).toLowerCase() + text.slice(1) : text;
+}
+
+/** A fixed job's bookings are done: the ones its visits came from, and any still open in their conversation. */
+async function closeEnquiries(visit: Appointment, staffId: string): Promise<void> {
+  const admin = createAdminClient();
+  const chain = await visitChain(visit);
+  const ids = chain.map((v) => v.enquiryId).filter((x): x is string => !!x);
+  const customer = visit.customerId ? await getCustomer(visit.customerId) : null;
+  const update = { status: "done", updated_at: new Date().toISOString(), updated_by: staffId };
+  if (ids.length) await admin.from("enquiries").update(update).in("id", ids).in("status", ["new", "contacted", "booked"]);
+  if (customer?.conversationId) await admin.from("enquiries").update(update).eq("conversation_id", customer.conversationId).eq("status", "booked");
 }
 
 function escapeHtml(text: string): string {
@@ -125,15 +169,18 @@ function escapeHtml(text: string): string {
 }
 const P = 'style="margin:0 0 16px;font-size:16px;line-height:1.55;color:#1f2a3a"';
 
-function jobSummaryEmailHtml(params: { name: string | null; visit: Appointment; report: string; pay: { text: string; href: string } | null; link: string }): string {
-  const { visit, report, pay } = params;
+function jobSummaryEmailHtml(params: { name: string | null; visit: Appointment; report: string; pay: { text: string; href: string } | null; link: string; returnNote: string | null; creditLine?: string }): string {
+  const { visit, report, pay, returnNote, creditLine } = params;
+  const box = 'style="margin:0 0 20px;padding:12px 16px;border-radius:12px;background:#f7f5f2;font-size:15px;line-height:1.55;color:#1f2a3a;white-space:pre-wrap"';
+  const label = 'style="margin:0 0 6px;font-size:14px;font-weight:700;color:#1f2a3a"';
   const bodyHtml = `<p ${P}>${params.name ? `Hi ${escapeHtml(params.name)},` : "Hi,"}</p>
 <p ${P}>Thanks for having us ${whenDone(visit.day)}.</p>
-${report ? `<p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#1f2a3a">What we did</p><p style="margin:0 0 20px;padding:12px 16px;border-radius:12px;background:#f7f5f2;font-size:15px;line-height:1.55;color:#1f2a3a;white-space:pre-wrap">${escapeHtml(report)}</p>` : ""}
+${report ? `<p ${label}>${returnNote ? "What we found" : "What we did"}</p><p ${box}>${escapeHtml(report)}</p>` : ""}
+${returnNote ? `<p ${label}>What's next</p><p ${box}>We'll be back to finish the job: ${escapeHtml(lowerFirst(returnNote))}. We'll be in touch to book a time, or reply with a day that suits.${creditLine ? escapeHtml(creditLine) : ""}</p>` : ""}
 <p ${P}>Any questions, just reply or call ${escapeHtml(business.phoneDisplay)}.</p>`;
   return renderEmailLayout({
-    previewText: report ? `What we did: ${report.slice(0, 90)}` : "Thanks for having us",
-    heading: `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we did`,
+    previewText: returnNote ? "What we found, and what's next" : report ? `What we did: ${report.slice(0, 90)}` : "Thanks for having us",
+    heading: returnNote ? `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we found, and what's next` : `Your ${KIND_LABEL[visit.kind].toLowerCase()}: what we did`,
     bodyHtml,
     ctaLabel: pay ? (pay.text.startsWith("Your receipt") ? "View receipt" : "View and pay") : "See your visit",
     ctaUrl: pay?.href ?? params.link,
@@ -200,7 +247,8 @@ export async function markPublicReviewClicked(appointmentId: string): Promise<vo
 /** The ask (stage 1), or the one reminder (stage 2). False when it wasn't sent (already reviewed, or reviewed recently). */
 export async function sendReviewAsk(appointmentId: string, stage: 1 | 2): Promise<boolean> {
   const visit = await getAppointment(appointmentId);
-  if (!visit?.customerId || visit.status !== "done") return false;
+  // Only once it's fixed: never while they're waiting for the return visit.
+  if (!visit?.customerId || visit.status !== "done" || visit.outcome === "return") return false;
   if (await getJobReview(visit.id)) return false;
   const since = new Date(Date.now() - REVIEW_QUIET_DAYS * 86_400_000).toISOString();
   const { count } = await createAdminClient()

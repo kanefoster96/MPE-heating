@@ -88,6 +88,8 @@ export type InboxItem = {
   completed: boolean;
   /** Where the customer last wrote from: the app gets a phone on their avatar. */
   lastFrom?: "web" | "app" | null;
+  /** A same-day job no one has answered yet. */
+  sameDay?: boolean;
 };
 
 export type AppNotice = {
@@ -177,7 +179,12 @@ export type StaffJobDetail = {
   dayLabel: string;
   customerId?: string | null;
   asked?: string | null;
+  askedPast?: boolean;
   change?: { label: string; note: string | null } | null;
+  /** Finished as "coming back": what for, and the return visit once booked. */
+  comingBack?: { note: string | null; returnVisit: { id: string; when: string } | null } | null;
+  /** A return visit: the first visit of the job. */
+  firstVisit?: { id: string; when: string } | null;
   payments: {
     on: boolean;
     terminalLocation: string | null;

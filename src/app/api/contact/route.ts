@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getConversationForUser } from "@/lib/chat-db";
 import { business, inOurArea } from "@/lib/content";
 import { formatPostcode, isValidEmail, isValidPhone, isValidPostcode } from "@/lib/validation";
 import { isLikelyBotSubmission } from "@/lib/spamGuard";
@@ -31,6 +33,7 @@ type Payload = {
   path?: unknown;
   // The step-by-step forms: postcode, and each question with its answer.
   postcode?: unknown;
+  address?: unknown;
   answers?: unknown;
   // The "when suits you" step: a day and morning, afternoon or any time.
   preferred?: unknown;
@@ -74,6 +77,7 @@ export async function POST(request: NextRequest) {
   const phone = str(body.phone, 40);
   const email = str(body.email, 200);
   const message = str(body.message, 4000);
+  const address = str(body.address, 200);
   const typeKey = str(body.type, 40) as EnquiryType;
   const type = ENQUIRY_TYPES[typeKey] ? typeKey : "other";
   const sameDayRequested = body.sameDayRequested === true;
@@ -90,7 +94,10 @@ export async function POST(request: NextRequest) {
         .map((a) => (a && typeof a === "object" ? { q: str((a as { q?: unknown }).q, 120), a: str((a as { a?: unknown }).a, 600) } : null))
         .filter((a): a is { q: string; a: string } => !!a && !!a.q && !!a.a)
         .slice(0, 12)
-    : [];
+        .concat(address ? [{ q: "Address", a: address }] : [])
+    : address
+      ? [{ q: "Address", a: address }]
+      : [];
 
   const pref = body.preferred && typeof body.preferred === "object" ? (body.preferred as { day?: unknown; part?: unknown }) : null;
   const today = londonNow().dateISO;
@@ -153,13 +160,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // Chatting on the site in this browser (a guest, or signed in): the booking goes in that chat.
+  const browserChat = await (async () => {
+    try {
+      const {
+        data: { user },
+      } = await (await createClient()).auth.getUser();
+      return user ? ((await getConversationForUser(user.id))?.id ?? null) : null;
+    } catch {
+      return null;
+    }
+  })();
   const stored = await recordEnquiry({
+    chatConversationId: browserChat,
     type,
     label,
     name,
     email,
     phone,
     postcode,
+    address,
     sameDay: sameDayRequested,
     path,
     answers,

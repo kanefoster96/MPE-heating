@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mobileCaller, mobileJson } from "@/lib/mobile-api";
+import { adoptCustomerConversation } from "@/lib/account-claim";
 import { getConversationForCoachById, getMessagesForApp, getOrCreateConversation, isGuestUser } from "@/lib/chat-db";
 import { ensureWelcome } from "@/lib/chat-welcome";
 import { resolveDisplayName } from "@/lib/display-name";
@@ -57,6 +58,8 @@ export async function GET(request: Request) {
     });
   }
 
+  // Their booking texts and their app chat are the one thread.
+  if (!after && !caller.staff && !caller.user.is_anonymous) await adoptCustomerConversation(caller.user.id, caller.user.email);
   const conversation = await getOrCreateConversation(caller.user.id);
   if (!conversation) return mobileJson({ error: "Chat is temporarily unavailable. Please try again shortly." }, 503);
   if (!after) await ensureWelcome(conversation.id);

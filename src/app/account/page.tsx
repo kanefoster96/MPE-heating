@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isCoach } from "@/lib/coach";
 import { customerForUser } from "@/lib/customers";
 import { appointmentsForCustomer } from "@/lib/appointments";
-import { KIND_LABEL, REQUESTABLE_KINDS, STATUS_LABEL, longDate } from "@/lib/day-plan";
+import { KIND_LABEL, REQUESTABLE_KINDS, STATUS_LABEL, addDays, longDate } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { DayPartFields } from "@/components/DayPartPicker";
@@ -122,7 +122,9 @@ export default async function AccountPage({
   const today = londonNow().dateISO;
   const visits = customer ? await appointmentsForCustomer(customer.id) : [];
   const payments = customer ? (await paymentsForCustomer(customer.id)).filter((x) => x.status !== "cancelled") : [];
-  const upcoming = visits.filter((v) => v.day >= today && (v.status === "booked" || v.status === "requested")).reverse();
+  // A request whose day went by unbooked stays here for a week, to pick another day.
+  const weekAgo = addDays(today, -7);
+  const upcoming = visits.filter((v) => (v.day >= today && v.status === "booked") || (v.status === "requested" && v.day >= weekAgo)).reverse();
   const past = visits.filter((v) => v.status === "done").slice(0, 10);
   const [plan, prices, progress, cards, planPayments, quotes, files] = await Promise.all([
     customer ? planFor(customer.id) : Promise.resolve(null),
@@ -194,12 +196,15 @@ export default async function AccountPage({
                   data-my-visit={v.status}
                 >
                   <span className="min-w-0">
-                    <span className="block font-semibold text-navy">{KIND_LABEL[v.kind]}</span>
+                    <span className="block font-semibold text-navy">{v.followUpOf ? "Return visit" : KIND_LABEL[v.kind]}</span>
                     <span className="block text-text-2">
                       {v.status === "requested"
                         ? `You asked for ${requestedWhen(v.day, v.part)}${v.part === "any" || !v.part ? ", any time" : ""}`
                         : whenLine(v)}
                     </span>
+                    {v.status === "requested" && v.day < today && (
+                      <span className="block text-sm font-semibold text-terracotta-deep">Sorry, we didn&rsquo;t get to you. Pick another day.</span>
+                    )}
                     {v.change && <span className="block text-sm text-text-2">You asked to move it. We&rsquo;ll be in touch.</span>}
                   </span>
                   <span
@@ -232,7 +237,12 @@ export default async function AccountPage({
               <li key={v.id}>
                 <Link href={`/visit/${v.publicToken}`} className="block rounded-2xl border border-line bg-cream px-4 py-3 transition-colors hover:border-navy/40">
                   <span className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-semibold text-navy">{KIND_LABEL[v.kind]}</span>
+                    <span className="font-semibold text-navy">
+                      {KIND_LABEL[v.kind]}
+                      {v.outcome === "return" && !visits.some((f) => f.followUpOf === v.id && f.status === "done") ? (
+                        <span className="ml-2 text-sm font-semibold text-terracotta-deep">We&rsquo;re coming back</span>
+                      ) : null}
+                    </span>
                     <span className="text-sm text-text-2">{longDate(v.day)}</span>
                   </span>
                   {v.jobReport && <span className="mt-1 line-clamp-2 block text-sm text-text-2">{v.jobReport}</span>}

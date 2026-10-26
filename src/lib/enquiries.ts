@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getOrCreateConversation, getOrCreateConversationByPhone } from "@/lib/chat-db";
+import { getConversationForCoachById, getOrCreateConversation, getOrCreateConversationByPhone } from "@/lib/chat-db";
 import type { Conversation } from "@/lib/chat";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { normalizePhone } from "@/lib/phone";
@@ -181,6 +181,41 @@ async function conversationByEmail(email: string, name: string | null): Promise<
   return conversation;
 }
 
+/**
+ * One chat per customer: the one they already have, before a new one for
+ * the number. That's the chat open in this browser (they chatted, then
+ * booked), else the one on their customer record (signed in with this
+ * email). Not if their number already has a chat of its own: that one's
+ * found by the number, as before. The chat takes the number, so their
+ * texts land there too.
+ */
+async function knownConversation(email: string, browserConversationId: string | null, e164: string | null): Promise<Conversation | null> {
+  const admin = createAdminClient();
+  if (e164) {
+    const { data: byPhone } = await admin.from("chat_conversations").select("id").eq("phone", e164).maybeSingle();
+    if (byPhone) return null;
+  }
+  let id = browserConversationId;
+  if (!id && email) {
+    const { data } = await admin.from("customers").select("conversation_id").eq("email", email.toLowerCase()).not("conversation_id", "is", null).limit(1).maybeSingle();
+    id = (data?.conversation_id as string | undefined) ?? null;
+  }
+  if (!id) return null;
+  const conversation = await getConversationForCoachById(id);
+  if (!conversation || conversation.isTeam || (conversation.phone && conversation.phone !== e164)) return null;
+  if (e164 && !conversation.phone) await admin.from("chat_conversations").update({ phone: e164 }).eq("id", id).is("phone", null);
+  return conversation;
+}
+
+/** A booking's answers as a visit's notes, so the engineer sees the fault in the customer's words. */
+export function enquiryNotes(e: Pick<Enquiry, "category" | "sameDay" | "answers" | "message">): string {
+  return [
+    `${CATEGORY_LABEL[e.category]} booking${e.sameDay ? " (same day requested)" : ""}`,
+    ...e.answers.filter((a) => a.q !== "Postcode").map((a) => `${a.q}: ${a.a}`),
+    ...(e.message && !e.answers.some((a) => a.a === e.message) ? [e.message] : []),
+  ].join("\n");
+}
+
 /** The summary posted into the customer's conversation. */
 export function enquirySummary(input: {
   label: string;
@@ -216,6 +251,10 @@ export async function recordEnquiry(input: {
   email: string;
   phone: string;
   postcode: string;
+  /** The first line of their address, from the call-out form. */
+  address?: string;
+  /** The chat open in the browser that sent it, if any. */
+  chatConversationId?: string | null;
   sameDay: boolean;
   path: string[];
   answers: { q: string; a: string }[];
@@ -230,11 +269,9 @@ export async function recordEnquiry(input: {
     const admin = createAdminClient();
     const e164 = input.phone ? normalizePhone(input.phone) : null;
     const name = input.name || null;
-    const conversation = e164
-      ? await getOrCreateConversationByPhone(e164, name)
-      : input.email
-        ? await conversationByEmail(input.email.toLowerCase(), name)
-        : null;
+    const conversation =
+      (await knownConversation(input.email, input.chatConversationId ?? null, e164)) ??
+      (e164 ? await getOrCreateConversationByPhone(e164, name) : input.email ? await conversationByEmail(input.email.toLowerCase(), name) : null);
 
     if (conversation) {
       // Fill in what we didn't have, never overwrite what the team set.
@@ -261,6 +298,7 @@ export async function recordEnquiry(input: {
       email: input.email,
       phone: input.phone,
       postcode: input.postcode,
+      address: input.address || null,
       conversationId: conversation?.id ?? null,
     });
 
@@ -312,6 +350,8 @@ export async function recordEnquiry(input: {
         day: input.preferred.day,
         part: input.preferred.part,
         postcode: input.postcode || null,
+        address: input.address || null,
+        notes: enquiryNotes({ category: categoryFor(input.type), sameDay: input.sameDay, answers: input.answers, message: input.message || null }),
         source: "website",
       });
       if (visit) await sendVisitNotice(visit.id, "requested", null);

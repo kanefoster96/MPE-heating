@@ -36,7 +36,8 @@ export async function askForAnotherTime(token: string, formData: FormData) {
     const window = PART_WINDOW[part];
     await createAdminClient()
       .from("appointments")
-      .update({ day, part, start_minute: window.start, end_minute: window.end, updated_at: new Date().toISOString() })
+      // A new day: its nudge to the team and its "we didn't get to you" can come again.
+      .update({ day, part, start_minute: window.start, end_minute: window.end, updated_at: new Date().toISOString(), staff_nudged_at: null, past_request_sent_at: null })
       .eq("id", visit.id)
       .eq("status", "requested");
     await postCustomerVisitMessage(

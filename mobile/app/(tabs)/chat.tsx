@@ -189,7 +189,7 @@ function ConversationRow({ c, onPress }: { c: InboxItem; onPress: () => void }) 
   return (
     <Pressable
       onPress={onPress}
-      accessibilityLabel={`${c.name}${unread ? ", unread" : ""}${c.completed ? ", done" : ""}. ${preview}`}
+      accessibilityLabel={`${c.name}${c.sameDay ? ", same day" : ""}${unread ? ", unread" : ""}${c.completed ? ", done" : ""}. ${preview}`}
       accessibilityHint="Swipe left to mark it done"
       style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 14 }, pressed && { backgroundColor: colors.cream }]}
     >
@@ -207,6 +207,13 @@ function ConversationRow({ c, onPress }: { c: InboxItem; onPress: () => void }) 
             {c.name}
             {c.guest ? <AppText style={{ color: colors.text2, fontSize: 16 }}> · Visitor</AppText> : null}
           </AppText>
+          {c.sameDay && (
+            <View style={{ backgroundColor: colors.orangeDeep, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+              <AppText weight="bold" style={{ color: "#fff", fontSize: 11 }}>
+                Same day
+              </AppText>
+            </View>
+          )}
           <AppText style={{ color: unread ? colors.navy : colors.text2, fontSize: 12 }}>{when(c.lastMessageAt)}</AppText>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 3 }}>

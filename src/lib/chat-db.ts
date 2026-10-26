@@ -227,6 +227,14 @@ export async function getOrCreateConversationByPhone(
       return mapConversation(existing);
     }
 
+    // A customer with this number whose chat is under their own login (they
+    // signed in before they booked or texted): one thread, so it's that one.
+    const { data: owner } = await admin.from("customers").select("conversation_id").eq("phone_e164", phone).not("conversation_id", "is", null).limit(1).maybeSingle();
+    if (owner?.conversation_id) {
+      const { data: theirs } = await admin.from("chat_conversations").update({ phone }).eq("id", owner.conversation_id).is("phone", null).select("*").maybeSingle();
+      if (theirs) return mapConversation(theirs);
+    }
+
     const { data: userData, error: createUserError } = await admin.auth.admin.createUser({
       phone,
       phone_confirm: true,

@@ -24,6 +24,10 @@ type Draft = {
   report: string;
   boiler: { boilerMake: string; boilerModel: string; boilerAge: string; boilerLocation: string };
   servicedToday: boolean;
+  /** Fixed, or coming back to finish (a part to fit), and what for. */
+  outcome: "fixed" | "return";
+  returnNote: string;
+  returnVisit: { id: string; when: string } | null;
   sendSummary: boolean;
   askReview: boolean;
   reviewed: string | null;
@@ -81,8 +85,10 @@ function Toggle({ title, detail, value, onChange, disabled }: { title: string; d
  * Finishing a job (the website's Finish job, in the app): what was done,
  * which the customer sees; their boiler; serviced today (their reminder
  * comes in 11 months); a private note for next time; the summary to them
- * and the review ask; and photos and certificates for the job. Opened
- * again later, it edits what was saved.
+ * and the review ask; and photos and certificates for the job. Not fixed
+ * yet (a part to order): "Coming back", with what for. They're told what
+ * was found, there's no review ask, and the return visit is booked next.
+ * Opened again later, it edits what was saved.
  */
 export default function FinishJob() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -127,9 +133,17 @@ export default function FinishJob() {
         boiler: d.boiler,
         servicedToday: d.servicedToday,
         sendSummary: d.sendSummary,
-        askReview: d.askReview,
+        askReview: d.outcome === "return" ? false : d.askReview,
+        outcome: d.outcome,
+        returnNote: d.returnNote,
       });
       haptic.success();
+      if (d.outcome === "return" && !d.returnVisit) {
+        // Coming back: straight on to booking the return visit, linked to this one.
+        notify("Saved", res.message);
+        router.replace(`/visit-form?followUp=${d.id}`);
+        return;
+      }
       notify(d.done ? "Saved" : "Job done", res.message);
       router.back();
     } catch (err) {
@@ -170,9 +184,51 @@ export default function FinishJob() {
               {d.reviewed && <AppText style={{ marginTop: 6, fontSize: 14 }}>{d.reviewed}</AppText>}
             </View>
 
+            {d.hasCustomer && (
+              <View style={{ gap: 8 }}>
+                <Label>Is it fixed?</Label>
+                <View style={{ flexDirection: "row", gap: 8 }} accessibilityRole="radiogroup">
+                  {(
+                    [
+                      ["fixed", "Yes, it's fixed", "checkmark-circle"],
+                      ["return", "Coming back", "return-down-back"],
+                    ] as const
+                  ).map(([key, label, icon]) => {
+                    const on = d.outcome === key;
+                    return (
+                      <PressableScale key={key} onPress={() => set({ outcome: key })} accessibilityLabel={`${label}${on ? ", selected" : ""}`} style={{ flex: 1 }}>
+                        <View style={{ minHeight: 56, borderRadius: 16, borderWidth: 1, borderColor: on ? colors.orangeDeep : colors.edge, backgroundColor: on ? colors.orangeDeep : colors.card, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 10 }}>
+                          <Ionicons name={icon} size={18} color={on ? "#fff" : colors.navy} />
+                          <AppText weight="bold" style={{ fontSize: 15, color: on ? "#fff" : colors.navy }}>
+                            {label}
+                          </AppText>
+                        </View>
+                      </PressableScale>
+                    );
+                  })}
+                </View>
+                {d.outcome === "return" && (
+                  <Card style={{ gap: 8 }}>
+                    <Input label={`Coming back to (${first === "them" ? "they see" : `${first} sees`} this)`} value={d.returnNote} onChange={(v) => set({ returnNote: v })} placeholder="fit the new diverter valve" />
+                    <AppText style={{ color: colors.text2, fontSize: 13, lineHeight: 18 }}>
+                      {d.returnVisit
+                        ? `Return visit booked: ${d.returnVisit.when}.`
+                        : `${first === "them" ? "They're" : `${first}'s`} told what you found and that you'll be back, with no review ask yet. Next, you book the return visit.`}
+                    </AppText>
+                  </Card>
+                )}
+              </View>
+            )}
+
             <View style={{ gap: 8 }}>
-              <Label hint={d.hasCustomer ? `${first === "them" ? "They see" : `${first} sees`} this on their visit page and account.` : "For the record."}>What we did</Label>
-              <Input label="What we did" value={d.report} onChange={(v) => set({ report: v })} multiline placeholder="Replaced the diverter valve, topped the pressure up to 1.2 bar, tested heating and hot water." />
+              <Label hint={d.hasCustomer ? `${first === "them" ? "They see" : `${first} sees`} this on their visit page and account.` : "For the record."}>{d.outcome === "return" ? "What we found" : "What we did"}</Label>
+              <Input
+                label={d.outcome === "return" ? "What we found" : "What we did"}
+                value={d.report}
+                onChange={(v) => set({ report: v })}
+                multiline
+                placeholder={d.outcome === "return" ? "The diverter valve has failed. A new one's on order." : "Replaced the diverter valve, topped the pressure up to 1.2 bar, tested heating and hot water."}
+              />
             </View>
 
             {d.hasCustomer && (
@@ -198,14 +254,23 @@ export default function FinishJob() {
                 </View>
 
                 <Card style={{ gap: 14 }}>
-                  <Toggle title={`Send ${first} a summary`} detail="What we did, with their invoice or receipt. By message, email, text and the app." value={d.sendSummary} onChange={(v) => set({ sendSummary: v })} />
                   <Toggle
-                    title={`Ask ${first} for a review`}
-                    detail={d.reviewed ? "They've already reviewed this job." : "Goes about two hours from now (daytime only), with one reminder after three days."}
-                    value={d.askReview}
-                    onChange={(v) => set({ askReview: v })}
-                    disabled={!!d.reviewed}
+                    title={`Send ${first} a summary`}
+                    detail={d.outcome === "return" ? "What you found and that you'll be back, with their invoice or receipt." : "What we did, with their invoice or receipt. By message, email, text and the app."}
+                    value={d.sendSummary}
+                    onChange={(v) => set({ sendSummary: v })}
                   />
+                  {d.outcome === "return" ? (
+                    <Toggle title={`Ask ${first} for a review`} detail="Not until it's fixed: asked when you finish the return visit." value={false} onChange={() => {}} disabled />
+                  ) : (
+                    <Toggle
+                      title={`Ask ${first} for a review`}
+                      detail={d.reviewed ? "They've already reviewed this job." : "Goes about two hours from now (daytime only), with one reminder after three days."}
+                      value={d.askReview}
+                      onChange={(v) => set({ askReview: v })}
+                      disabled={!!d.reviewed}
+                    />
+                  )}
                 </Card>
 
                 <View style={{ gap: 8 }}>
@@ -236,7 +301,11 @@ export default function FinishJob() {
             )}
           </ScrollView>
           <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 12), backgroundColor: colors.page, borderTopWidth: 1, borderTopColor: colors.edge }}>
-            <PrimaryButton title={saving ? "Saving…" : d.done ? "Save" : "Mark job done"} icon="checkmark-done" onPress={save} />
+            <PrimaryButton
+              title={saving ? "Saving…" : d.outcome === "return" && !d.returnVisit ? "Save and book the return visit" : d.done ? "Save" : "Mark job done"}
+              icon={d.outcome === "return" && !d.returnVisit ? "calendar" : "checkmark-done"}
+              onPress={save}
+            />
           </View>
         </KeyboardAvoidingView>
       )}

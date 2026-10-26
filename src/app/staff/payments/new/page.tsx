@@ -8,6 +8,7 @@ import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
 import {
   CALLOUT_FEE_PENCE,
   PAID_VIA_LABEL,
+  calloutAskedFor,
   calloutCreditFor,
   formatPence,
   invoiceNumber,
@@ -59,15 +60,16 @@ export default async function TakePaymentPage({
   const ctx = { customerId: customer.id, appointmentId: visit?.id ?? null, back };
   const online = paymentsOn();
   const [products, upsells] = await Promise.all([listProducts(), upsellProducts()]);
-  const [existing, card, credit] = await Promise.all([
+  const [existing, card, credit, feeAsked] = await Promise.all([
     visit ? paymentsForAppointments([visit.id]).then((m) => m.get(visit.id) ?? []) : paymentsForCustomer(customer.id).then((list) => list.filter((p) => p.status === "open")),
     online ? savedCardFor(customer) : Promise.resolve(null),
-    visit ? calloutCreditFor(visit.id) : Promise.resolve(0),
+    calloutCreditFor(visit ?? { id: null, followUpOf: null, customerId: customer.id }),
+    calloutAskedFor(visit ?? { id: null, followUpOf: null, customerId: customer.id }),
   ]);
   const first = customer.name?.split(" ")[0] ?? "them";
   const [plan, progress, credits] = await Promise.all([planFor(customer.id), instalmentProgress(existing, true), availableCredits(customer.id).catch(() => [])]);
   const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
-  const calloutAsked = existing.some((p) => p.kind === "callout_fee" && p.status !== "cancelled");
+  const calloutAsked = feeAsked || existing.some((p) => p.kind === "callout_fee" && p.status !== "cancelled");
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">

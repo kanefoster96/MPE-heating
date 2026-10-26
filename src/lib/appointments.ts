@@ -4,6 +4,7 @@ import {
   APPOINTMENT_KINDS,
   APPOINTMENT_STATUSES,
   PART_WINDOW,
+  addDays,
   isISODate,
   parseHHMM,
   type AppointmentKind,
@@ -57,6 +58,12 @@ export type Appointment = {
   reviewDueAt: string | null;
   reviewAskedAt: string | null;
   reviewRemindedAt: string | null;
+  /** Finished fixed, or finished needing a return visit (a part to fit), with what for. */
+  outcome: "fixed" | "return" | null;
+  returnNote: string | null;
+  /** A return visit: the visit it finishes the job for. */
+  followUpOf: string | null;
+  pastRequestSentAt: string | null;
   /** The customer asked to move it: to this day and part of the day. */
   change: { day: string; part: Part | null; note: string | null; at: string } | null;
 };
@@ -95,6 +102,10 @@ type Row = {
   review_due_at: string | null;
   review_asked_at: string | null;
   review_reminded_at: string | null;
+  outcome: "fixed" | "return" | null;
+  return_note: string | null;
+  follow_up_of: string | null;
+  past_request_sent_at: string | null;
   change_day: string | null;
   change_part: Part | null;
   change_note: string | null;
@@ -136,6 +147,10 @@ function mapAppointment(r: Row): Appointment {
     reviewDueAt: r.review_due_at ?? null,
     reviewAskedAt: r.review_asked_at ?? null,
     reviewRemindedAt: r.review_reminded_at ?? null,
+    outcome: r.outcome ?? null,
+    returnNote: r.return_note ?? null,
+    followUpOf: r.follow_up_of ?? null,
+    pastRequestSentAt: r.past_request_sent_at ?? null,
     change:
       r.change_day && r.change_requested_at
         ? { day: r.change_day, part: r.change_part ?? null, note: r.change_note ?? null, at: r.change_requested_at }
@@ -163,6 +178,49 @@ export async function getAppointment(id: string): Promise<Appointment | null> {
 }
 
 /** A customer's visits, latest first. */
+/** The return visit booked to finish a job, if there is one (not cancelled). */
+export async function returnVisitFor(id: string): Promise<Appointment | null> {
+  const { data } = await createAdminClient()
+    .from("appointments")
+    .select("*")
+    .eq("follow_up_of", id)
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? mapAppointment(data as Row) : null;
+}
+
+/** A visit finished as "coming back" that won't need one after all: it's simply done. */
+export async function clearReturn(id: string): Promise<boolean> {
+  const { error } = await createAdminClient().from("appointments").update({ outcome: null, updated_at: new Date().toISOString() }).eq("id", id).eq("outcome", "return");
+  return !error;
+}
+
+/** The visits a job took, first to this one: a return visit points back to the one before. */
+export async function visitChain(visit: Appointment): Promise<Appointment[]> {
+  const chain = [visit];
+  let parent = visit.followUpOf;
+  while (parent && chain.length < 6) {
+    const before = await getAppointment(parent);
+    if (!before || chain.some((v) => v.id === before.id)) break;
+    chain.unshift(before);
+    parent = before.followUpOf;
+  }
+  return chain;
+}
+
+/** Visits finished as "coming back" with no return visit booked yet: the team's to book. */
+export async function returnsToBook(): Promise<Appointment[]> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("appointments").select("*").eq("outcome", "return").eq("status", "done").order("completed_at", { ascending: false }).limit(300);
+  const waiting = ((data ?? []) as Row[]).map(mapAppointment);
+  if (!waiting.length) return [];
+  const { data: booked } = await admin.from("appointments").select("follow_up_of").in("follow_up_of", waiting.map((v) => v.id)).neq("status", "cancelled");
+  const have = new Set((booked ?? []).map((r) => r.follow_up_of as string));
+  return waiting.filter((v) => !have.has(v.id));
+}
+
 export async function appointmentsForCustomer(customerId: string): Promise<Appointment[]> {
   const { data } = await createAdminClient()
     .from("appointments")
@@ -185,6 +243,8 @@ export type AppointmentInput = {
   address: string | null;
   postcode: string | null;
   notes: string | null;
+  /** A return visit: the visit it finishes the job for. Left as it is when not given. */
+  followUpOf?: string | null;
 };
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -202,6 +262,7 @@ export function appointmentFromForm(formData: FormData): { ok: true; input: Appo
   if (end <= start) return { ok: false, error: "The window has to end after it starts." };
   const customerId = get("customerId");
   const enquiryId = get("enquiryId");
+  const followUpOf = get("followUpOf");
   const title = get("title").slice(0, 120) || null;
   if (!customerId && !title) return { ok: false, error: "Pick a customer, or give it a title." };
   const postcodeRaw = get("postcode");
@@ -219,6 +280,7 @@ export function appointmentFromForm(formData: FormData): { ok: true; input: Appo
       address: get("address").slice(0, 400) || null,
       postcode: postcodeRaw ? formatPostcode(postcodeRaw) : null,
       notes: get("notes").slice(0, 4000) || null,
+      ...(UUID.test(followUpOf) ? { followUpOf } : {}),
     },
   };
 }
@@ -235,6 +297,7 @@ function toColumns(input: AppointmentInput) {
     address: input.address,
     postcode: input.postcode,
     notes: input.notes,
+    ...(input.followUpOf !== undefined ? { follow_up_of: input.followUpOf } : {}),
   };
 }
 
@@ -249,7 +312,38 @@ export async function createAppointment(input: AppointmentInput, staffId: string
     return null;
   }
   if (input.enquiryId) await markEnquiryBooked(input.enquiryId, staffId);
+  if (input.customerId) await settleRequests(input, data.id as string, staffId);
   return data.id as string;
+}
+
+/** Call-outs and repair visits are one kind of job: booking either answers a request for the other. */
+const FAMILY: Partial<Record<AppointmentKind, AppointmentKind[]>> = { callout: ["callout", "repair"], repair: ["callout", "repair"] };
+
+/**
+ * A visit added for a customer answers what they'd asked for: their open
+ * request for this job (the same booking, or the same kind of visit) is
+ * done with, quietly, so it never reads as "we didn't get to you", and
+ * their bookings waiting in the chat are booked.
+ */
+async function settleRequests(input: AppointmentInput, newId: string, staffId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data: open } = await admin.from("appointments").select("id, kind, enquiry_id").eq("customer_id", input.customerId!).eq("status", "requested").neq("id", newId);
+  const kinds = FAMILY[input.kind] ?? [input.kind];
+  const answered = ((open ?? []) as { id: string; kind: AppointmentKind; enquiry_id: string | null }[]).filter(
+    (r) => (input.enquiryId && r.enquiry_id === input.enquiryId) || kinds.includes(r.kind),
+  );
+  if (answered.length) {
+    await admin.from("appointments").update({ status: "cancelled", updated_at: new Date().toISOString() }).in("id", answered.map((r) => r.id)).eq("status", "requested");
+    for (const r of answered) if (r.enquiry_id) await markEnquiryBooked(r.enquiry_id, staffId);
+  }
+  const { data: customer } = await admin.from("customers").select("conversation_id").eq("id", input.customerId!).maybeSingle();
+  if (customer?.conversation_id) {
+    await admin
+      .from("enquiries")
+      .update({ status: "booked", updated_at: new Date().toISOString(), updated_by: staffId })
+      .eq("conversation_id", customer.conversation_id as string)
+      .in("status", ["new", "contacted"]);
+  }
 }
 
 /** Booking a visit moves its booking form along, from new or contacted to booked. */
@@ -323,6 +417,8 @@ export async function createRequest(input: {
   day: string;
   part: Part;
   note?: string | null;
+  /** Notes for the team as they are (the booking form's answers). */
+  notes?: string | null;
   address?: string | null;
   postcode?: string | null;
   source: "website" | "account";
@@ -342,7 +438,7 @@ export async function createRequest(input: {
       source: input.source,
       address: input.address ?? null,
       postcode: input.postcode ?? null,
-      notes: input.note ? `From the customer: ${input.note.slice(0, 2000)}` : null,
+      notes: input.notes ? input.notes.slice(0, 4000) : input.note ? `From the customer: ${input.note.slice(0, 2000)}` : null,
     })
     .select("*")
     .single();
@@ -365,6 +461,8 @@ export async function recordNotice(id: string, type: NoticeType, via: string[]):
           ? { hour_reminded_at: now }
           : type === "missed"
             ? { missed_followup_at: now }
+          : type === "past_request"
+            ? { past_request_sent_at: now }
             : type === "service_due"
               ? { service_due_sent_at: now }
               : { notified_at: now, notified_via: via, last_notice: type },
@@ -397,8 +495,9 @@ export async function clearChangeRequest(id: string): Promise<void> {
  * New requests from today on, and booked or missed visits whose customer
  * asked for another time from today on (a missed visit's own day is past).
  */
+// A request whose day went by unbooked still waits, for a week: the customer's asked to pick another day.
 function waitingFilter(fromISO: string): string {
-  return `and(status.eq.requested,day.gte.${fromISO}),and(status.in.(booked,no_access),change_requested_at.not.is.null,change_day.gte.${fromISO})`;
+  return `and(status.eq.requested,day.gte.${addDays(fromISO, -7)}),and(status.in.(booked,no_access),change_requested_at.not.is.null,change_day.gte.${fromISO})`;
 }
 
 /** Visits waiting on the team from today on: new requests, and customers asking to move. */

@@ -25,6 +25,8 @@ type Draft = {
   notes: string;
   customer: { id: string; label: string } | null;
   enquiryId: string | null;
+  /** A return visit: the visit it finishes the job for. */
+  followUpOf: string | null;
   change: { day: string; label: string; start: string; end: string; note: string | null } | null;
   asked: string | null;
 };
@@ -132,7 +134,7 @@ function TimeRow({ label, value, onPick, after }: { label: string; value: string
  * them know" sends them the booking or the new time, as the website does.
  */
 export default function VisitForm() {
-  const params = useLocalSearchParams<{ id?: string; customer?: string; day?: string; conversation?: string; usechange?: string }>();
+  const params = useLocalSearchParams<{ id?: string; customer?: string; day?: string; conversation?: string; usechange?: string; followUp?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { staff, me, session, ready } = useAuth();
@@ -151,7 +153,7 @@ export default function VisitForm() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const q = params.id ? `id=${params.id}` : `${params.customer ? `customer=${params.customer}&` : ""}${params.day ? `day=${params.day}` : ""}`;
+      const q = params.id ? `id=${params.id}` : `${params.customer ? `customer=${params.customer}&` : ""}${params.followUp ? `followUp=${params.followUp}&` : ""}${params.conversation ? `conversation=${params.conversation}&` : ""}${params.day ? `day=${params.day}` : ""}`;
       const res = await apiFetch<{ draft: Draft; kinds: Kind[] }>(`/api/mobile/staff/schedule/visit?${q}`);
       const d = res.draft;
       // "Move to when they asked": the form opens on it.
@@ -161,7 +163,7 @@ export default function VisitForm() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't open that.");
     }
-  }, [params.id, params.customer, params.day, params.usechange]);
+  }, [params.id, params.customer, params.day, params.usechange, params.followUp, params.conversation]);
 
   useEffect(() => {
     if (staff) load();
@@ -206,6 +208,7 @@ export default function VisitForm() {
         notes: draft.notes,
         customerId: draft.customer?.id ?? null,
         enquiryId: draft.enquiryId,
+        followUpOf: draft.followUpOf,
         conversationId: params.conversation ?? null,
         newCustomer: draft.customer ? null : fresh,
         notify: notifyThem,
@@ -222,7 +225,7 @@ export default function VisitForm() {
   }
 
   const hasCustomer = !!draft?.customer || !!(fresh && (fresh.name || fresh.phone || fresh.email));
-  const title = !draft ? "Visit" : !draft.id ? "Add a visit" : draft.status === "requested" ? "Book their request" : "Change the visit";
+  const title = !draft ? "Visit" : !draft.id ? (draft.followUpOf ? "Book the return visit" : "Add a visit") : draft.status === "requested" ? "Book their request" : "Change the visit";
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>

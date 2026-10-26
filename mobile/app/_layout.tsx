@@ -8,6 +8,7 @@ import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outf
 import { AuthProvider, useAuth } from "@/contexts/auth";
 import { targetFor } from "@/lib/links";
 import { openInApp } from "@/lib/open-link";
+import { SITE_URL } from "@/lib/site";
 import type { PushData } from "@/lib/push";
 import { colors } from "@/lib/theme";
 
@@ -39,6 +40,9 @@ function PushNavigator() {
     Notifications.clearLastNotificationResponseAsync().catch(() => {});
     if (data.kind === "chat" && data.conversationId) {
       router.push(staff ? `/chat/${data.conversationId}` : "/chat");
+    } else if (data.kind === "link" && data.href?.startsWith("/visit/") && data.href.includes("/review") && !staff) {
+      // "How did we do?": the review page itself.
+      openInApp(`${SITE_URL}${data.href}`);
     } else if (data.kind === "link" && data.href?.startsWith("/visit/") && !staff) {
       // A visit booked, on the way or done: the job, with its steps.
       router.push("/jobs");

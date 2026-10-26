@@ -109,6 +109,8 @@ export async function startBridgedCall(params: { coach: User; to: string; conver
     // A coach's own call, so read as well, as a coach's reply is (lib/coach-send.ts).
     const now = new Date().toISOString();
     await admin.from("chat_conversations").update({ last_message_at: now, coach_last_read_at: now }).eq("id", params.conversationId);
+    // A call back is a reply: their new bookings are contacted, so the nudges stop.
+    await admin.from("enquiries").update({ status: "contacted", updated_at: now, updated_by: params.coach.id }).eq("conversation_id", params.conversationId).eq("status", "new");
   }
 }
 

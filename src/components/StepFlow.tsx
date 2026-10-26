@@ -88,7 +88,7 @@ function writeSaved(key: FlowKey, saved: Saved | null) {
 const PHOTOS_ON = CHAT_ON;
 
 type Notice = "unavailable" | "failed" | null;
-type FieldErrors = Partial<Record<"name" | "email" | "phone", string>>;
+type FieldErrors = Partial<Record<"name" | "address" | "email" | "phone", string>>;
 
 export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
   const flow: Flow = flows[flowKey];
@@ -101,6 +101,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
   const [texts, setTexts] = useState<Record<string, string>>({});
   const [postcode, setPostcode] = useState("");
   const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
   // Carried over from an email field elsewhere on the site, if any.
   const [email, setEmail] = useState(() => (searchParams.get("email") ?? "").slice(0, 200));
   const [phone, setPhone] = useState(() => (searchParams.get("phone") ?? "").slice(0, 40));
@@ -213,6 +214,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
     const e164 = normalizePhone(phone);
     const next: FieldErrors = {};
     if (step.name && name.trim().length < 2) next.name = "Enter your name.";
+    if (step.address && address.trim().length < 3) next.address = "Enter the first line of your address.";
     if (!isValidEmail(finalEmail)) next.email = "Enter a valid email address.";
     if (!e164) next.phone = PHONE_ERROR;
     setErrors(next);
@@ -235,6 +237,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
         body: JSON.stringify({
           type: flow.type,
           name: name.trim(),
+          ...(step.address ? { address: address.trim() } : {}),
           email: finalEmail,
           phone: formatPhone(e164!),
           postcode: formatPostcode(postcode),
@@ -326,7 +329,8 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
             ))}
           </ul>
           <p className="mt-4 border-t border-line pt-4 text-text-2">
-            We&rsquo;ll reply to <strong className="text-navy">{email.trim()}</strong>. Not there yet? Check your junk folder too.
+            We&rsquo;ll be in touch by text on <strong className="text-navy">{phone.trim()}</strong> or by email at{" "}
+            <strong className="text-navy">{email.trim()}</strong>. No email? Check your junk folder too.
           </p>
         </div>
 
@@ -569,6 +573,29 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
                 {errors.name && (
                   <p id="flow-name-error" className="text-xs text-red">
                     {errors.name}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {step.address && (
+              <div className="flex flex-col gap-2">
+                <label htmlFor="flow-address" className={LABEL}>
+                  First line of your address
+                </label>
+                <input
+                  id="flow-address"
+                  autoComplete="address-line1"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  maxLength={200}
+                  aria-invalid={!!errors.address}
+                  aria-describedby={errors.address ? "flow-address-error" : undefined}
+                  className={`${INPUT} ${errors.address ? "border-red/60" : "border-line"}`}
+                />
+                {errors.address && (
+                  <p id="flow-address-error" className="text-xs text-red">
+                    {errors.address}
                   </p>
                 )}
               </div>

@@ -1,5 +1,6 @@
 "use server";
 
+import { londonNow } from "@/lib/schedule-time";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/staff-auth";
@@ -83,6 +84,10 @@ export async function editAppointment(id: string, formData: FormData) {
   const timeChanged = input.day !== before.day || input.start !== before.start || input.end !== before.end;
   // A request, or a missed visit given a new time, is booked on save.
   const wasRequest = before.status === "requested" || (before.status === "no_access" && timeChanged);
+  // Booking (or moving) onto a day that's gone would tell the customer a date that's passed.
+  if ((wasRequest || timeChanged) && input.day < londonNow().dateISO) {
+    redirect(dayHref(day, { error: "That day's gone. Pick today or later.", edit: id }));
+  }
   const ok = await updateAppointment(id, input, {
     status: wasRequest ? "booked" : undefined,
     clearChange: wasRequest || timeChanged,
@@ -107,6 +112,10 @@ export async function changeAppointmentStatus(id: string, status: AppointmentSta
 /** Accepts a customer's request in the window they asked for, and tells them. */
 export async function acceptVisitRequest(id: string, day: string) {
   const user = await requireStaff("/staff/schedule");
+  const asked = await getAppointment(id);
+  if (asked && asked.day < londonNow().dateISO) {
+    redirect(dayHref(day, { error: "That day's gone. Change the time instead, and they'll be told." }) + `#visit-${id}`);
+  }
   await acceptRequest(id);
   const visit = await getAppointment(id);
   if (visit?.enquiryId) await markEnquiryBooked(visit.enquiryId, user.id);

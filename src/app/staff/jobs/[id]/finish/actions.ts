@@ -19,9 +19,15 @@ export async function finishJob(id: string, day: string, formData: FormData) {
     servicedToday: formData.get("servicedToday") === "on",
     sendSummary: formData.get("sendSummary") === "on",
     askReview: formData.get("askReview") === "on",
+    outcome: formData.get("outcome") === "return" ? "return" : "fixed",
+    returnNote: get("returnNote"),
   });
   if (!result.ok) redirect(`/staff/jobs/${id}/finish?error=${encodeURIComponent(result.error)}`);
   revalidatePath("/staff/schedule");
   const sent = result.sentVia.length ? ` Summary sent by ${viaPhrase(result.sentVia)}.` : "";
+  // Coming back: straight on to booking the return visit.
+  if (formData.get("outcome") === "return") {
+    redirect(`/staff/schedule?${new URLSearchParams({ view: "day", date: day, add: "1", followUp: id, note: `Saved: you're coming back.${sent} Book the return visit.` }).toString()}#add`);
+  }
   redirect(`/staff/schedule?${new URLSearchParams({ view: "day", date: day, success: "finished", note: `Job done.${sent}` }).toString()}#visit-${id}`);
 }

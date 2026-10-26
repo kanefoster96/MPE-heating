@@ -1,7 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { CLUB_SITE_URL } from "@/lib/club";
 import { customerForUser, getCustomer, getCustomers, type Customer } from "@/lib/customers";
-import { appointmentsBetween, appointmentsForCustomer, getAppointment, waitingOnTeamCount, type Appointment } from "@/lib/appointments";
+import { appointmentsBetween, appointmentsForCustomer, getAppointment, returnVisitFor, waitingOnTeamCount, type Appointment } from "@/lib/appointments";
 import { KIND_LABEL, addDays, longDate, windowLabel } from "@/lib/day-plan";
 import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
@@ -72,7 +72,7 @@ function paymentStep(payments: PaymentRequest[]): { step: JobStep; action?: JobA
   const open = live.find((p) => p.status === "open" && p.planStatus !== "active");
   if (open) {
     return {
-      step: { label: "Pay", detail: `${formatPence(open.amountPence)} (${invoiceNumber(open.number)})`, state: "now" },
+      step: { label: "Pay", detail: open.kind === "callout_fee" ? `${formatPence(open.amountPence)} call-out fee` : `${formatPence(open.amountPence)} (${invoiceNumber(open.number)})`, state: "now" },
       action: { label: `Pay ${formatPence(open.amountPence)}`, url: payLink(open), primary: true },
     };
   }
@@ -81,11 +81,19 @@ function paymentStep(payments: PaymentRequest[]): { step: JobStep; action?: JobA
   return { step: { label: "Paid", state: "done" }, action: { label: "Receipt", url: payLink(live[0]) } };
 }
 
-function visitCard(v: Appointment, today: string, payments: PaymentRequest[], hasFiles: boolean): JobCard {
+function visitCard(v: Appointment, today: string, payments: PaymentRequest[], hasFiles: boolean, returnVisit: Appointment | null = null): JobCard {
+  // Not fixed first time: we found the fault and we're coming back (a part to fit).
+  const comingBack = v.status === "done" && v.outcome === "return" && returnVisit?.status !== "done";
   const done = v.status === "done";
   const steps: JobStep[] = [];
   if (v.source !== "team" || v.status === "requested") steps.push({ label: "Requested", detail: longDate(v.createdAt.slice(0, 10)), state: "done" });
-  if (v.status === "requested") steps.push({ label: "Booking a time", detail: `You asked for ${requestedWhen(v.day, v.part)}. We'll confirm it.`, state: "now" });
+  if (v.status === "requested") {
+    steps.push({
+      label: "Booking a time",
+      detail: v.day < today ? `Sorry, we didn't get to you on ${requestedWhen(v.day, v.part)}. Pick another day that suits.` : `You asked for ${requestedWhen(v.day, v.part)}. We'll confirm it.`,
+      state: "now",
+    });
+  }
   else steps.push({ label: "Booked", detail: whenLine(v), state: "done" });
   if (v.status === "no_access") {
     steps.push({ label: "We couldn't get in", detail: "Pick another time and we'll come back.", state: "now" });
@@ -96,17 +104,29 @@ function visitCard(v: Appointment, today: string, payments: PaymentRequest[], ha
         : { label: "On the way", detail: done ? undefined : "We'll text you when we set off.", state: done ? "done" : v.day === today ? "now" : "next" },
     );
   }
-  steps.push(done ? { label: "Job done", detail: v.completedAt ? longDate(v.completedAt.slice(0, 10)) : undefined, state: "done" } : { label: "Job done", state: "next" });
+  if (comingBack) {
+    steps.push({ label: "We found the fault", detail: v.completedAt ? longDate(v.completedAt.slice(0, 10)) : undefined, state: "done" });
+    steps.push(
+      returnVisit
+        ? { label: "Coming back", detail: `${v.returnNote ? `To ${v.returnNote.replace(/\.$/, "")}: ` : ""}${whenLine(returnVisit)}`, state: "now" }
+        : { label: "Coming back", detail: `${v.returnNote ? `To ${v.returnNote.replace(/\.$/, "")}. ` : ""}We'll be in touch to book a time.`, state: "now" },
+    );
+  } else {
+    steps.push(done ? { label: "Job done", detail: v.completedAt ? longDate(v.completedAt.slice(0, 10)) : undefined, state: "done" } : { label: "Job done", state: "next" });
+  }
   const pay = done ? paymentStep(payments) : null;
   if (pay) steps.push(pay.step);
 
   const actions: JobAction[] = [];
   if (pay?.action) actions.push(pay.action);
   if (v.status === "no_access") actions.push({ label: "Pick another time", url: visitLink(v), primary: true });
+  if (v.status === "requested" && v.day < today) actions.push({ label: "Pick another day", url: `${visitLink(v)}#another-time`, primary: true });
   actions.push({ label: "Visit details", url: visitLink(v) });
   if (hasFiles) actions.push({ label: "Certificates and photos", url: `${SITE}/account#files` });
 
-  const status: JobCard["status"] = done
+  const status: JobCard["status"] = comingBack
+    ? "booked"
+    : done
     ? "done"
     : v.status === "no_access"
       ? "missed"
@@ -117,10 +137,10 @@ function visitCard(v: Appointment, today: string, payments: PaymentRequest[], ha
           : "booked";
   return {
     id: `visit-${v.id}`,
-    title: v.title?.trim() || KIND_LABEL[v.kind],
+    title: v.followUpOf ? `Return visit${v.title?.trim() ? `: ${v.title.trim()}` : ""}` : v.title?.trim() || KIND_LABEL[v.kind],
     when: v.status === "requested" ? `Asked for ${requestedWhen(v.day, v.part)}` : whenLine(v),
     status,
-    statusLabel: STATUS_LABEL[status],
+    statusLabel: comingBack ? "Coming back" : STATUS_LABEL[status],
     steps,
     report: v.jobReport,
     actions,
@@ -148,9 +168,11 @@ export async function customerJobs(user: User): Promise<{ active: JobCard[]; pre
   const previous: JobCard[] = [];
   for (const v of visits) {
     if (v.status === "cancelled") continue;
-    const card = visitCard(v, today, byVisit.get(v.id) ?? [], filesByVisit.has(v.id));
-    // Finished today: stays up top for the rest of the day.
-    const isActive = v.status === "done" ? v.day >= today : v.day >= today || v.status === "no_access" || v.status === "requested";
+    const returnVisit = visits.find((r) => r.followUpOf === v.id && r.status !== "cancelled") ?? null;
+    const card = visitCard(v, today, byVisit.get(v.id) ?? [], filesByVisit.has(v.id), returnVisit);
+    // Finished today: stays up top for the rest of the day. Coming back: up top until the return visit's done.
+    const waitingReturn = v.status === "done" && v.outcome === "return" && returnVisit?.status !== "done";
+    const isActive = waitingReturn || (v.status === "done" ? v.day >= today : v.day >= today || v.status === "no_access" || v.status === "requested");
     (isActive ? active : previous).push(card);
   }
 
@@ -336,8 +358,14 @@ export type StaffJobDetail = {
   customerId: string | null;
   /** A request: when they asked for. */
   asked: string | null;
+  /** That day's gone without it being booked: a new time, not "as they asked". */
+  askedPast?: boolean;
   /** They asked to move it: to when, and why. */
   change: { label: string; note: string | null } | null;
+  /** Finished as "coming back": what for, and the return visit once booked. */
+  comingBack: { note: string | null; returnVisit: { id: string; when: string } | null } | null;
+  /** A return visit: the first visit of the job. */
+  firstVisit: { id: string; when: string } | null;
   payments: {
     on: boolean;
     terminalLocation: string | null;
@@ -372,6 +400,13 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
     }),
   );
   const parts = await partPaymentsFor([...onJob, ...other].filter((p) => p.status === "open").map((p) => p.id));
+  const [returnVisit, firstVisit] = await Promise.all([
+    v.outcome === "return" ? returnVisitFor(v.id) : Promise.resolve(null),
+    v.followUpOf ? getAppointment(v.followUpOf) : Promise.resolve(null),
+  ]);
+  // A return visit: the call-out fee from the first visit shows here too (it comes off this bill).
+  const firstFees = firstVisit ? ((await paymentsForAppointments([firstVisit.id])).get(firstVisit.id) ?? []).filter((p) => p.kind === "callout_fee" && p.status !== "cancelled") : [];
+  if (firstVisit && firstFees.length) visits.set(firstVisit.id, `the first visit, ${longDate(firstVisit.day)}`);
   const shape = (p: PaymentRequest): JobPayment =>
     toJobPayment(
       p,
@@ -385,13 +420,16 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
     day: v.day,
     customerId: c?.id ?? null,
     asked: v.status === "requested" ? requestedWhen(v.day, v.part) : null,
+    askedPast: v.status === "requested" && v.day < today,
     change: v.change ? { label: requestedWhen(v.change.day, v.change.part), note: v.change.note } : null,
+    comingBack: v.status === "done" && v.outcome === "return" ? { note: v.returnNote, returnVisit: returnVisit ? { id: returnVisit.id, when: whenLine(returnVisit) } : null } : null,
+    firstVisit: firstVisit ? { id: firstVisit.id, when: `${KIND_LABEL[firstVisit.kind]} · ${longDate(firstVisit.day)}` } : null,
     dayLabel: v.day === today ? "Today" : v.day === addDays(today, 1) ? "Tomorrow" : longDate(v.day),
     payments: {
       on: paymentsOn(),
       terminalLocation: process.env.STRIPE_TERMINAL_LOCATION || null,
       savedCard: card ? { brand: card.brand, last4: card.last4 } : null,
-      forJob: onJob
+      forJob: [...onJob, ...firstFees.filter((p) => !onJob.some((x) => x.id === p.id))]
         .filter((p) => p.status !== "cancelled")
         .sort((a, b) => (a.status === "open" ? 0 : 1) - (b.status === "open" ? 0 : 1))
         .map(shape),

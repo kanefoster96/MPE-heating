@@ -204,8 +204,17 @@ function Job() {
                 <AppText weight="bold" style={{ fontSize: 16 }}>
                   They asked for {data.asked}
                 </AppText>
-                <PrimaryButton title={busy === "accept" ? "Booking…" : "Book it as they asked"} icon="checkmark" size="medium" onPress={() => act("accept")} />
-                <Pill icon="calendar-outline" label="Pick another time" onPress={() => router.push(`/visit-form?id=${data.job.id}`)} />
+                {data.askedPast ? (
+                  <>
+                    <AppText style={{ color: colors.text2, fontSize: 14 }}>That day&apos;s gone without it being booked. Pick a new time and they&apos;ll be told.</AppText>
+                    <PrimaryButton title="Pick a new time" icon="calendar" size="medium" onPress={() => router.push(`/visit-form?id=${data.job.id}`)} />
+                  </>
+                ) : (
+                  <>
+                    <PrimaryButton title={busy === "accept" ? "Booking…" : "Book it as they asked"} icon="checkmark" size="medium" onPress={() => act("accept")} />
+                    <Pill icon="calendar-outline" label="Pick another time" onPress={() => router.push(`/visit-form?id=${data.job.id}`)} />
+                  </>
+                )}
               </Card>
             )}
             {data.change && (
@@ -217,6 +226,38 @@ function Job() {
                 <PrimaryButton title="Move it" icon="calendar" size="medium" onPress={() => router.push(`/visit-form?id=${data.job.id}&usechange=1`)} />
                 <Pill icon="checkmark-outline" label={busy === "keep" ? "Saving…" : "Keep this time"} onPress={() => act("keep")} />
               </Card>
+            )}
+
+            {/* Not fixed first time: coming back, and the return visit (book it, or open it). */}
+            {data.comingBack && (
+              <Card style={{ gap: 10, borderColor: data.comingBack.returnVisit ? colors.edge : colors.orangeDeep }}>
+                <AppText weight="bold" style={{ fontSize: 16 }}>
+                  Coming back{data.comingBack.note ? ` to ${data.comingBack.note.replace(/\.$/, "").replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase())}` : ""}
+                </AppText>
+                {data.comingBack.returnVisit ? (
+                  <View style={{ flexDirection: "row" }}>
+                    <Pill icon="calendar-outline" label={`Return visit: ${data.comingBack.returnVisit.when}`} onPress={() => router.push(`/job/${data.comingBack!.returnVisit!.id}`)} />
+                  </View>
+                ) : (
+                  <>
+                    <PrimaryButton title="Book the return visit" icon="calendar" size="medium" onPress={() => router.push(`/visit-form?followUp=${data.job.id}`)} />
+                    <View style={{ flexDirection: "row" }}>
+                      <Pill
+                        icon="close-circle-outline"
+                        label={busy === "no_return" ? "Saving…" : "Not needed now"}
+                        onPress={async () => {
+                          if (await confirmAction("No return visit?", "It comes off the list of return visits to book. Nobody's told.", "Not needed")) await act("no_return");
+                        }}
+                      />
+                    </View>
+                  </>
+                )}
+              </Card>
+            )}
+            {data.firstVisit && (
+              <View style={{ flexDirection: "row" }}>
+                <Pill icon="return-up-back-outline" label={`Finishes the job from ${data.firstVisit.when}`} onPress={() => router.push(`/job/${data.firstVisit!.id}`)} />
+              </View>
             )}
 
             {/* Move it, change it, or see everything about them. */}

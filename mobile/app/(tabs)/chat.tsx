@@ -263,7 +263,8 @@ function TeamCard({ c, onPress }: { c: InboxItem; onPress: () => void }) {
 
 /**
  * The team's inbox (Kanvas Academy's coach inbox, laid out the same): the
- * big "Inbox" title and how many are unread, a search bar edge to edge
+ * big "Inbox" title and how many are unread, New message (text someone
+ * first, app/new-chat.tsx), a search bar edge to edge
  * with the filter (All, Unread, Open, Done) at its end, the team chat
  * pinned as a card, then every customer, newest first. Swipe one left to
  * mark it done. New messages arrive live.
@@ -334,11 +335,19 @@ function Inbox() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.page }}>
       <View style={{ backgroundColor: colors.page }}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, flexDirection: "row", alignItems: "baseline", gap: 10 }}>
-          <AppText weight="extrabold" accessibilityRole="header" style={{ fontSize: 30, letterSpacing: -0.5 }}>
-            Inbox
-          </AppText>
-          {unreadCount > 0 && <AppText style={{ color: colors.text2, fontSize: 14 }}>{unreadCount} unread</AppText>}
+        <View style={{ paddingLeft: 20, paddingRight: 12, paddingTop: 16, paddingBottom: 12, flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "baseline", gap: 10 }}>
+            <AppText weight="extrabold" accessibilityRole="header" style={{ fontSize: 30, letterSpacing: -0.5 }}>
+              Inbox
+            </AppText>
+            {unreadCount > 0 && <AppText style={{ color: colors.text2, fontSize: 14 }}>{unreadCount} unread</AppText>}
+          </View>
+          {/* New message (Kanvas Academy's compose button): text a customer first. */}
+          <Pressable onPress={() => router.push("/new-chat")} accessibilityLabel="New message" style={({ pressed }) => [{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.7 }]}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.grey, alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="create-outline" size={22} color={colors.navy} />
+            </View>
+          </Pressable>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 16, paddingRight: 6, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.edge }}>
           <Ionicons name="search-outline" size={20} color={colors.text2} />

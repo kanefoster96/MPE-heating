@@ -4,7 +4,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { ScreenHeader } from "@/components/screen-header";
 import { Bars, Stat, StatRow } from "@/components/stat";
 import { AppText, Card, LoadError, SecondaryButton, Skeleton } from "@/components/ui";
-import { apiFetch, readCached } from "@/lib/api";
+import { apiFetch, apiPost, readCached } from "@/lib/api";
+import { notify } from "@/lib/confirm";
 import { colors } from "@/lib/theme";
 import type { StaffFinance } from "@/lib/types";
 
@@ -14,12 +15,14 @@ const PATH = "/api/mobile/staff/finance";
  * Finance (Kanvas Academy's finance screen): what came in each of the last
  * six months, this month against last, what's owed, the plan's regular
  * income and quotes out. As the site recorded it, before Stripe's fees.
+ * Last month's numbers can be emailed now (they go on the 1st anyway).
  */
 export default function FinanceScreen() {
   const router = useRouter();
   const [data, setData] = useState<StaffFinance | null>(() => readCached<StaffFinance>(PATH) ?? null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [emailing, setEmailing] = useState(false);
   const load = useCallback(async () => {
     setError(null);
     try {
@@ -33,6 +36,19 @@ export default function FinanceScreen() {
       load();
     }, [load]),
   );
+
+  // "Email me last month's numbers", as on the website's Home.
+  async function emailReport() {
+    if (emailing) return;
+    setEmailing(true);
+    try {
+      notify("Sent", (await apiPost<{ message: string }>("/api/mobile/staff/finance/report")).message);
+    } catch (err) {
+      notify("Not sent", err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setEmailing(false);
+    }
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
@@ -75,6 +91,7 @@ export default function FinanceScreen() {
               </AppText>
             </Card>
             <SecondaryButton title="Invoices" icon="receipt" onPress={() => router.push("/invoices")} />
+            <SecondaryButton title={emailing ? "Sending…" : "Email me last month's numbers"} icon="mail" onPress={emailReport} />
           </>
         )}
       </ScrollView>

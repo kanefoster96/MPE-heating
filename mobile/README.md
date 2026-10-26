@@ -54,7 +54,12 @@ picked up.
   the Academy's header (their name and how they last got in touch, round
   Call and Done buttons) and composer: the message full width, then send
   as Live chat, Text or Email, the "+" (book a visit, invoice or call-out
-  fee, take a payment, start a quote, send a photo) and Send
+  fee, take a payment, start a quote, send a photo) and Send. Text asks
+  for their mobile if there isn't one. A booking from the website's forms
+  sits above the chat with where it's up to (New, Contacted, Booked, Done,
+  Closed), and the team chat shows who's seen what. New message (the
+  inbox's top right, `app/new-chat.tsx`) texts a new number or messages any
+  customer first
   (`components/action-sheet.tsx`); and the name at the top opens the
   customer (`app/customer/[id].tsx`): call, chat, directions, jobs
   underway (each opens its job page to move, finish or take payment),

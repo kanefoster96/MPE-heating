@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, Image, Keyboard, Platform, Pressable, TextInput, View, type KeyboardEvent } from "react-native";
+import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, Image, Keyboard, Platform, Pressable, ScrollView, TextInput, View, type KeyboardEvent } from "react-native";
 import { useFocusEffect } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +14,7 @@ import { uploadChatPhoto } from "@/lib/upload";
 import { openInApp } from "@/lib/open-link";
 import { registerForPush } from "@/lib/push";
 import { colors, fonts } from "@/lib/theme";
-import type { ChatMessage, ConversationResponse } from "@/lib/types";
+import type { ChatMessage, ChatReader, ConversationResponse, EnquiryCard, EnquiryStatus } from "@/lib/types";
 
 const POLL_MS = 6000;
 const GAP_FOR_DIVIDER_MS = 5 * 60_000;
@@ -103,6 +103,13 @@ export function ChatThread({
   const [plus, setPlus] = useState(false);
   const [channelMenu, setChannelMenu] = useState(false);
   const [inputHeight, setInputHeight] = useState(COMPOSER_MIN);
+  const [enquiries, setEnquiries] = useState<EnquiryCard[]>([]);
+  const [readers, setReaders] = useState<ChatReader[]>([]);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const channelSetRef = useRef(false);
   const rootRef = useRef<View>(null);
   const latestRef = useRef<string | null>(null);
@@ -126,6 +133,9 @@ export function ChatThread({
       const res = await apiFetch<ConversationResponse>(`/api/mobile/chat/conversation${query}`);
       setData(res);
       setMessages(res.messages);
+      setEnquiries(res.enquiries ?? []);
+      setReaders(res.receipts ?? []);
+      setPhone(res.conversation.phone);
       // Reply the way they last got in touch: a text gets a text back.
       if (!channelSetRef.current) {
         channelSetRef.current = true;
@@ -145,6 +155,7 @@ export function ChatThread({
     try {
       const sep = query ? "&" : "?";
       const res = await apiFetch<ConversationResponse>(`/api/mobile/chat/conversation${query}${sep}after=${encodeURIComponent(latestRef.current)}`);
+      if (res.receipts) setReaders(res.receipts);
       if (!res.messages.length) return;
       setMessages((current) => merge(current, res.messages, res.viewer.id));
       latestRef.current = res.messages.at(-1)!.createdAt;
@@ -260,6 +271,50 @@ export function ChatThread({
   // Newest at the bottom: an inverted list, so it opens at the latest.
   const rows = useMemo(() => [...messages].reverse(), [messages]);
 
+  // "Seen by" in the team chat (Kanvas Academy's read receipts): each person
+  // sits under the last message they'd read, or their own latest post.
+  const readersByMessage = useMemo(() => {
+    const map = new Map<string, ChatReader[]>();
+    for (const r of readers) {
+      let at = r.lastReadAt ?? "";
+      for (const m of messages) if (m.senderId === r.userId && m.createdAt > at) at = m.createdAt;
+      if (!at) continue;
+      let target: string | null = null;
+      for (const m of messages) if (!m.pending && m.createdAt <= at) target = m.id;
+      if (target) map.set(target, [...(map.get(target) ?? []), r]);
+    }
+    return map;
+  }, [readers, messages]);
+
+  async function moveEnquiry(id: string, status: EnquiryStatus) {
+    const before = enquiries;
+    setEnquiries((current) => current.map((e) => (e.id === id ? { ...e, status } : e)));
+    try {
+      await apiPost("/api/mobile/chat/enquiry", { id, status });
+      haptic.success();
+    } catch (err) {
+      setEnquiries(before);
+      Alert.alert("Not changed", err instanceof Error ? err.message : "Please try again.");
+    }
+  }
+
+  async function savePhone() {
+    if (!id || savingPhone) return;
+    setPhoneError(null);
+    setSavingPhone(true);
+    try {
+      const res = await apiPost<{ phone: string }>("/api/mobile/chat/phone", { conversationId: id, phone: phoneDraft });
+      setPhone(res.phone);
+      setEditingPhone(false);
+      haptic.success();
+      if (data) onLoaded?.({ ...data, conversation: { ...data.conversation, phone: res.phone } });
+    } catch (err) {
+      setPhoneError(err instanceof Error ? err.message : "Could not save that number.");
+    } finally {
+      setSavingPhone(false);
+    }
+  }
+
   if (error && !data) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 }}>
@@ -279,6 +334,53 @@ export function ChatThread({
 
   return (
     <View ref={rootRef} style={{ flex: 1, paddingBottom: keyboardPad }}>
+      {staff && enquiries.length > 0 && data?.enquirySteps && (
+        // Their bookings from the website's forms, with where each is up to (the website inbox's job cards).
+        <View style={{ borderBottomWidth: 1, borderBottomColor: colors.edge, paddingVertical: 8, gap: 8 }}>
+          {enquiries.map((e) => (
+            <View key={e.id} style={{ marginHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: e.status === "new" ? colors.orangeDeep : colors.edge, backgroundColor: colors.cream, paddingTop: 10, gap: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12 }}>
+                <AppText weight="bold" style={{ fontSize: 14 }}>
+                  {e.category}
+                </AppText>
+                {e.sameDay && (
+                  <View style={{ backgroundColor: colors.orangeLight, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                    <AppText weight="semibold" style={{ fontSize: 11, color: colors.orangeDeep }}>
+                      Same day
+                    </AppText>
+                  </View>
+                )}
+                {e.postcode && <AppText style={{ fontSize: 12, color: colors.text2 }}>{e.postcode}</AppText>}
+              </View>
+              {e.issue && (
+                <AppText numberOfLines={2} style={{ fontSize: 13, color: colors.text2, paddingHorizontal: 12 }}>
+                  {e.issue}
+                </AppText>
+              )}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 8, gap: 4 }} accessibilityRole="radiogroup">
+                {data.enquirySteps!.map((step) => {
+                  const active = e.status === step.key;
+                  return (
+                    <Pressable
+                      key={step.key}
+                      onPress={() => (active ? undefined : moveEnquiry(e.id, step.key))}
+                      accessibilityLabel={`${e.category}: ${step.label}${active ? ", selected" : ""}`}
+                      style={({ pressed }) => [{ minHeight: 44, justifyContent: "center", paddingHorizontal: 2 }, pressed && { opacity: 0.7 }]}
+                    >
+                      <View style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: active ? colors.orangeDeep : colors.edge, backgroundColor: active ? colors.orangeDeep : colors.page }}>
+                        <AppText weight="semibold" style={{ fontSize: 12, color: active ? "#fff" : colors.text2 }}>
+                          {step.label}
+                        </AppText>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ))}
+        </View>
+      )}
+
       {!data ? (
         <View style={{ flex: 1, justifyContent: "flex-end", padding: 16, gap: 12 }}>
           <Skeleton width="62%" height={56} radius={18} />
@@ -359,10 +461,67 @@ export function ChatThread({
                     )}
                   </View>
                 </View>
+                {(readersByMessage.get(item.id) ?? []).length > 0 && (
+                  <View style={{ flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 3, marginTop: 4 }} accessibilityLabel={`Seen by ${readersByMessage.get(item.id)!.map((r) => r.name).join(", ")}`}>
+                    {readersByMessage.get(item.id)!.map((r) => (
+                      <Avatar key={r.userId} name={r.name} url={r.avatarUrl} size={16} />
+                    ))}
+                  </View>
+                )}
               </View>
             );
           }}
         />
+      )}
+
+      {staff && !data?.conversation.isTeam && channel === "sms" && (
+        // The number a text goes to (Kanvas Academy's): add one, or correct it.
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.edge, backgroundColor: colors.page, paddingHorizontal: 14, paddingVertical: 4 }}>
+          {editingPhone ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <TextInput
+                value={phoneDraft}
+                onChangeText={setPhoneDraft}
+                placeholder="07123 456789"
+                placeholderTextColor={colors.text2}
+                keyboardType="phone-pad"
+                autoFocus
+                accessibilityLabel="Their mobile number"
+                style={{ flex: 1, height: 40, borderWidth: 1, borderColor: colors.edge, borderRadius: 999, paddingHorizontal: 14, fontSize: 15, fontFamily: fonts.regular, color: colors.navy }}
+              />
+              <Pressable onPress={savePhone} accessibilityLabel="Save the number" style={({ pressed }) => [{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.7 }]}>
+                {savingPhone ? (
+                  <ActivityIndicator color={colors.orangeDeep} />
+                ) : (
+                  <AppText weight="bold" style={{ color: colors.orangeDeep, fontSize: 14 }}>
+                    Save
+                  </AppText>
+                )}
+              </Pressable>
+              <Pressable onPress={() => setEditingPhone(false)} accessibilityLabel="Cancel" style={({ pressed }) => [{ minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" }, pressed && { opacity: 0.7 }]}>
+                <AppText style={{ color: colors.text2, fontSize: 14 }}>Cancel</AppText>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <AppText style={{ color: colors.text2, fontSize: 13 }}>{phone ? `Text number: ${phone}` : "No mobile number yet"}</AppText>
+              <Pressable
+                onPress={() => {
+                  setPhoneError(null);
+                  setPhoneDraft(phone ?? "");
+                  setEditingPhone(true);
+                }}
+                accessibilityLabel={phone ? "Change the text number" : "Add a mobile number"}
+                style={({ pressed }) => [{ minHeight: 44, minWidth: 44, alignItems: "flex-end", justifyContent: "center" }, pressed && { opacity: 0.7 }]}
+              >
+                <AppText weight="bold" style={{ color: colors.orangeDeep, fontSize: 13 }}>
+                  {phone ? "Edit" : "Add"}
+                </AppText>
+              </Pressable>
+            </View>
+          )}
+          {phoneError && <AppText style={{ color: colors.danger, fontSize: 12, paddingBottom: 6 }}>{phoneError}</AppText>}
+        </View>
       )}
 
       {staff ? (
@@ -375,7 +534,7 @@ export function ChatThread({
             onChangeText={setDraft}
             multiline
             onContentSizeChange={(e) => setInputHeight(Math.min(COMPOSER_MAX, Math.max(COMPOSER_MIN, e.nativeEvent.contentSize.height + 20)))}
-            placeholder="Type a message…"
+            placeholder={channel === "sms" && !phone ? "Add a mobile number above first…" : "Type a message…"}
             placeholderTextColor={colors.text2}
             accessibilityLabel="Message"
             style={{ height: draft ? inputHeight : COMPOSER_MIN, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 17, lineHeight: 22, fontFamily: fonts.regular, color: colors.navy, textAlignVertical: "top" }}
@@ -396,7 +555,7 @@ export function ChatThread({
                 </Pressable>
                 {channelMenu && (
                   <View style={{ position: "absolute", bottom: 48, left: 0, width: 190, borderRadius: 14, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.page, paddingVertical: 4, zIndex: 10, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
-                    {(["chat", ...(data?.conversation.phone ? (["sms"] as const) : []), "email"] as Channel[]).map((c) => (
+                    {(["chat", "sms", "email"] as Channel[]).map((c) => (
                       <Pressable
                         key={c}
                         onPress={() => {
@@ -436,11 +595,11 @@ export function ChatThread({
                 setChannelMenu(false);
                 send(body);
               }}
-              disabled={!draft.trim() || !data}
+              disabled={!draft.trim() || !data || (channel === "sms" && !phone)}
               accessibilityLabel="Send"
               style={({ pressed }) => [{ height: 44, justifyContent: "center" }, pressed && { opacity: 0.8 }]}
             >
-              <View style={{ height: 40, borderRadius: 20, paddingHorizontal: 20, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center", opacity: !draft.trim() || !data ? 0.45 : 1 }}>
+              <View style={{ height: 40, borderRadius: 20, paddingHorizontal: 20, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center", opacity: !draft.trim() || !data || (channel === "sms" && !phone) ? 0.45 : 1 }}>
                 {sending ? (
                   <ActivityIndicator color="#fff" />
                 ) : (

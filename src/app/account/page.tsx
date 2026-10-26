@@ -591,6 +591,12 @@ export default async function AccountPage({
           </button>
         </form>
       </section>
+
+      <p className="mt-8 text-center text-sm text-text-2">
+        <Link href="/delete-account" className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-navy">
+          Delete my account
+        </Link>
+      </p>
     </Shell>
   );
 }

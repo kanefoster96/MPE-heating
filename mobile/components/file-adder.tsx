@@ -3,7 +3,7 @@ import { ActivityIndicator, Platform, Switch, TextInput, View } from "react-nati
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { MonthGrid, bareMonth } from "@/components/month-grid";
+import { DateField } from "@/components/month-grid";
 import { AppText, Card, PressableScale, haptic } from "@/components/ui";
 import { apiPost } from "@/lib/api";
 import { notify } from "@/lib/confirm";
@@ -19,42 +19,6 @@ function yearOn(day: string): string {
   d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
 }
-function short(day: string): string {
-  return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-}
-
-function DateField({ label, value, onChange, today }: { label: string; value: string; onChange: (v: string) => void; today: string }) {
-  const [open, setOpen] = useState(false);
-  const [month, setMonth] = useState(value.slice(0, 7));
-  return (
-    <View style={{ gap: 6, flex: 1 }}>
-      <PressableScale onPress={() => setOpen((v) => !v)} accessibilityLabel={`${label}: ${short(value)}. Change it`}>
-        <View style={{ height: 50, borderRadius: 14, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.card, paddingHorizontal: 12, justifyContent: "center" }}>
-          <AppText style={{ fontSize: 11, color: colors.text2 }}>{label}</AppText>
-          <AppText weight="bold" style={{ fontSize: 15 }}>
-            {short(value)}
-          </AppText>
-        </View>
-      </PressableScale>
-      {open && (
-        <View style={{ position: "relative" }}>
-          <MonthGrid
-            month={month}
-            days={bareMonth(month)}
-            today={today}
-            selected={value}
-            onPick={(d) => {
-              onChange(d);
-              setOpen(false);
-            }}
-            onMonth={setMonth}
-          />
-        </View>
-      )}
-    </View>
-  );
-}
-
 /**
  * Adding photos or a certificate for a customer (and the job, when it's
  * from one), from the camera, the photo library or a PDF: the website's

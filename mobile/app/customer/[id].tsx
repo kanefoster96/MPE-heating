@@ -1,20 +1,27 @@
 import { useCallback, useEffect, useState, type ComponentProps, type ReactNode } from "react";
-import { RefreshControl, ScrollView, TextInput, View } from "react-native";
+import { Image, RefreshControl, ScrollView, TextInput, View } from "react-native";
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "@/components/screen-header";
 import { Avatar } from "@/components/avatar";
 import { PaymentSheet } from "@/components/payment-sheet";
+import { FileAdder } from "@/components/file-adder";
 import { TapToPayProvider } from "@/components/tap-to-pay";
 import { AppText, Card, FadeIn, LoadError, PressableScale, PrimaryButton, Skeleton, haptic } from "@/components/ui";
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost, readCached } from "@/lib/api";
-import { notify } from "@/lib/confirm";
-import { openDirections, openExternal } from "@/lib/open-link";
+import { confirmAction, notify } from "@/lib/confirm";
+import { openDirections, openExternal, openInApp } from "@/lib/open-link";
 import { colors, fonts } from "@/lib/theme";
 import type { CustomerVisit, StaffCustomer } from "@/lib/types";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
+type Files = {
+  today: string;
+  certTypes: { key: string; label: string }[];
+  certificates: { id: string; label: string; url: string | null; shared: boolean; expired: boolean; detail: string }[];
+  photos: { id: string; label: string; url: string | null; shared: boolean }[];
+};
 
 /**
  * A customer, for the team: everything about them in one place, from
@@ -22,7 +29,9 @@ type IconName = ComponentProps<typeof Ionicons>["name"];
  * message, directions; jobs underway (each opens its job page to move,
  * finish or take payment); what they owe, taken from here; the team's
  * private notes, with a new one; their boiler; and what's been done
- * before. Book a visit, invoice or quote, all in the app.
+ * before; their maintenance plan (send it, cancel or keep it); and their
+ * photos and certificates (add, show them or not, delete). Book a visit,
+ * invoice or quote, all in the app.
  */
 export default function CustomerScreen() {
   return (
@@ -81,6 +90,28 @@ function Row({ icon, label, value, onPress, last }: { icon: IconName; label: str
   );
 }
 
+function PlanButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <PressableScale onPress={onPress} accessibilityLabel={label} style={{ alignSelf: "flex-start" }}>
+      <View style={{ height: 46, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" }}>
+        <AppText weight="bold" style={{ fontSize: 15 }}>
+          {label}
+        </AppText>
+      </View>
+    </PressableScale>
+  );
+}
+
+function FileButton({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
+  return (
+    <PressableScale onPress={onPress} accessibilityLabel={label} style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: 8 }}>
+      <AppText weight="semibold" style={{ fontSize: 13, color: danger ? colors.danger : colors.text2 }}>
+        {label}
+      </AppText>
+    </PressableScale>
+  );
+}
+
 const STATUS_TONE: Record<string, { bg: string; ink: string }> = {
   Booked: { bg: colors.grey, ink: colors.navy },
   Requested: { bg: colors.orangeLight, ink: colors.orangeDeep },
@@ -126,15 +157,26 @@ function Customer() {
   const [sheet, setSheet] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [files, setFiles] = useState<Files | null>(null);
+  const [adding, setAdding] = useState(false);
+
+  const loadFiles = useCallback(async () => {
+    try {
+      setFiles(await apiFetch<Files>(`${path}/files`));
+    } catch {
+      // The rest of the page still works; the section says it couldn't load.
+    }
+  }, [path]);
 
   const load = useCallback(async () => {
     setError(null);
+    loadFiles();
     try {
       setData(await apiFetch<StaffCustomer>(path));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't load them.");
     }
-  }, [path]);
+  }, [path, loadFiles]);
 
   useFocusEffect(
     useCallback(() => {
@@ -162,6 +204,29 @@ function Customer() {
       notify("Not saved", err instanceof Error ? err.message : "Please try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function plan(intent: string) {
+    try {
+      const res = await apiPost<{ message: string }>(`${path}/plan`, { intent });
+      haptic.success();
+      notify("Done", res.message);
+      load();
+    } catch (err) {
+      haptic.warning();
+      notify("Not done", err instanceof Error ? err.message : "Please try again.");
+    }
+  }
+
+  async function file(fileId: string, action: "share" | "unshare" | "remove") {
+    if (action === "remove" && !(await confirmAction("Delete this file?", "It's gone for good, from their account too.", "Delete"))) return;
+    try {
+      await apiPost("/api/mobile/staff/files", { customerId: id, fileId, action }, "PATCH");
+      haptic.success();
+      loadFiles();
+    } catch (err) {
+      notify("Not done", err instanceof Error ? err.message : "Please try again.");
     }
   }
 
@@ -297,6 +362,41 @@ function Customer() {
             </Section>
           )}
 
+          <Section title="Maintenance plan">
+            <Card style={{ gap: 8 }}>
+              <AppText weight={data.planCard.on ? "semibold" : "regular"} style={{ fontSize: 15, lineHeight: 21, color: data.planCard.failed ? colors.danger : colors.navy }}>
+                {data.planCard.line}
+              </AppText>
+              {data.planCard.detail && <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 20 }}>{data.planCard.detail}</AppText>}
+              {data.planCard.send && <PrimaryButton title={data.planCard.send} icon="paper-plane" size="medium" onPress={() => plan("send")} />}
+              {data.planCard.on && (
+                <View style={{ gap: 4 }}>
+                  {data.planCard.leaving ? (
+                    <PlanButton label="Keep it going" onPress={() => plan("keep")} />
+                  ) : (
+                    <PlanButton
+                      label={data.planCard.cancelLabel ?? "Cancel"}
+                      onPress={async () => {
+                        if (await confirmAction("Cancel their plan?", "It carries on until the end of what they've paid for (or their minimum term), then stops.", "Cancel it")) plan("cancel");
+                      }}
+                    />
+                  )}
+                  <PressableScale
+                    onPress={async () => {
+                      if (await confirmAction("End the plan today?", "It stops today. What they've paid isn't refunded automatically: refund in Stripe if it should be.", "End it now")) plan("end_now");
+                    }}
+                    accessibilityLabel="End it today instead"
+                    style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }}
+                  >
+                    <AppText weight="semibold" style={{ color: colors.danger, fontSize: 14 }}>
+                      End it today instead
+                    </AppText>
+                  </PressableScale>
+                </View>
+              )}
+            </Card>
+          </Section>
+
           <Section
             title="Notes"
             right={
@@ -374,6 +474,85 @@ function Customer() {
               </Card>
             </Section>
           )}
+
+          <Section
+            title="Photos and certificates"
+            right={
+              <PressableScale onPress={() => setAdding((v) => !v)} accessibilityLabel={adding ? "Close" : "Add a photo or certificate"} style={{ height: 36, justifyContent: "center", paddingLeft: 12 }}>
+                <AppText weight="semibold" style={{ color: colors.orangeDeep, fontSize: 14 }}>
+                  {adding ? "Close" : "+ Add"}
+                </AppText>
+              </PressableScale>
+            }
+          >
+            {adding && files && (
+              <FileAdder
+                customerId={data.id}
+                today={files.today}
+                certTypes={files.certTypes}
+                onAdded={() => {
+                  setAdding(false);
+                  loadFiles();
+                }}
+              />
+            )}
+            {!files ? (
+              <AppText style={{ color: colors.text2, fontSize: 14, paddingHorizontal: 4 }}>Loading…</AppText>
+            ) : !files.certificates.length && !files.photos.length ? (
+              <AppText style={{ color: colors.text2, fontSize: 14, paddingHorizontal: 4 }}>None yet. Gas safety records, service records, Benchmark, photos of the job. Ones you show them are in their account.</AppText>
+            ) : (
+              <>
+                {files.certificates.length > 0 && (
+                  <Card style={{ paddingVertical: 4 }}>
+                    {files.certificates.map((f, i) => (
+                      <View key={f.id} style={{ paddingVertical: 10, gap: 4, borderBottomWidth: i === files.certificates.length - 1 ? 0 : 1, borderBottomColor: colors.edge }}>
+                        <PressableScale onPress={() => (f.url ? openInApp(f.url) : undefined)} accessibilityLabel={`${f.label}. Open it`} style={{ minHeight: 44, justifyContent: "center" }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                            <Ionicons name="document-text-outline" size={20} color={colors.navy} />
+                            <View style={{ flex: 1 }}>
+                              <AppText weight="semibold" style={{ fontSize: 15 }}>
+                                {f.label}
+                              </AppText>
+                              {f.detail ? (
+                                <AppText weight={f.expired ? "bold" : "regular"} style={{ fontSize: 12, color: f.expired ? colors.danger : colors.text2 }}>
+                                  {f.detail}
+                                </AppText>
+                              ) : null}
+                            </View>
+                          </View>
+                        </PressableScale>
+                        <View style={{ flexDirection: "row", gap: 4, marginLeft: 26 }}>
+                          <FileButton label={f.shared ? "Hide from them" : "Show them"} onPress={() => file(f.id, f.shared ? "unshare" : "share")} />
+                          <FileButton label="Delete" danger onPress={() => file(f.id, "remove")} />
+                        </View>
+                      </View>
+                    ))}
+                  </Card>
+                )}
+                {files.photos.length > 0 && (
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                    {files.photos.map((f) => (
+                      <View key={f.id} style={{ width: "31%" }}>
+                        <PressableScale onPress={() => (f.url ? openInApp(f.url) : undefined)} accessibilityLabel={`${f.label}. Open it`}>
+                          <View style={{ aspectRatio: 1, borderRadius: 14, overflow: "hidden", backgroundColor: colors.grey }}>
+                            {f.url ? <Image source={{ uri: f.url }} style={{ width: "100%", height: "100%" }} accessibilityIgnoresInvertColors /> : null}
+                          </View>
+                        </PressableScale>
+                        <AppText style={{ fontSize: 11, color: colors.text2, marginTop: 2 }} numberOfLines={1}>
+                          {f.label}
+                        </AppText>
+                        <PressableScale onPress={() => file(f.id, "remove")} accessibilityLabel={`Delete ${f.label}`} style={{ position: "absolute", top: 4, right: 4, width: 44, height: 44, alignItems: "flex-end" }}>
+                          <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.95)", alignItems: "center", justifyContent: "center" }}>
+                            <Ionicons name="trash-outline" size={15} color={colors.danger} />
+                          </View>
+                        </PressableScale>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+          </Section>
 
           {data.previous.length > 0 && (
             <Section title="Done before">

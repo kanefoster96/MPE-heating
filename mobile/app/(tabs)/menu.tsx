@@ -7,7 +7,6 @@ import { NavList, NavRow } from "@/components/nav-row";
 import { AppText, FadeIn, LoadError, Skeleton } from "@/components/ui";
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, readCached } from "@/lib/api";
-import { openSignedIn } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 import type { MenuCard as Card, StaffOverview } from "@/lib/types";
 
@@ -23,8 +22,8 @@ function greeting(): string {
  * in one place. Cards up top turn orange when something needs him (a
  * request, an unread message, an overdue invoice, a failed monthly or plan
  * payment, a quote accepted and not booked in, a certificate running out)
- * and green when it's in order. Then every tool, the app's own screens and
- * the website's pages opened signed in. Money is for admins only.
+ * and green when it's in order. Then every tool, all in the app: nothing
+ * needs the website. Money is for admins only.
  */
 export default function MenuTab() {
   const router = useRouter();
@@ -51,7 +50,7 @@ export default function MenuTab() {
   // Only the team: once we know who's signed in (not before, or it'd bounce while loading).
   if (ready && (!session || (me && !me.staff))) return <Redirect href="/" />;
 
-  const open = (card: Card) => (card.route ? router.push(card.route as never) : card.path ? openSignedIn(card.path) : undefined);
+  const open = (card: Card) => (card.route ? router.push(card.route as never) : undefined);
   const badge = (id: string) => data?.cards.find((x) => x.id === id)?.count ?? 0;
   const pairs: Card[][] = [];
   for (let i = 0; i < (data?.cards.length ?? 0); i += 2) pairs.push(data!.cards.slice(i, i + 2));
@@ -122,9 +121,9 @@ export default function MenuTab() {
         <NavRow icon="clipboard-outline" title="Today's jobs" description="Who, where, on my way, finish." onPress={() => router.push("/jobs")} />
         <NavRow icon="time-outline" title="Requests" description="New bookings and visits to book in." badge={badge("requests")} onPress={() => router.push("/notifications")} />
         <NavRow icon="chatbubbles-outline" title="Messages" description="Every customer's chat, texts and emails." badge={badge("messages")} onPress={() => router.push("/chat")} />
-        <NavRow icon="people-outline" title="Customers" description="Details, boilers, notes, history." onPress={() => openSignedIn("/staff/customers")} />
+        <NavRow icon="people-outline" title="Customers" description="Details, boilers, notes, history." onPress={() => router.push("/customers")} />
         <NavRow icon="shield-checkmark-outline" title="Certificates" description="Gas safety and electrical, running out soon." badge={badge("certificates")} onPress={() => router.push("/certificates")} last={!data?.admin} />
-        {data?.admin ? <NavRow icon="sunny-outline" title="Days off" description="Holidays that block bookings." onPress={() => openSignedIn("/staff/days-off")} last /> : null}
+        {data?.admin ? <NavRow icon="sunny-outline" title="Days off" description="Holidays that block bookings." onPress={() => router.push("/days-off")} last /> : null}
       </NavList>
 
       {data?.admin ? (
@@ -135,17 +134,16 @@ export default function MenuTab() {
             <NavRow icon="receipt-outline" title="Invoices" description="Unpaid, overdue, paid monthly, receipts." badge={badge("invoices") || badge("monthly")} onPress={() => router.push("/invoices")} />
             <NavRow icon="document-text-outline" title="Quotes" description="Out with customers, accepted, to invoice." badge={badge("quotes")} onPress={() => router.push("/quotes")} />
             <NavRow icon="create-outline" title="New quote" description="Lines, deposit, monthly payments." onPress={() => router.push("/new-quote")} />
-            <NavRow icon="refresh-circle-outline" title="Maintenance plan" description="Members, payments, who's leaving." badge={badge("plan")} onPress={() => openSignedIn("/staff/plan")} last />
+            <NavRow icon="refresh-circle-outline" title="Maintenance plan" description="Members, payments, who's leaving." badge={badge("plan")} onPress={() => router.push("/plan")} last />
           </NavList>
 
           <NavList title="Numbers">
             <NavRow icon="cash-outline" title="Finance" description="What came in, month by month, and what's owed." onPress={() => router.push("/finance")} />
-            <NavRow icon="trending-up-outline" title="Metrics" description="Jobs, where they came from, quotes won, reviews." onPress={() => router.push("/metrics")} />
-            <NavRow icon="speedometer-outline" title="Dashboard" description="The website's full overview." onPress={() => openSignedIn("/staff")} last />
+            <NavRow icon="trending-up-outline" title="Metrics" description="Jobs, where they came from, quotes won, reviews." onPress={() => router.push("/metrics")} last />
           </NavList>
 
           <NavList title="Settings">
-            <NavRow icon="settings-outline" title="Settings" description="Plan prices, the team, and more." onPress={() => openSignedIn("/staff/settings")} last />
+            <NavRow icon="settings-outline" title="Settings" description="Plan prices, referrals, the review link, products." onPress={() => router.push("/settings")} last />
           </NavList>
         </>
       ) : null}

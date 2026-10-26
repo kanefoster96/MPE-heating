@@ -115,7 +115,7 @@ export async function staffOverview(user: User, admin: boolean): Promise<{ name:
               : "No members yet",
         tone: s.plan.failed ? "alert" : s.plan.members ? "good" : "plain",
         count: s.plan.failed,
-        path: "/staff/plan",
+        route: "/plan",
       },
       {
         id: "quotes",

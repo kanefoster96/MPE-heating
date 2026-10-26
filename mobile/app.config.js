@@ -14,7 +14,7 @@
  */
 const site = (process.env.EXPO_PUBLIC_SITE_URL || "https://mpe-heating.vercel.app").replace(/\/+$/, "");
 const host = new URL(site).host;
-const APP_PATHS = ["/app-sign-in", "/messages", "/account", "/pay/", "/quote/", "/plan/", "/visit/", "/request/", "/help/"];
+const APP_PATHS = ["/app-sign-in", "/messages", "/account", "/pay/", "/quote/", "/plan/", "/visit/", "/request/", "/help/", "/staff", "/staff/"];
 
 module.exports = () => ({
   expo: {

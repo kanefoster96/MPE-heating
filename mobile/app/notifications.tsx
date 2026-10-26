@@ -8,6 +8,7 @@ import { AppText, Card, FadeIn, LoadError, PressableScale, PrimaryButton } from 
 import { useAuth } from "@/contexts/auth";
 import { apiFetch } from "@/lib/api";
 import { openInApp, openSignedIn } from "@/lib/open-link";
+import { targetFor } from "@/lib/links";
 import { SITE_URL } from "@/lib/site";
 import { colors } from "@/lib/theme";
 import type { AppNotice } from "@/lib/types";
@@ -51,9 +52,13 @@ export default function NotificationsScreen() {
   );
 
   function open(n: AppNotice) {
-    if (n.route) router.push(n.route as never);
-    else if (n.url?.startsWith(`${SITE_URL}/staff`) || n.url?.startsWith(`${SITE_URL}/account`)) openSignedIn(n.url.slice(SITE_URL.length));
-    else if (n.url) openInApp(n.url);
+    if (n.route) return router.push(n.route as never);
+    if (!n.url) return;
+    // A team page is a screen of the app (lib/links.ts); their account opens signed in.
+    const target = targetFor(n.url, { staff });
+    if ("route" in target) router.push(target.route as never);
+    else if (n.url.startsWith(`${SITE_URL}/account`)) openSignedIn(n.url.slice(SITE_URL.length));
+    else openInApp(n.url);
   }
 
   return (

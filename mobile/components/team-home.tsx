@@ -6,7 +6,6 @@ import { StaffJobCard } from "@/components/staff-job";
 import { AppText, Card, FadeIn, LoadError, PressableScale, Skeleton } from "@/components/ui";
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, readCached } from "@/lib/api";
-import { openSignedIn } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 import type { StaffDay, StaffJob, StaffOverview } from "@/lib/types";
 
@@ -252,7 +251,7 @@ export function TeamHome() {
             {needs.length ? (
               needs.map((c, i) => (
                 <FadeIn key={c.id} index={i}>
-                  <PressableScale onPress={() => (c.route ? router.push(c.route as never) : c.path ? openSignedIn(c.path) : undefined)} accessibilityLabel={`${c.title}: ${c.caption}`}>
+                  <PressableScale onPress={() => (c.route ? router.push(c.route as never) : undefined)} accessibilityLabel={`${c.title}: ${c.caption}`}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: colors.edge }}>
                       <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: colors.orangeLight, alignItems: "center", justifyContent: "center" }}>
                         <Ionicons name={c.icon as IconName} size={17} color={colors.orangeDeep} />

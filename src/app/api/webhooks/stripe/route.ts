@@ -12,7 +12,8 @@ import { handleCardSetup, handleInstalmentIntent } from "@/lib/instalments";
  *  - the maintenance plan, a Stripe subscription (metadata kind "plan");
  *  - an invoice paid monthly: its first payment, each month's, and any
  *    paid off (payment intent metadata "instalment"), and a new card for
- *    it (a setup Checkout, metadata kind "instalments_card").
+ *    it (a setup Checkout, metadata kind "instalments_card"); and the rest
+ *    of an invoice paid in parts (some cash first), the same way.
  * Every handler is safe to repeat, so a redelivered event changes nothing;
  * a failure answers 500 so Stripe tries again.
  */

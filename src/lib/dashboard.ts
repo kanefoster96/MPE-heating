@@ -39,7 +39,7 @@ export async function businessSnapshot(todayISO: string): Promise<Snapshot> {
   const ninetyDays = new Date(Date.now() - 90 * 86_400_000).toISOString();
 
   const [paid, monthlyIn, open, members, reviews, leads, quotes] = await Promise.all([
-    admin.from("payment_requests").select("amount_pence, paid_at").eq("status", "paid").neq("paid_via", "instalments").gte("paid_at", lastMonth),
+    admin.from("payment_requests").select("amount_pence, paid_at").eq("status", "paid").not("paid_via", "in", "(instalments,part_payments)").gte("paid_at", lastMonth),
     admin.from("instalment_payments").select("amount_pence, paid_at").gte("paid_at", lastMonth),
     admin.from("payment_requests").select("id, amount_pence, created_at, plan_status").eq("status", "open"),
     admin.from("plan_members").select("status, billing, price_pence, cancel_at").in("status", ["active", "past_due"]),
@@ -55,12 +55,11 @@ export async function businessSnapshot(todayISO: string): Promise<Snapshot> {
   const paidRows = (paid.data ?? []) as { amount_pence: number; paid_at: string }[];
   const monthlyRows = (monthlyIn.data ?? []) as { amount_pence: number; paid_at: string }[];
 
-  // What's still owed on invoices being paid monthly: their total less what's in.
+  // What's still owed: open invoices less what's in on them (monthly payments, or part paid in cash).
   const openRows = (open.data ?? []) as { id: string; amount_pence: number; created_at: string; plan_status: string | null }[];
-  const onMonthly = openRows.filter((r) => r.plan_status);
   let monthlyPaidSoFar = 0;
-  if (onMonthly.length) {
-    const { data } = await admin.from("instalment_payments").select("amount_pence").in("payment_request_id", onMonthly.map((r) => r.id));
+  if (openRows.length) {
+    const { data } = await admin.from("instalment_payments").select("amount_pence").in("payment_request_id", openRows.map((r) => r.id));
     monthlyPaidSoFar = (data ?? []).reduce((sum, r) => sum + (r.amount_pence as number), 0);
   }
 
@@ -130,7 +129,7 @@ export async function takenByMonth(todayISO: string, months = 6): Promise<{ mont
   const admin = createAdminClient();
   const from = monthStart(todayISO, months - 1);
   const [paid, monthly] = await Promise.all([
-    admin.from("payment_requests").select("amount_pence, paid_at").eq("status", "paid").neq("paid_via", "instalments").gte("paid_at", from),
+    admin.from("payment_requests").select("amount_pence, paid_at").eq("status", "paid").not("paid_via", "in", "(instalments,part_payments)").gte("paid_at", from),
     admin.from("instalment_payments").select("amount_pence, paid_at").gte("paid_at", from),
   ]);
   const out = Array.from({ length: months }, (_, i) => ({ month: monthStart(todayISO, months - 1 - i).slice(0, 7), takenPence: 0, payments: 0 }));

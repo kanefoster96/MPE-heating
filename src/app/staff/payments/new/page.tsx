@@ -65,7 +65,7 @@ export default async function TakePaymentPage({
     visit ? calloutCreditFor(visit.id) : Promise.resolve(0),
   ]);
   const first = customer.name?.split(" ")[0] ?? "them";
-  const [plan, progress, credits] = await Promise.all([planFor(customer.id), instalmentProgress(existing), availableCredits(customer.id).catch(() => [])]);
+  const [plan, progress, credits] = await Promise.all([planFor(customer.id), instalmentProgress(existing, true), availableCredits(customer.id).catch(() => [])]);
   const onPlan = plan && (plan.status === "active" || plan.status === "past_due") ? plan : null;
   const calloutAsked = existing.some((p) => p.kind === "callout_fee" && p.status !== "cancelled");
 
@@ -213,7 +213,7 @@ function ExistingPayment({
             ? "Cancelled"
             : p.planStatus
               ? `${p.planStatus === "stopped" ? "Monthly payments stopped" : "Paying monthly"}: ${formatPence(progress?.paidPence ?? 0)} paid, ${formatPence(progress?.balancePence ?? p.amountPence)} left${p.planStatus === "past_due" ? " · last payment failed" : ""}`
-              : `Waiting for them to pay${p.reminderCount ? ` · reminded ${p.reminderCount === 1 ? "once" : "twice"}` : ""}`}
+              : `${progress?.paidPence ? `${formatPence(progress.paidPence)} paid, ${formatPence(progress.balancePence)} left · ` : ""}Waiting for them to pay${p.reminderCount ? ` · reminded ${p.reminderCount === 1 ? "once" : "twice"}` : ""}`}
       </p>
       {progress?.nextOn && progress.nextPence && (
         <p className="text-xs text-muted">

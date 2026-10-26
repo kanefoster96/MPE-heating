@@ -156,12 +156,20 @@ money.
       connected accounts").
 - [ ] For Tap to Pay in the app: **Terminal → Locations → New**, MPE's
       address. Its id (`tml_…`) goes in `STRIPE_TERMINAL_LOCATION`.
+- [ ] Optional, a **Bluetooth card reader** as well as Tap to Pay: order a
+      Stripe Reader M2 or BBPOS WisePad 3 from **Terminal → Hardware
+      orders**, then **Terminal → Readers → Register** it to the same
+      location. In the app, Payment → Card reader finds it when it's switched
+      on near the phone (Bluetooth on). Nothing else to set up.
+- [ ] Re-run `supabase/schema.sql` (section 1) after this update: it lets
+      an invoice be paid in parts (some cash, the rest by card) and by a
+      card reader.
 
 | Variable | Where it comes from | Public? |
 | --- | --- | --- |
 | `STRIPE_SECRET_KEY` | **Developers → API keys**, secret key (`sk_live_…`) | **Secret** |
 | `STRIPE_WEBHOOK_SECRET` | The webhook's signing secret (`whsec_…`) | **Secret** |
-| `STRIPE_TERMINAL_LOCATION` | The Terminal location id (`tml_…`), for Tap to Pay in the app | Config |
+| `STRIPE_TERMINAL_LOCATION` | The Terminal location id (`tml_…`), for Tap to Pay and the card reader in the app | Config |
 | `STRIPE_CONNECT_ACCOUNT` | Only if connected to Kanvas One: MPE's `acct_…` | Config |
 | `PLATFORM_FEE_PERCENT` | Only if connected: Kanvas One's percentage | Config |
 

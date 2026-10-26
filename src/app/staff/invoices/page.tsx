@@ -65,14 +65,15 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   const { data } = await query;
   const rows = (data ?? []) as Row[];
 
-  const monthly = rows.filter((r) => r.plan_status);
+  // What's in on each open one: monthly payments, or part paid (some cash, say).
+  const open = rows.filter((r) => r.status === "open");
   const paidIn = new Map<string, number>();
-  if (monthly.length) {
-    const { data: ins } = await admin.from("instalment_payments").select("payment_request_id, amount_pence").in("payment_request_id", monthly.map((r) => r.id));
+  if (open.length) {
+    const { data: ins } = await admin.from("instalment_payments").select("payment_request_id, amount_pence").in("payment_request_id", open.map((r) => r.id));
     for (const i of ins ?? []) paidIn.set(i.payment_request_id as string, (paidIn.get(i.payment_request_id as string) ?? 0) + (i.amount_pence as number));
   }
   const customers = await getCustomers(rows.map((r) => r.customer_id).filter((id): id is string => !!id));
-  const total = rows.reduce((sum, r) => sum + (r.plan_status && tab === "monthly" ? r.amount_pence - (paidIn.get(r.id) ?? 0) : r.amount_pence), 0);
+  const total = rows.reduce((sum, r) => sum + (r.status === "open" ? r.amount_pence - (paidIn.get(r.id) ?? 0) : r.amount_pence), 0);
   const days = (iso: string) => Math.floor((now - new Date(iso).getTime()) / 86_400_000);
 
   return (
@@ -123,7 +124,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                   </span>
                 </span>
                 <span className="text-right">
-                  <span className="block font-bold">{formatPence(tab === "monthly" ? left : r.amount_pence)}</span>
+                  <span className="block font-bold">{formatPence(r.status === "open" ? left : r.amount_pence)}</span>
                   <span className={`block text-xs ${r.plan_status === "past_due" || (tab === "unpaid" && age >= 7) ? "font-semibold text-danger" : "text-muted"}`}>
                     {tab === "paid"
                       ? `Paid ${r.paid_at ? short(r.paid_at) : ""}${r.paid_via ? ` · ${PAID_VIA_LABEL[r.paid_via]}` : ""}`
@@ -133,7 +134,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                           : r.plan_status === "stopped"
                             ? "Stopped"
                             : `left of ${formatPence(r.amount_pence)}${r.plan_next_due_on ? ` · next ${short(`${r.plan_next_due_on}T12:00:00Z`)}` : ""}`
-                        : `${age === 0 ? "Today" : `${age} day${age === 1 ? "" : "s"}`}${r.reminder_count ? ` · reminded ${r.reminder_count === 1 ? "once" : `${Math.min(r.reminder_count, 2)} times`}` : ""}`}
+                        : `${paidIn.get(r.id) ? `left of ${formatPence(r.amount_pence)} · ` : ""}${age === 0 ? "Today" : `${age} day${age === 1 ? "" : "s"}`}${r.reminder_count ? ` · reminded ${r.reminder_count === 1 ? "once" : `${Math.min(r.reminder_count, 2)} times`}` : ""}`}
                   </span>
                 </span>
               </Link>

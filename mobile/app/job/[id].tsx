@@ -10,7 +10,7 @@ import { AppText, Card, LoadError, PrimaryButton, Skeleton } from "@/components/
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, readCached } from "@/lib/api";
 import { colors } from "@/lib/theme";
-import type { JobPayment, StaffJobDetail } from "@/lib/types";
+import type { JobPayment, SheetContext, StaffJobDetail } from "@/lib/types";
 
 /**
  * One of the team's jobs, opened from Jobs or Home: the visit with its
@@ -38,13 +38,18 @@ function PaymentRow({ p, last }: { p: JobPayment; last: boolean }) {
           {p.job !== "this" ? (p.job === "none" ? " · Not on a job yet" : ` · From the ${p.job} visit`) : ""}
           {p.monthly ? " · Paying monthly" : ""}
         </AppText>
+        {p.paidSoFar && (
+          <AppText weight="semibold" style={{ color: colors.success, fontSize: 13 }}>
+            {p.paidSoFar} paid of {p.total}
+          </AppText>
+        )}
       </View>
       <View style={{ alignItems: "flex-end" }}>
         <AppText weight="extrabold" style={{ fontSize: 16 }}>
           {p.amount}
         </AppText>
         <AppText weight="bold" style={{ fontSize: 12, color: paid ? colors.success : colors.orangeDeep }}>
-          {paid ? `Paid${p.paidVia ? `, ${p.paidVia}` : ""}` : "Waiting"}
+          {paid ? `Paid${p.paidVia ? `, ${p.paidVia}` : ""}` : p.paidSoFar ? "Left to pay" : "Waiting"}
         </AppText>
       </View>
     </View>
@@ -86,6 +91,16 @@ function Job() {
 
   const title = data ? `${data.dayLabel}, ${data.job.window.split("–")[0]}` : "Job";
   const open = data ? data.payments.forJob.filter((p) => p.status === "open") : [];
+  const sheetContext: SheetContext | null = data
+    ? {
+        jobId: data.job.id,
+        customerName: data.job.customer?.name ?? null,
+        on: data.payments.on,
+        terminalLocation: data.payments.terminalLocation,
+        savedCard: data.payments.savedCard,
+        choices: [...data.payments.forJob, ...data.payments.otherOpen],
+      }
+    : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
@@ -146,7 +161,7 @@ function Job() {
               <PrimaryButton title={open.length === 1 ? `Payment, ${open[0].amount}` : "Payment"} icon="card" onPress={() => setSheet(true)} />
             </View>
           )}
-          <PaymentSheet visible={sheet} detail={data} onClose={() => setSheet(false)} onDone={load} />
+          {sheetContext && <PaymentSheet visible={sheet} context={sheetContext} onClose={() => setSheet(false)} onDone={load} />}
         </>
       )}
     </View>

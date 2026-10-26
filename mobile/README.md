@@ -55,11 +55,14 @@ picked up.
   Not in, Finish and Take payment. Tapping a visit opens its page
   (`app/job/[id].tsx`): what's been asked for and paid, the customer's
   other unpaid invoices, and Payment stuck to the bottom. Payment
-  (`components/payment-sheet.tsx`) asks what it's for (this job's open
-  invoices first, then their others; one not on a job yet goes on this
-  one), then Tap to Pay, their saved card, paid another way, or the link
-  again. A new invoice or call-out fee opens the website's take-payment
-  page for the visit.
+  (`components/payment-sheet.tsx`, also from the Payment tab) asks what
+  it's for (this job's open invoices first, then their others; one not on
+  a job yet goes on this one), then: Tap to Pay or a Bluetooth card reader
+  (recorded automatically), their saved card once he's checked with them,
+  the payment link to their chat, text and email (Apple Pay from there),
+  or cash, all of it or part, with the rest taken by card or the link
+  (`src/lib/app-payments.ts` on the site). A new invoice or call-out fee
+  opens the website's take-payment page for the visit.
 - **Menu** (`app/(tabs)/menu.tsx`, the team only, in Services' place):
   cards that turn orange when something needs Fergal (requests, unread
   messages, overdue invoices, failed monthly or plan payments, accepted
@@ -93,7 +96,8 @@ app and the site always take the same bookings and payments.
 - Links in MPE's emails and texts (pay, quote, visit, plan, chat,
   account, help guides) open the app when it's installed
   (`app/+native-intent.tsx`, `lib/links.ts`).
-- Tap to Pay on the team's phones (`components/tap-to-pay.native.tsx`).
+- Tap to Pay on the team's phones, or a Bluetooth card reader
+  (`components/tap-to-pay.native.tsx`).
 - Pull to refresh, grey loading boxes, and screens that fade in.
 
 ## Before the App Store

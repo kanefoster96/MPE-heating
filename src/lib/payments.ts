@@ -22,9 +22,15 @@ import { instalmentSchedule, scheduleSummary } from "@/lib/instalment-schedule";
  *    tick to save the card with MPE for next time;
  *  - the card they saved, charged by Fergal when he's with them and they
  *    say yes ("Charge card ending 4242");
- *  - Tap to Pay on Fergal's phone, in the MPE app (lib endpoints below);
+ *  - Tap to Pay on Fergal's phone, or a Bluetooth card reader, in the MPE
+ *    app (lib endpoints below);
  *  - or in person another way, which Fergal marks: a card machine, cash or
  *    bank transfer.
+ *
+ * Part of it can be paid first (some cash, say): it's recorded towards the
+ * invoice (instalment_payments, as monthly payments are), and every way of
+ * paying then takes only what's left. Once that's in, it's paid, by
+ * "part_payments", and the receipt lists each part.
  *
  * Every Stripe payment carries metadata.payment_request_id, and the Stripe
  * webhook's payment_intent.succeeded marks it paid, whichever way it came.
@@ -44,7 +50,7 @@ const MAX_TOTAL_PENCE = 2_000_000;
 
 export type PaymentKind = "callout_fee" | "invoice" | "other";
 export type PaymentStatus = "open" | "paid" | "cancelled";
-export type PaidVia = "link" | "app" | "saved_card" | "tap_to_pay" | "in_person" | "cash" | "bank_transfer" | "instalments";
+export type PaidVia = "link" | "app" | "saved_card" | "tap_to_pay" | "card_reader" | "in_person" | "cash" | "bank_transfer" | "instalments" | "part_payments";
 /** Paying an invoice monthly (lib/instalments.ts). */
 export type PlanStatus = "active" | "past_due" | "completed" | "stopped";
 export type PaymentLine = { description: string; amountPence: number };
@@ -54,10 +60,12 @@ export const PAID_VIA_LABEL: Record<PaidVia, string> = {
   app: "in the app",
   saved_card: "saved card",
   tap_to_pay: "Tap to Pay",
+  card_reader: "card reader",
   in_person: "card machine",
   cash: "cash",
   bank_transfer: "bank transfer",
   instalments: "monthly payments",
+  part_payments: "in parts",
 };
 
 export type PaymentRequest = {
@@ -212,6 +220,36 @@ export async function paymentsForCustomer(customerId: string): Promise<PaymentRe
   return ((data ?? []) as Row[]).map(mapRow);
 }
 
+/** A part of an invoice already paid: some cash first, say (or a monthly payment). */
+export type PartPayment = { amountPence: number; paidVia: string | null; paidAt: string };
+
+/** What's been paid towards each invoice so far, oldest first. */
+export async function partPaymentsFor(ids: string[]): Promise<Map<string, PartPayment[]>> {
+  const map = new Map<string, PartPayment[]>();
+  if (!ids.length) return map;
+  const { data } = await createAdminClient()
+    .from("instalment_payments")
+    .select("payment_request_id, amount_pence, paid_via, paid_at")
+    .in("payment_request_id", [...new Set(ids)])
+    .order("paid_at");
+  for (const row of data ?? []) {
+    const id = row.payment_request_id as string;
+    map.set(id, [...(map.get(id) ?? []), { amountPence: row.amount_pence as number, paidVia: (row.paid_via as string | null) ?? null, paidAt: row.paid_at as string }]);
+  }
+  return map;
+}
+
+/** How much has been paid towards one invoice so far. */
+export async function paidTowards(id: string): Promise<number> {
+  return ((await partPaymentsFor([id])).get(id) ?? []).reduce((sum, p) => sum + p.amountPence, 0);
+}
+
+/** "£50 cash and £135 Tap to Pay": the parts an invoice was paid in. */
+export function partsLine(parts: PartPayment[]): string {
+  const each = parts.map((p) => `${formatPence(p.amountPence)} ${p.paidVia && p.paidVia in PAID_VIA_LABEL ? PAID_VIA_LABEL[p.paidVia as PaidVia] : "paid"}`);
+  return each.length <= 1 ? (each[0] ?? "") : `${each.slice(0, -1).join(", ")} and ${each.at(-1)}`;
+}
+
 /** Open payments, newest first: what the team can take by Tap to Pay in the app. Monthly plans are left out. */
 export async function openPaymentRequests(limit = 50): Promise<PaymentRequest[]> {
   const { data } = await createAdminClient()
@@ -323,9 +361,13 @@ function lowerFirst(text: string): string {
   return /^[A-Z][a-z]/.test(text) ? text.charAt(0).toLowerCase() + text.slice(1) : text;
 }
 
-/** What the customer's told: "Invoice MPE-1002 for your boiler repair: £130. Pay here: …" */
-function requestMessage(p: PaymentRequest, customer: Customer): string {
+/** What the customer's told: "Invoice MPE-1002 for your boiler repair: £130. Pay here: …" With some already paid, what's left. */
+function requestMessage(p: PaymentRequest, customer: Customer, paidPence = 0): string {
   const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, ";
+  if (paidPence > 0) {
+    const what = p.kind === "callout_fee" ? "your call-out fee" : `invoice ${invoiceNumber(p.number)}`;
+    return `${hi}here's the link for the rest of ${what}: ${formatPence(p.amountPence - paidPence)} left to pay (${formatPence(paidPence)} paid already). Pay by Apple Pay, Google Pay or card: ${payLink(p)}`;
+  }
   const what = p.kind === "callout_fee" ? `here's the link for your ${formatPence(p.amountPence)} call-out fee` : `here's invoice ${invoiceNumber(p.number)} for ${p.description.charAt(0).toLowerCase()}${p.description.slice(1)}: ${formatPence(p.amountPence)}`;
   return `${hi}${what}.${offerLine(p)}${monthlyLine(p)} Pay by Apple Pay, Google Pay or card: ${payLink(p)}`;
 }
@@ -437,15 +479,19 @@ export async function checkoutUrl(id: string, opts: { saveCard: boolean; addOffe
   const stripeCustomer = opts.saveCard && customer ? await stripeCustomerFor(customer) : null;
   const link = payLink(mapRow(row));
   const name = row.kind === "callout_fee" ? `${business.name} call-out fee` : `${business.name} invoice ${invoiceNumber(row.number)}`;
+  // Some paid already (cash, say): just the rest, counted towards it like a part payment.
+  const part = await paidTowards(row.id);
   // They ticked the add-on: it's a second line, and recorded once they've paid.
-  const picked = [...new Set(opts.addOffers ?? [])].filter((i) => Number.isInteger(i) && (row.offers ?? [])[i] && !(row.offers ?? [])[i].taken);
+  const picked = part ? [] : [...new Set(opts.addOffers ?? [])].filter((i) => Number.isInteger(i) && (row.offers ?? [])[i] && !(row.offers ?? [])[i].taken);
   const offers = picked.map((i) => (row.offers ?? [])[i]);
-  const total = row.amount_pence + offers.reduce((sum, o) => sum + o.pence, 0);
+  const due = row.amount_pence - part;
+  if (due <= 0) return { error: "That's already paid. Thank you!" };
+  const total = due + offers.reduce((sum, o) => sum + o.pence, 0);
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
-      { quantity: 1, price_data: { currency: "gbp", unit_amount: row.amount_pence, product_data: { name, description: row.description } } },
+      { quantity: 1, price_data: { currency: "gbp", unit_amount: due, product_data: { name: part ? `${name}: the rest` : name, description: row.description } } },
       ...offers.map((o) => ({ quantity: 1, price_data: { currency: "gbp", unit_amount: o.pence, product_data: { name: o.label } } })),
     ],
     ...(stripeCustomer ? { customer: stripeCustomer } : customer?.email ? { customer_email: customer.email } : {}),
@@ -456,7 +502,7 @@ export async function checkoutUrl(id: string, opts: { saveCard: boolean; addOffe
       // They ticked "save my card": kept for Fergal to charge at a future
       // visit, when they say so.
       ...(stripeCustomer ? { setup_future_usage: "off_session" as const } : {}),
-      metadata: { payment_request_id: row.id, via: "link", ...(picked.length ? { add_offers: picked.join(",") } : {}) },
+      metadata: { payment_request_id: row.id, via: "link", ...(part ? { instalment: "extra" } : {}), ...(picked.length ? { add_offers: picked.join(",") } : {}) },
     },
     metadata: { kind: "payment_request", payment_request_id: row.id },
     success_url: `${opts.returnTo ?? link}?paid=1`,
@@ -493,20 +539,27 @@ export async function chargeSavedCard(id: string): Promise<ChargeResult> {
   if (!claimed?.length) return { ok: false, error: "It's already being charged, or has just been paid. Give it a moment." };
   const release = () => admin.from("payment_requests").update({ charging_at: null }).eq("id", row.id).eq("charging_at", claimedAt);
   const customer = row.customer_id ? await getCustomer(row.customer_id) : null;
+  // Some paid already: the card's charged what's left.
+  const part = await paidTowards(row.id);
+  const due = row.amount_pence - part;
+  if (due <= 0) {
+    await release();
+    return { ok: false, error: "That's already paid." };
+  }
 
   try {
     const intent = await stripe.paymentIntents.create(
       {
-        amount: row.amount_pence,
+        amount: due,
         currency: "gbp",
-        ...paymentFee(row.amount_pence),
+        ...paymentFee(due),
         customer: card.customer,
         payment_method: card.paymentMethod,
         off_session: true,
         confirm: true,
         description: `${row.kind === "callout_fee" ? "Call-out fee" : `Invoice ${invoiceNumber(row.number)}`}: ${row.description}`,
         ...(customer?.email ? { receipt_email: customer.email } : {}),
-        metadata: { payment_request_id: row.id, via: "saved_card" },
+        metadata: { payment_request_id: row.id, via: "saved_card", ...(part ? { instalment: "extra" } : {}) },
       },
       { idempotencyKey: `mpe-pay-${row.id}-${claimedAt}` },
     );
@@ -514,7 +567,13 @@ export async function chargeSavedCard(id: string): Promise<ChargeResult> {
       await release();
       return { ok: false, error: "Not charged: their bank wants them to approve it. They can pay from the link instead." };
     }
-    await markPaid(row.id, intent.id, "saved_card");
+    if (part) {
+      const { recordTowardsBalance } = await import("@/lib/instalments");
+      await recordTowardsBalance({ requestId: row.id, amountPence: intent.amount_received || due, kind: "extra", paymentIntentId: intent.id, paidVia: "saved_card", sendReceipt: false });
+      await release();
+    } else {
+      await markPaid(row.id, intent.id, "saved_card");
+    }
     return { ok: true };
   } catch (err) {
     await release();
@@ -530,26 +589,30 @@ export async function chargeSavedCard(id: string): Promise<ChargeResult> {
 }
 
 /**
- * Tap to Pay on Fergal's phone (the MPE app, with the Stripe Terminal SDK):
- * a card-present payment the app collects and confirms on the phone. The
- * webhook marks it paid like any other.
+ * Tap to Pay on Fergal's phone, or a Bluetooth card reader paired with it
+ * (the MPE app, with the Stripe Terminal SDK): a card-present payment the
+ * app collects and confirms. The webhook marks it paid like any other. With
+ * some paid already, it's for what's left.
  */
-export async function tapToPayIntent(id: string): Promise<{ clientSecret: string; amountPence: number } | { error: string }> {
+export async function tapToPayIntent(id: string, via: "tap_to_pay" | "card_reader" = "tap_to_pay"): Promise<{ clientSecret: string; amountPence: number } | { error: string }> {
   const row = await getRow(id);
   if (!row) return { error: "Payment not found." };
   if (row.status !== "open") return { error: row.status === "paid" ? "That's already paid." : "That payment was cancelled." };
   if (row.plan_status) return { error: onMonthly(row) ?? partPaidMonthly };
+  const part = await paidTowards(row.id);
+  const due = row.amount_pence - part;
+  if (due <= 0) return { error: "That's already paid." };
   const intent = await stripe.paymentIntents.create({
-    amount: row.amount_pence,
+    amount: due,
     currency: "gbp",
     payment_method_types: ["card_present"],
     capture_method: "automatic",
-    ...paymentFee(row.amount_pence),
-    description: `${row.kind === "callout_fee" ? "Call-out fee" : `Invoice ${invoiceNumber(row.number)}`}: ${row.description}`,
-    metadata: { payment_request_id: row.id, via: "tap_to_pay" },
+    ...paymentFee(due),
+    description: `${row.kind === "callout_fee" ? "Call-out fee" : `Invoice ${invoiceNumber(row.number)}`}: ${row.description}${part ? " (the rest)" : ""}`,
+    metadata: { payment_request_id: row.id, via, ...(part ? { instalment: "extra" } : {}) },
   });
   if (!intent.client_secret) return { error: "Couldn't start the payment." };
-  return { clientSecret: intent.client_secret, amountPence: row.amount_pence };
+  return { clientSecret: intent.client_secret, amountPence: due };
 }
 
 /** A connection token for the app's Stripe Terminal SDK (Tap to Pay). */
@@ -559,8 +622,18 @@ export async function terminalConnectionToken(): Promise<string> {
   return token.secret;
 }
 
-/** Paid with Fergal another way: another card machine, cash or bank transfer. */
-export async function markPaidInPerson(id: string, via: "in_person" | "cash" | "bank_transfer"): Promise<{ ok: true } | { ok: false; error: string }> {
+/** Paid with Fergal another way: another card machine, cash or bank transfer. With some paid already, this is the rest. */
+export async function markPaidInPerson(id: string, via: "in_person" | "cash" | "bank_transfer", staffId: string | null = null): Promise<{ ok: true } | { ok: false; error: string }> {
+  const part = await paidTowards(id);
+  if (part > 0) {
+    const row = await getRow(id);
+    if (!row || row.status !== "open" || row.plan_status) {
+      return { ok: false, error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid." : row.plan_status ? partPaidMonthly : "That payment was cancelled." };
+    }
+    const { recordTowardsBalance } = await import("@/lib/instalments");
+    await recordTowardsBalance({ requestId: id, amountPence: row.amount_pence - part, kind: "in_person", paidVia: via, staffId, sendReceipt: false });
+    return { ok: true };
+  }
   const { data } = await createAdminClient()
     .from("payment_requests")
     .update({ status: "paid", paid_at: new Date().toISOString(), paid_via: via, charging_at: null })
@@ -574,6 +647,35 @@ export async function markPaidInPerson(id: string, via: "in_person" | "cash" | "
   }
   const row = await getRow(id);
   return { ok: false, error: !row ? "Payment not found." : row.status === "paid" ? "That's already paid." : row.plan_status ? partPaidMonthly : "That payment was cancelled." };
+}
+
+/**
+ * Some of it paid in person (cash, say), the rest to come by card or the
+ * link: it comes off what's left. All of what's left is the same as
+ * marking it paid. Monthly invoices record theirs under monthly payments.
+ */
+export async function recordPartPayment(
+  id: string,
+  amountPence: number,
+  via: "in_person" | "cash" | "bank_transfer",
+  staffId: string,
+): Promise<{ ok: true; paidOff: boolean; leftPence: number } | { ok: false; error: string }> {
+  const row = await getRow(id);
+  if (!row) return { ok: false, error: "Payment not found." };
+  if (row.status !== "open") return { ok: false, error: row.status === "paid" ? "That's already paid." : "That payment was cancelled." };
+  if (row.plan_status) return { ok: false, error: partPaidMonthly };
+  const part = await paidTowards(id);
+  const due = row.amount_pence - part;
+  const amount = Math.round(amountPence);
+  if (!Number.isFinite(amount) || amount < MIN_TOTAL_PENCE) return { ok: false, error: `Enter at least ${formatPence(MIN_TOTAL_PENCE)}.` };
+  if (amount > due) return { ok: false, error: `Only ${formatPence(due)} is left to pay.` };
+  if (amount === due) {
+    const done = await markPaidInPerson(id, via, staffId);
+    return done.ok ? { ok: true, paidOff: true, leftPence: 0 } : done;
+  }
+  const { recordTowardsBalance } = await import("@/lib/instalments");
+  await recordTowardsBalance({ requestId: id, amountPence: amount, kind: "in_person", paidVia: via, staffId, sendReceipt: false });
+  return { ok: true, paidOff: false, leftPence: due - amount };
 }
 
 /**
@@ -656,6 +758,9 @@ export async function linkPaymentToVisit(id: string, appointmentId: string): Pro
 }
 
 export async function cancelPaymentRequest(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const part = await paidTowards(id);
+  const before = part ? await getRow(id) : null;
+  if (part && before && !before.plan_status) return { ok: false, error: `${formatPence(part)} of this has been paid already, so it can't be cancelled. Take the rest, or refund what's been paid first.` };
   const { data } = await createAdminClient()
     .from("payment_requests")
     .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
@@ -693,7 +798,7 @@ export async function alertTeam(title: string, body: string): Promise<void> {
 export async function handlePaymentIntent(intent: Stripe.PaymentIntent): Promise<boolean> {
   const id = intent.metadata?.payment_request_id;
   if (!id) return false;
-  const via = (["app", "saved_card", "tap_to_pay"] as const).find((v) => v === intent.metadata?.via) ?? "link";
+  const via = (["app", "saved_card", "tap_to_pay", "card_reader"] as const).find((v) => v === intent.metadata?.via) ?? "link";
   const offersTaken = (intent.metadata?.add_offers ?? "")
     .split(",")
     .filter(Boolean)
@@ -701,7 +806,7 @@ export async function handlePaymentIntent(intent: Stripe.PaymentIntent): Promise
     .filter((i) => Number.isInteger(i) && i >= 0 && i < MAX_OFFERS);
   // Tap to Pay is taken in person, so it gets the receipt an in-person
   // payment on the website gets. Once: Stripe can send the event twice.
-  const wasOpen = via === "tap_to_pay" && (await getPaymentRequest(id))?.status === "open";
+  const wasOpen = (via === "tap_to_pay" || via === "card_reader") && (await getPaymentRequest(id))?.status === "open";
   await markPaid(id, intent.id, via, { offersTaken });
   if (wasOpen) await sendReceipt(id, null).catch((err) => console.error("tap to pay receipt failed", err));
   return true;
@@ -714,8 +819,10 @@ export async function sendReceipt(id: string, staffId: string | null): Promise<s
   const customer = p?.customerId ? await getCustomer(p.customerId) : null;
   if (!p || !customer || p.status !== "paid") return [];
   const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, ";
+  // Paid in parts: each one ("£50 cash and £135 Tap to Pay").
+  const how = p.paidVia === "part_payments" ? partsLine((await partPaymentsFor([p.id])).get(p.id) ?? []) : p.paidVia ? PAID_VIA_LABEL[p.paidVia] : "";
   return deliverToCustomer(customer, {
-    body: `${hi}thanks, ${formatPence(p.amountPence)} paid${p.paidVia ? ` (${PAID_VIA_LABEL[p.paidVia]})` : ""} for ${p.kind === "callout_fee" ? "your call-out" : `invoice ${invoiceNumber(p.number)}`}. Your receipt: ${payLink(p)}`,
+    body: `${hi}thanks, ${formatPence(p.amountPence)} paid${how ? ` (${how})` : ""} for ${p.kind === "callout_fee" ? "your call-out" : `invoice ${invoiceNumber(p.number)}`}. Your receipt: ${payLink(p)}`,
     headline: p.kind === "callout_fee" ? "Call-out fee paid" : `Invoice ${invoiceNumber(p.number)} paid`,
     staffId,
     pushHref: `/pay/${p.publicToken}`,
@@ -730,7 +837,7 @@ export async function resendPaymentLink(id: string, staffId: string): Promise<st
   const customer = p?.customerId ? await getCustomer(p.customerId) : null;
   if (!p || !customer || p.status !== "open" || p.planStatus) return [];
   return deliverToCustomer(customer, {
-    body: requestMessage(p, customer),
+    body: requestMessage(p, customer, await paidTowards(p.id)),
     headline: p.kind === "callout_fee" ? "Your call-out fee" : `Invoice ${invoiceNumber(p.number)}`,
     staffId,
     pushHref: `/pay/${p.publicToken}`,
@@ -745,7 +852,13 @@ export async function sendUnpaidReminder(id: string): Promise<string[]> {
   const customer = p?.customerId ? await getCustomer(p.customerId) : null;
   if (!p || !customer || p.status !== "open" || p.planStatus) return [];
   const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, ";
-  const what = p.kind === "callout_fee" ? `your ${formatPence(p.amountPence)} call-out fee` : `invoice ${invoiceNumber(p.number)} (${formatPence(p.amountPence)})`;
+  const part = await paidTowards(p.id);
+  const what =
+    part > 0
+      ? `the ${formatPence(p.amountPence - part)} left on ${p.kind === "callout_fee" ? "your call-out fee" : `invoice ${invoiceNumber(p.number)}`}`
+      : p.kind === "callout_fee"
+        ? `your ${formatPence(p.amountPence)} call-out fee`
+        : `invoice ${invoiceNumber(p.number)} (${formatPence(p.amountPence)})`;
   return deliverToCustomer(customer, {
     body: `${hi}a quick reminder that ${what} is still to pay. Pay by Apple Pay, Google Pay or card: ${payLink(p)} Already paid? Just reply and we'll sort it.`,
     headline: p.kind === "callout_fee" ? "Your call-out fee" : `Invoice ${invoiceNumber(p.number)}`,

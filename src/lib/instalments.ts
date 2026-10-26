@@ -58,12 +58,13 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-/** What's in, what's left, and what's next, for each invoice being paid monthly. */
+/** What's in, what's left, and what's next, for each invoice being paid monthly (or, with `all`, any paid in parts). */
 export async function instalmentProgress(
   requests: Pick<PaymentRequest, "id" | "amountPence" | "planStatus" | "planMonthlyPence" | "planNextDueOn">[],
+  all = false,
 ): Promise<Map<string, InstalmentProgress>> {
   const map = new Map<string, InstalmentProgress>();
-  const onPlan = requests.filter((r) => r.planStatus);
+  const onPlan = all ? requests : requests.filter((r) => r.planStatus);
   if (!onPlan.length) return map;
   const { data } = await createAdminClient()
     .from("instalment_payments")
@@ -90,7 +91,7 @@ export async function instalmentProgress(
 }
 
 async function progressFor(p: PaymentRequest): Promise<InstalmentProgress> {
-  return (await instalmentProgress([p])).get(p.id) ?? { paidCount: 0, paidPence: 0, balancePence: p.amountPence, nextOn: null, nextPence: null, payments: [] };
+  return (await instalmentProgress([p], true)).get(p.id) ?? { paidCount: 0, paidPence: 0, balancePence: p.amountPence, nextOn: null, nextPence: null, payments: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +104,8 @@ export async function startMonthlyUrl(token: string): Promise<{ url: string } | 
   if (p.status !== "open") return { error: p.status === "paid" ? "That's already paid. Thank you!" : "That payment was cancelled." };
   if (p.planStatus) return { error: "You're already paying this monthly." };
   if (!p.instalments) return { error: "Monthly payments aren't available for this one." };
+  // Part paid already (cash, say): the rest is paid in one go.
+  if ((await progressFor(p)).paidPence > 0) return { error: "Part of this has been paid already, so the rest is paid in one go." };
   const plan = instalmentSchedule(p.amountPence, p.instalments.months, p.instalments.depositPence);
   const customer = p.customerId ? await getCustomer(p.customerId) : null;
   if (!plan.ok || !customer) return { error: "Monthly payments aren't available for this one. Please call us." };
@@ -199,15 +202,17 @@ export async function changeCardUrl(token: string): Promise<{ url: string } | { 
 /**
  * A payment towards the balance: counted once (a Stripe payment by its id),
  * and when the balance reaches £0 the invoice is paid, the dates stop and
- * they get their receipt.
+ * they get their receipt (unless the caller sends it). Monthly payments,
+ * and the parts of an invoice paid in parts (some cash, the rest by card).
  */
-async function recordPayment(params: {
+export async function recordTowardsBalance(params: {
   requestId: string;
   amountPence: number;
   kind: InstalmentPayment["kind"];
   paymentIntentId?: string | null;
   paidVia: string;
   staffId?: string | null;
+  sendReceipt?: boolean;
 }): Promise<"recorded" | "duplicate"> {
   const { error } = await createAdminClient()
     .from("instalment_payments")
@@ -223,24 +228,29 @@ async function recordPayment(params: {
   if (error) throw new Error(`instalments: couldn't record a payment for ${params.requestId}: ${error.message}`);
   // Paying something after a failed month puts them back in good standing.
   if (params.kind !== "first") await createAdminClient().from("payment_requests").update({ plan_status: "active", plan_failed_at: null }).eq("id", params.requestId).eq("plan_status", "past_due");
-  await settle(params.requestId);
+  await settle(params.requestId, params.sendReceipt !== false);
   return "recorded";
 }
 
 /** Paid off: the invoice is marked paid. More than the balance (a payment crossing another): the team's told to refund it. */
-async function settle(requestId: string): Promise<void> {
+async function settle(requestId: string, receipt = true): Promise<void> {
   const p = await getPaymentRequest(requestId);
   if (!p || p.status !== "open") return;
   const progress = await progressFor(p);
   if (progress.paidPence < p.amountPence) return;
+  // Paid monthly, or paid in parts (some cash, then the rest by card).
   const { data } = await createAdminClient()
     .from("payment_requests")
-    .update({ status: "paid", paid_at: new Date().toISOString(), paid_via: "instalments", plan_status: "completed", plan_next_due_on: null, plan_charging_at: null })
+    .update(
+      p.planStatus
+        ? { status: "paid", paid_at: new Date().toISOString(), paid_via: "instalments", plan_status: "completed", plan_next_due_on: null, plan_charging_at: null }
+        : { status: "paid", paid_at: new Date().toISOString(), paid_via: "part_payments", charging_at: null },
+    )
     .eq("id", requestId)
     .eq("status", "open")
     .select("id");
   if (!data?.length) return;
-  await alertTeam("Paid off", `${invoiceNumber(p.number)} (${formatPence(p.amountPence)}) is paid off.`);
+  await alertTeam(p.planStatus ? "Paid off" : "Paid in full", `${p.kind === "callout_fee" ? "A call-out fee" : invoiceNumber(p.number)} (${formatPence(p.amountPence)}) is ${p.planStatus ? "paid off" : "paid in full"}.`);
   if (p.customerId) {
     const { rewardReferralFor } = await import("@/lib/referrals");
     await rewardReferralFor(p.customerId).catch((err) => console.error("instalments: referral reward failed", err));
@@ -248,7 +258,7 @@ async function settle(requestId: string): Promise<void> {
   if (progress.paidPence > p.amountPence) {
     await alertTeam("Overpaid", `${invoiceNumber(p.number)} was overpaid by ${formatPence(progress.paidPence - p.amountPence)}. Refund the difference in Stripe.`);
   }
-  await sendReceipt(requestId, null);
+  if (receipt) await sendReceipt(requestId, null);
 }
 
 /** The webhook: a Stripe payment towards a monthly invoice. True when it was one. */
@@ -260,7 +270,14 @@ export async function handleInstalmentIntent(intent: Stripe.PaymentIntent): Prom
     await openMonthly(requestId, intent);
     return true;
   }
-  await recordPayment({ requestId, amountPence: intent.amount_received || intent.amount, kind, paymentIntentId: intent.id, paidVia: kind === "monthly" ? "saved_card" : "link" });
+  await recordTowardsBalance({
+    requestId,
+    amountPence: intent.amount_received || intent.amount,
+    kind,
+    paymentIntentId: intent.id,
+    // The rest of one paid in parts says how (Tap to Pay, saved card, link).
+    paidVia: intent.metadata?.via || (kind === "monthly" ? "saved_card" : "link"),
+  });
   return true;
 }
 
@@ -286,7 +303,7 @@ async function openMonthly(requestId: string, intent: Stripe.PaymentIntent): Pro
     .is("plan_status", null)
     .select("id");
   // Paid in full another way meanwhile, or a resent event: the payment still counts (once).
-  const result = await recordPayment({ requestId, amountPence: intent.amount_received || intent.amount, kind: "first", paymentIntentId: intent.id, paidVia: "link" });
+  const result = await recordTowardsBalance({ requestId, amountPence: intent.amount_received || intent.amount, kind: "first", paymentIntentId: intent.id, paidVia: "link" });
   if (result === "duplicate") return;
   if (!data?.length) {
     const now = await getPaymentRequest(requestId);
@@ -336,7 +353,7 @@ export async function recordInPersonInstalment(requestId: string, amountPence: n
   const amount = Math.round(amountPence);
   if (!Number.isFinite(amount) || amount < MIN_PAY_OFF_PENCE) return { ok: false, error: "Enter the amount they paid." };
   if (amount > balancePence) return { ok: false, error: `Only ${formatPence(balancePence)} is left to pay.` };
-  await recordPayment({ requestId, amountPence: amount, kind: "in_person", paidVia: via, staffId });
+  await recordTowardsBalance({ requestId, amountPence: amount, kind: "in_person", paidVia: via, staffId });
   return { ok: true };
 }
 
@@ -447,7 +464,7 @@ async function takeOne(row: DueRow): Promise<void> {
   if (intentId) {
     // The date moves on first: the webhook may have counted the payment already.
     await admin.from("payment_requests").update({ plan_status: "active", plan_failed_at: null, plan_next_due_on: nextDue }).eq("id", p.id).eq("status", "open");
-    await recordPayment({ requestId: p.id, amountPence: amount, kind: "monthly", paymentIntentId: intentId, paidVia: "saved_card" });
+    await recordTowardsBalance({ requestId: p.id, amountPence: amount, kind: "monthly", paymentIntentId: intentId, paidVia: "saved_card" });
     const after = await getPaymentRequest(p.id);
     if (after?.status !== "open") return; // Paid off: the receipt's gone.
     const left = progress.balancePence - amount;

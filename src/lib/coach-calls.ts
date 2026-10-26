@@ -48,8 +48,13 @@ export function ringPhoneOf(user: User | null | undefined): string | null {
 }
 
 /** Whether calls can go out from the MPE number: Twilio's set up, with a number. */
+/**
+ * "Call as MPE" from the Twilio number. Off unless OUTBOUND_CALLS_ON=1:
+ * the number takes calls in only, and Fergal calls customers back on
+ * WhatsApp Business or his own phone. Kept so it can come back later.
+ */
 export function businessCallsOn(): boolean {
-  return !!(process.env.TWILIO_PHONE_NUMBER && (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_API_KEY_SECRET));
+  return process.env.OUTBOUND_CALLS_ON === "1" && !!(process.env.TWILIO_PHONE_NUMBER && (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_API_KEY_SECRET));
 }
 
 /** For the app's Call sheet: whether it's on, the number customers see, and the phone that rings first. */

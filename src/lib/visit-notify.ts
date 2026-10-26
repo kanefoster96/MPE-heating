@@ -3,7 +3,7 @@ import { getOrCreateConversation, getOrCreateConversationByPhone } from "@/lib/c
 import { replyToForConversation } from "@/lib/chat-notify";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { resend, FROM_EMAIL } from "@/lib/resend";
-import { sendSms, smsAllowed, type SmsKind } from "@/lib/twilio";
+import { sendSms, smsAllowed } from "@/lib/twilio";
 import { SmsOptedOutError } from "@/lib/sms-opt-out";
 import { pushToUsers } from "@/lib/push";
 import { CLUB, CLUB_SITE_URL } from "@/lib/club";
@@ -74,7 +74,6 @@ export type Delivery = {
   text?: "always" | "fallback";
   /** A shorter version for the text (one segment, under 160 characters). */
   smsBody?: string;
-  smsKind?: SmsKind;
   /** Adds "Reply STOP to opt out." to the text: for anything not about a booked visit. */
   smsOptOut?: boolean;
   /** A payment request: the chat shows it as a Pay card (lib/payments.ts). */
@@ -132,9 +131,9 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
   // only if there's no email either. Everything else: the app and email.
   const wantsText = d.text === "always" || (d.text === "fallback" && !(RESEND_ON && customer.email));
   const smsBody = d.text ? smsText(d.smsBody ?? d.body, CLUB.name, d.smsOptOut) : "";
-  if (TWILIO_ON && wantsText && !inApp && customer.phoneE164?.startsWith("+447") && (await smsAllowed(smsBody))) {
+  if (TWILIO_ON && wantsText && !inApp && customer.phoneE164?.startsWith("+447") && (await smsAllowed())) {
     try {
-      await sendSms(customer.phoneE164, smsBody, d.smsKind ?? "fallback");
+      await sendSms(customer.phoneE164, smsBody);
       via.push("text");
     } catch (err) {
       if (!(err instanceof SmsOptedOutError)) console.error("deliverToCustomer: text failed", err);
@@ -219,7 +218,6 @@ export async function sendVisitNotice(
     smsOptOut: type === "service_due",
     // Texts cost: only running late always, and a booking or cancellation if there's no email.
     text: type === "late" ? "always" : type === "booked" || type === "moved" || type === "cancelled" ? "fallback" : undefined,
-    smsKind: type === "late" ? "late" : "fallback",
     smsBody: shortNotice(type, facts, { name: customer.name, engineer, appLink: `${CLUB_SITE_URL.replace(/\/$/, "")}/app` }),
     emailHtml: (canReplyByEmail) =>
       visitEmailHtml({
@@ -313,7 +311,6 @@ export async function sendOnMyWay(appointmentId: string, staffId: string, etaMin
     body,
     // One of the two texts a customer gets (the other's after their first call).
     text: "always",
-    smsKind: "on_my_way",
     smsBody: `${hi}${engineer ? `${engineer}, your MPE engineer,` : "your MPE engineer"} is on the way. With you around ${arrive}. Reply if anything's changed.`,
     headline: "Your MPE engineer is on the way",
     staffId,

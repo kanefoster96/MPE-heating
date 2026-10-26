@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { validateTwilioSignature } from "@/lib/twilio";
+import { logUsage } from "@/lib/twilio-usage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrCreateConversationByPhone } from "@/lib/chat-db";
 import {
@@ -59,6 +60,8 @@ export async function POST(request: Request) {
   const from = paramsObject.From;
   const body = paramsObject.Body;
   if (!from || !body) return twimlResponse(200);
+  // Counted against the month's calls and texts allowance (lib/twilio-usage.ts).
+  await logUsage("text_in", Math.max(1, Number(paramsObject.NumSegments) || 1));
 
   const keyword = smsKeywordFor(body);
 

@@ -1,4 +1,5 @@
 import { customerLabel, getCustomers, listCustomers } from "@/lib/customers";
+import { monthUsage, poundsFromPence, ratesInPence } from "@/lib/twilio-usage";
 import { formatPence } from "@/lib/payments";
 import { longDate } from "@/lib/day-plan";
 import { londonNow } from "@/lib/schedule-time";
@@ -219,8 +220,35 @@ export async function deleteDayOff(id: string): Promise<Result> {
 
 const pounds = (pence: number | null | undefined) => (pence ? (pence / 100).toString() : "");
 
+/** The month's calls and texts against the allowance, for Settings: what's used, what it's on, the prices, and the pause choice. */
+export async function usageData() {
+  const u = await monthUsage();
+  return {
+    spent: poundsFromPence(u.spentPence),
+    allowance: poundsFromPence(u.allowancePence),
+    percent: Math.min(100, Math.round((u.spentPence / u.allowancePence) * 100)),
+    over: u.overPence ? poundsFromPence(u.overPence) : null,
+    projected: poundsFromPence(u.projectedPence),
+    projectedOver: u.projectedOverPence ? poundsFromPence(u.projectedOverPence) : null,
+    parts: [
+      ...u.parts.filter((p) => p.units > 0).map((p) => ({ label: p.label, detail: `${Number(p.units.toFixed(1))} ${p.unit}`, cost: poundsFromPence(p.pence) })),
+      { label: "The MPE number", detail: "this month", cost: poundsFromPence(u.numberPence) },
+    ],
+    twilioChecked: u.twilioPence != null,
+    pauseWhenUsed: u.pauseWhenUsed,
+    paused: u.paused,
+    rates: ratesInPence(),
+  };
+}
+
 export async function settingsData() {
-  const [products, review, plan, referral] = await Promise.all([listProducts(), getSetting("review_url").catch(() => null), planPrices(), referralRewards()]);
+  const [products, review, plan, referral, usage] = await Promise.all([
+    listProducts(),
+    getSetting("review_url").catch(() => null),
+    planPrices(),
+    referralRewards(),
+    usageData().catch(() => null),
+  ]);
   const have = new Set(products.map((p) => p.name.toLowerCase()));
   return {
     plan: {
@@ -231,6 +259,7 @@ export async function settingsData() {
     },
     referrals: { referrerReward: pounds(referral?.referrerPence), friendReward: pounds(referral?.friendPence) },
     reviewUrl: review ?? "",
+    usage,
     maxUpsells: MAX_UPSELLS,
     products: products.map((p) => {
       const offer = p.upsellPricePence ?? defaultUpsellPrice(p.pricePence);
@@ -288,6 +317,11 @@ export async function saveSettings(section: string, body: Record<string, unknown
     const ok = (await Promise.all([setSetting("referral_referrer_pence", referrer ? String(referrer) : null), setSetting("referral_friend_pence", friend ? String(friend) : null)])).every(Boolean);
     if (!ok) return { ok: false, error: "Couldn't save that." };
     return { ok: true, message: referrer || friend ? "Referral rewards saved." : "Referrals switched off." };
+  }
+  if (section === "usage") {
+    const pause = body.pauseWhenUsed === true;
+    if (!(await setSetting("twilio_pause_when_used", pause ? "1" : null))) return { ok: false, error: "Couldn't save that." };
+    return { ok: true, message: pause ? "Once the allowance is used, calls and texts pause until the 1st." : "Calls and texts keep going after the allowance: the extra goes on your next invoice." };
   }
   if (section === "review") {
     const parsed = parseReviewUrl(String(body.reviewUrl ?? ""));

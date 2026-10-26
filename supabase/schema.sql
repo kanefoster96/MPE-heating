@@ -856,17 +856,28 @@ create table if not exists public.sms_opt_outs (
 );
 alter table public.sms_opt_outs enable row level security;
 
--- Every text sent, and its segments (what Twilio charges per), so the month's
--- texts stay inside SMS_MONTHLY_SEGMENTS (lib/twilio.ts) and the Menu can show it.
-create table if not exists public.sms_sends (
+-- Calls and texts, logged with what they cost at Twilio's prices (lib/twilio-usage.ts),
+-- so the month's spend against MPE's £20 allowance is known as it happens.
+create table if not exists public.twilio_usage (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
-  segments int not null,
-  -- "call" (after a call), "on_my_way", "late", "fallback", "manual" (typed in the chat), "limit" (the alert, no text).
-  kind text not null
+  -- text_out (segments), text_in, call_in (minutes), call_forward (minutes put through), transcription (minutes)
+  kind text not null,
+  units numeric not null,
+  usd numeric not null
 );
-create index if not exists sms_sends_created_idx on public.sms_sends (created_at);
-alter table public.sms_sends enable row level security;
+create index if not exists twilio_usage_created_idx on public.twilio_usage (created_at);
+alter table public.twilio_usage enable row level security;
+-- Each month: Twilio's own total when it can be read, and the last £5 step the team were told about.
+create table if not exists public.twilio_months (
+  month text primary key,
+  twilio_usd numeric,
+  checked_at timestamptz,
+  alerted_level int
+);
+alter table public.twilio_months enable row level security;
+-- Replaced by twilio_usage.
+drop table if exists public.sms_sends;
 -- The one text after someone's first call (lib/missed-calls.ts): never sent to that number again.
 alter table public.chat_conversations add column if not exists call_text_sent_at timestamptz;
 

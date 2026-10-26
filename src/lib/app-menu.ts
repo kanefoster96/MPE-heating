@@ -8,7 +8,7 @@ import { getNewEnquiryCount, getUnreadCountForCoach } from "@/lib/chat-db";
 import { formatPence } from "@/lib/payments";
 import { monthName, monthNumbers, previousMonth } from "@/lib/monthly-report";
 import { staffIdentity } from "@/lib/staff-identity";
-import { smsThisMonth } from "@/lib/twilio";
+import { monthUsage, poundsFromPence } from "@/lib/twilio-usage";
 
 /**
  * Fergal's Menu in the app (mobile/app/(tabs)/menu.tsx): Kanvas Academy's
@@ -92,18 +92,23 @@ export async function staffOverview(user: User, admin: boolean): Promise<{ name:
   ];
 
   if (admin) {
-    // Texts cost per segment: how much of the month's allowance is used (lib/twilio.ts).
-    const texts = await smsThisMonth().catch(() => null);
-    if (texts) {
-      const near = texts.used >= texts.limit * 0.8;
+    // Calls and texts against the month's £20 allowance (lib/twilio-usage.ts).
+    const usage = await monthUsage().catch(() => null);
+    if (usage) {
+      const near = usage.spentPence >= usage.allowancePence * 0.75;
       cards.push({
-        id: "texts",
-        icon: "chatbox-ellipses",
-        title: "Texts this month",
-        value: `${texts.used} of ${texts.limit}`,
-        caption: texts.used >= texts.limit ? "Limit reached: updates go by the app and email" : `About £${((texts.used * 0.056 * 1.2) / 1.27).toFixed(2)} so far, with VAT`,
-        tone: near ? "alert" : "good",
+        id: "usage",
+        icon: "call",
+        title: "Calls and texts",
+        value: `${poundsFromPence(usage.spentPence)} of ${poundsFromPence(usage.allowancePence)}`,
+        caption: usage.paused
+          ? "Allowance used: paused until the 1st"
+          : usage.overPence
+            ? `${poundsFromPence(usage.overPence)} over: about ${poundsFromPence(usage.projectedOverPence)} on your next invoice`
+            : `About ${poundsFromPence(usage.projectedPence)} by the end of the month`,
+        tone: usage.overPence ? "alert" : near ? "alert" : "good",
         count: near ? 1 : 0,
+        route: "/settings",
       });
     }
     const s = await businessSnapshot(today);

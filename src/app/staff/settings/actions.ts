@@ -107,3 +107,12 @@ export async function saveReferralRewards(formData: FormData) {
   revalidatePath("/staff/settings");
   redirect(to({ referralDone: referrer || friend ? "Referral rewards saved." : "Referrals switched off." }));
 }
+
+/** Whether calls and texts pause once the month's allowance is used (lib/twilio-usage.ts). Off by default. */
+export async function saveUsagePause(pause: boolean) {
+  await requireAdmin();
+  const to = (params: Record<string, string>) => `/staff/settings?${new URLSearchParams(params).toString()}#usage`;
+  if (!(await setSetting("twilio_pause_when_used", pause ? "1" : null))) redirect(to({ usageError: "Couldn't save that." }));
+  revalidatePath("/staff/settings");
+  redirect(to({ usageDone: pause ? "Calls and texts will pause once the allowance is used, until the 1st." : "Calls and texts keep going after the allowance." }));
+}

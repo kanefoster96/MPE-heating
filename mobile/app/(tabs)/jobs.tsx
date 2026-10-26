@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ActiveJob, PreviousJob } from "@/components/job-card";
 import { StaffJobCard } from "@/components/staff-job";
@@ -162,7 +162,17 @@ function stripLabel(iso: string, i: number): { top: string; bottom: string } {
 
 function TeamDay() {
   const router = useRouter();
+  // Home's week strip opens a particular day.
+  const params = useLocalSearchParams<{ day?: string }>();
   const [day, setDay] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (params.day && params.day !== day) {
+      setDay(params.day);
+      setData((current) => (current ? { ...current, day: params.day!, jobs: [], label: "…" } : current));
+    }
+    // Only when a new day comes in from a link, not when the strip changes it.
+  }, [params.day]);
   const [data, setData] = useState<StaffDay | null>(() => readCached("/api/mobile/staff/jobs") ?? null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);

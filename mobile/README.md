@@ -35,7 +35,10 @@ picked up.
   (sign in, or their account), the MPE logo, and the bell on the right.
 - **Home** (`app/(tabs)/index.tsx`): book a call-out or a service, three
   more services and All services, the help guides with a search, and live
-  chat.
+  chat. The team get their day instead (`components/team-home.tsx`): the
+  next job with its buttons, the rest of today, the week (tap a day to
+  open it in Jobs), Take payment and Add a visit (plus New invoice and New
+  quote for admins), and anything that needs them from the Menu.
 - **Services** (`app/(tabs)/services.tsx`): every service with its price
   and Book, and the maintenance plan.
 - **The orange button** in the middle: the call-out request. For the team,

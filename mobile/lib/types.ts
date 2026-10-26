@@ -95,6 +95,7 @@ export type StaffJob = {
   status: "requested" | "booked" | "done" | "no_access" | "cancelled";
   window: string;
   start: number;
+  end: number;
   customer: { name: string | null; phone: string | null; conversationId: string | null } | null;
   address: string | null;
   postcode: string | null;

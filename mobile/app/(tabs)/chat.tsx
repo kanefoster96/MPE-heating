@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { MPE_PHONE } from "@/lib/site";
 import { Animated, FlatList, PanResponder, Platform, Pressable, RefreshControl, TextInput, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +15,7 @@ import { openExternal } from "@/lib/open-link";
 import { colors, fonts } from "@/lib/theme";
 import type { InboxItem } from "@/lib/types";
 
-const PHONE = "tel:07448628101";
+const PHONE = MPE_PHONE.href;
 const WHATSAPP = "https://wa.me/447448628101";
 
 /**

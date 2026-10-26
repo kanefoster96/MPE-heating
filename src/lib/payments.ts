@@ -495,7 +495,7 @@ export async function createPaymentRequest(params: {
   // The repair's invoice, with the call-out fee still unpaid: the £50 comes
   // off the repair, so the fee's dropped (and its reminders with it), and
   // they're told so with this invoice.
-  const folded = params.kind === "invoice" && params.staffId && !params.quoteId ? await foldOpenCalloutFees(params.appointmentId ? { appointmentId: params.appointmentId } : { customerId: customer.id }) : 0;
+  const folded = params.kind === "invoice" && params.staffId ? await foldOpenCalloutFees(params.appointmentId ? { appointmentId: params.appointmentId } : { customerId: customer.id }) : 0;
   const foldedLine = folded ? " Your call-out fee is part of this bill, so there's nothing else to pay." : "";
   const charge = params.chargeNow ? await chargeSavedCard(request.id) : undefined;
   if (charge?.ok) request = (await getPaymentRequest(request.id)) ?? request;

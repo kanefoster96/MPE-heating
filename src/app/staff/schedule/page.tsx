@@ -4,7 +4,7 @@ import { requireStaff } from "@/lib/staff-auth";
 import { formatLondonClock, londonNow } from "@/lib/schedule-time";
 import { appointmentsBetween, getAppointment, pendingForCustomer, returnsToBook, waitingOnTeam, type Appointment } from "@/lib/appointments";
 import { business } from "@/lib/content";
-import { ON_MY_WAY_ETAS, viaPhrase } from "@/lib/visit-notify";
+import { LATE_MINUTES, ON_MY_WAY_ETAS, viaPhrase } from "@/lib/visit-notify";
 import { remindersSent } from "@/lib/follow-up-sweep";
 import { PAID_VIA_LABEL, formatPence, invoiceNumber, paymentsForAppointments, type PaymentRequest } from "@/lib/payments";
 import { requestedWhen } from "@/lib/visit-copy";
@@ -49,6 +49,7 @@ import {
   removeAppointment,
   sendVisitDetails,
   onMyWay,
+  runningLate,
 } from "./actions";
 import { openCustomerChat } from "../customers/actions";
 
@@ -631,6 +632,11 @@ function VisitCard({
         </Link>
       </div>
 
+      {a.cantMakeAt && a.status === "booked" && (
+        <p className="mt-3 rounded-xl border border-danger/30 bg-danger/5 px-3 py-2.5 text-sm font-semibold text-danger" data-cant-make>
+          {firstName === "them" ? "They" : firstName} won&rsquo;t be in. Move it to a new time, or cancel it.
+        </p>
+      )}
       {a.change && (
         <div className="mt-3 rounded-xl border border-accent/40 bg-accent/5 px-3 py-2.5 text-sm" data-change-request>
           <p className="font-semibold">
@@ -761,6 +767,7 @@ function VisitCard({
       )}
 
       {customer && a.status === "booked" && a.day <= today && <OnMyWay appointment={a} />}
+      {customer && a.status === "booked" && a.day === today && <RunningLate appointment={a} />}
       {customer && !requested && a.status !== "cancelled" && (a.kind === "quote" || a.kind === "install") && <QuoteLine appointment={a} quotes={quotes} />}
       {customer && !requested && a.status !== "cancelled" && <PaymentLine appointment={a} payments={payments} />}
       {customer && !requested && <NoticeLine appointment={a} firstName={firstName} />}
@@ -788,6 +795,22 @@ function OnMyWay({ appointment: a }: { appointment: Appointment }) {
             className="inline-flex min-h-11 items-center rounded-full border border-accent/50 bg-accent/5 px-3.5 text-sm font-semibold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             {m < 60 ? `${m} min` : m === 60 ? "1 hour" : "1½ hours"}
+          </button>
+        ))}
+      </div>
+    </form>
+  );
+}
+
+/** Running late: the arrival window moves on, and they're told the new one. */
+function RunningLate({ appointment: a }: { appointment: Appointment }) {
+  return (
+    <form action={runningLate.bind(null, a.id, a.day)} className="mt-3 border-t border-border pt-3" data-running-late>
+      <p className="text-sm font-semibold">Running late? Move their arrival time on by:</p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {LATE_MINUTES.map((m) => (
+          <button key={m} type="submit" name="minutes" value={m} className={PILL + " min-h-11"}>
+            {m < 60 ? `${m} min` : m === 60 ? "1 hour" : m === 90 ? "1½ hours" : "2 hours"} ({windowLabel(a.start + m, Math.min(a.end + m, 23 * 60 + 59))})
           </button>
         ))}
       </div>

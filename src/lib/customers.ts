@@ -32,6 +32,8 @@ export type Customer = {
   lastService: string | null;
   boilerNotes: string | null;
   accessNotes: string | null;
+  /** How they found MPE, for a phone booking ("Google", "Recommended"...): website bookings record their own source. */
+  heardFrom: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -60,6 +62,7 @@ type Row = {
   last_service: string | null;
   boiler_notes: string | null;
   access_notes: string | null;
+  heard_from?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -82,6 +85,7 @@ function mapCustomer(r: Row): Customer {
     lastService: r.last_service,
     boilerNotes: r.boiler_notes ?? null,
     accessNotes: r.access_notes,
+    heardFrom: r.heard_from ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -114,6 +118,7 @@ export type CustomerFields = {
   lastService: string | null;
   boilerNotes: string | null;
   accessNotes: string | null;
+  heardFrom: string | null;
 };
 
 const FIELD_COLUMN: Record<keyof CustomerFields, keyof Row> = {
@@ -129,6 +134,7 @@ const FIELD_COLUMN: Record<keyof CustomerFields, keyof Row> = {
   lastService: "last_service",
   boilerNotes: "boiler_notes",
   accessNotes: "access_notes",
+  heardFrom: "heard_from",
 };
 
 const MAX_LENGTH: Partial<Record<keyof CustomerFields, number>> = { address: 400, accessNotes: 1000, boilerNotes: 1000, name: 120, email: 200 };

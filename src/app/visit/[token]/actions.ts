@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { isDayOff } from "@/lib/days-off";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAppointmentByToken, setChangeRequest } from "@/lib/appointments";
+import { getAppointmentByToken, markCantMake, setChangeRequest } from "@/lib/appointments";
 import { getCustomer } from "@/lib/customers";
 import { postCustomerVisitMessage } from "@/lib/visit-notify";
 import { requestedWhen } from "@/lib/visit-copy";
@@ -60,4 +60,22 @@ export async function askForAnotherTime(token: string, formData: FormData) {
   revalidatePath(`/visit/${token}`);
   revalidatePath("/staff/schedule");
   redirect(`/visit/${token}?asked=1`);
+}
+
+/**
+ * "I won't be in", from the visit page (the link in every reminder and the
+ * running-late message): the team's told in their chat straight away, the
+ * reminders stop, and the page offers another time and the live chat.
+ */
+export async function cantBeIn(token: string) {
+  const visit = await getAppointmentByToken(token);
+  if (!visit || !visit.customerId || visit.status !== "booked") redirect(`/visit/${token}`);
+  const customer = await getCustomer(visit.customerId);
+  if (customer && (await markCantMake(visit.id))) {
+    const what = visit.followUpOf ? "return visit" : KIND_LABEL[visit.kind].toLowerCase();
+    await postCustomerVisitMessage(customer, `I won't be in for my ${what} on ${longDate(visit.day)}, ${windowLabel(visit.start, visit.end)}. I'll need to rebook.`);
+  }
+  revalidatePath(`/visit/${token}`);
+  revalidatePath("/staff/schedule");
+  redirect(`/visit/${token}#another-time`);
 }

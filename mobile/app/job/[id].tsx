@@ -242,6 +242,9 @@ function Job() {
                   <>
                     <PrimaryButton title="Book the return visit" icon="calendar" size="medium" onPress={() => router.push(`/visit-form?followUp=${data.job.id}`)} />
                     <View style={{ flexDirection: "row" }}>
+                      <Pill icon="document-text-outline" label="Send the repair price" onPress={() => router.push(`/new-quote?visit=${data.job.id}`)} />
+                    </View>
+                    <View style={{ flexDirection: "row" }}>
                       <Pill
                         icon="close-circle-outline"
                         label={busy === "no_return" ? "Saving…" : "Not needed now"}

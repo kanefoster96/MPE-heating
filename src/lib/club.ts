@@ -16,7 +16,7 @@ export const CLUB = {
   siteUrl: "https://mpe-heating.vercel.app",
   email: business.email,
   phone: business.phoneDisplay,
-  phoneE164: "+447448628101",
+  phoneE164: business.phoneE164,
   address: { town: business.base, region: business.baseRegion },
   app: {
     name: `${business.name} App`,

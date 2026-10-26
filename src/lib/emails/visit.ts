@@ -41,12 +41,13 @@ export function visitEmailHtml(params: {
         : `${longDate(visit.day)}, between ${windowLabel(visit.start, visit.end).replace("–", " and ")}`;
 
   const intro: Record<NoticeType, string> = {
-    booked: "You're booked in. Here are the details.",
+    booked: `You're booked in. Here are the details.${params.engineer ? ` Your MPE engineer will be ${escapeHtml(params.engineer)}.` : ""}${visit.calloutFee && visit.kind === "callout" ? ` The call-out is ${escapeHtml(visit.calloutFee)}, taken off your repair bill if you go ahead.` : ""}`,
     moved: "We've moved your visit. Here's the new time.",
     cancelled: "This visit is cancelled. If you'd still like one, just reply or give us a call.",
     reminder: "A reminder that we're with you tomorrow.",
     requested: `Thanks, we've got your request. We'll be in touch to confirm the time.${visit.kind === "callout" || visit.kind === "repair" ? ` If it's urgent, call us on ${escapeHtml(phone)}.` : ""}`,
-    hour: `Just confirming ${params.engineer ? `${escapeHtml(params.engineer)} from MPE` : "our engineer"} will be with you today between ${windowLabel(visit.start, visit.end).replace("–", " and ")}.`,
+    hour: `Just confirming ${params.engineer ? `your MPE engineer, ${escapeHtml(params.engineer)},` : "your MPE engineer"} will be with you today between ${windowLabel(visit.start, visit.end).replace("–", " and ")}.`,
+    late: `Sorry, we're running behind today. ${params.engineer ? `Your MPE engineer, ${escapeHtml(params.engineer)},` : "Your MPE engineer"} will now be with you between ${windowLabel(visit.start, visit.end).replace("–", " and ")}.`,
     missed: "We called round but couldn't get in. No problem: pick another time that suits and we'll confirm it.",
     past_request: "Sorry, we didn't get to your request on the day you asked for. Pick another day that suits and we'll confirm it.",
     service_due: `It's nearly a year since your boiler ${visit.kind === "install" ? "was fitted" : "was last serviced"}, so its annual service is due. A yearly service keeps it safe and its warranty valid.`,
@@ -54,8 +55,8 @@ export function visitEmailHtml(params: {
   const after =
     type === "cancelled" || type === "requested" || type === "missed" || type === "past_request" || type === "service_due"
       ? ""
-      : type === "hour"
-        ? `<p ${P}>If anything's changed, call ${escapeHtml(phone)}.</p>`
+      : type === "hour" || type === "late"
+        ? `<p ${P}>If you won't be in, let us know on the page below${params.canReplyByEmail ? ", by replying to this email," : ""} or by calling ${escapeHtml(phone)}.</p>`
       : `<p ${P}>If you can't make it, let us know${params.canReplyByEmail ? " by replying to this email," : ""} on the page below or by calling ${escapeHtml(phone)}.</p>`;
 
   const bodyHtml = `<p ${P}>${hi}</p>

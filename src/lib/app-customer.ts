@@ -113,7 +113,7 @@ export async function staffCustomer(id: string, viewerId: string): Promise<Staff
   return {
     id: customer.id,
     name: customer.name || customer.email || customer.phone || "Customer",
-    since: `Customer since ${SHORT.format(new Date(customer.createdAt))}`,
+    since: `Customer since ${SHORT.format(new Date(customer.createdAt))}${customer.heardFrom ? ` · Found us: ${customer.heardFrom}` : ""}`,
     conversationId: customer.conversationId,
     email: customer.email,
     phone: customer.phone ?? customer.phoneE164,

@@ -196,7 +196,7 @@ export type VisitBody = {
   followUpOf?: string | null;
   /** From a chat: its open booking forms are marked booked. */
   conversationId?: string | null;
-  newCustomer?: { name?: string; phone?: string; email?: string } | null;
+  newCustomer?: { name?: string; phone?: string; email?: string; heardFrom?: string } | null;
   notify?: boolean;
 };
 
@@ -228,6 +228,7 @@ export async function saveVisit(
     fields.set("name", fresh.name ?? "");
     fields.set("phone", fresh.phone ?? "");
     fields.set("email", fresh.email ?? "");
+    if (fresh.heardFrom) fields.set("heardFrom", fresh.heardFrom);
     fields.set("address", body.address ?? "");
     fields.set("postcode", body.postcode ?? "");
     const parsed = customerFieldsFromForm(fields);

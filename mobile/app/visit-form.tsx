@@ -89,6 +89,9 @@ function Field({ label, value, onChange, placeholder, multiline, keyboardType, a
   );
 }
 
+/** Quick answers to "How did they hear about us?"; anything else goes in their words. */
+const HEARD_FROM = ["Google", "Facebook or Instagram", "Recommended", "Used us before"];
+
 function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
   return (
     <PressableScale onPress={onPress} accessibilityLabel={`${label}${on ? ", selected" : ""}`} style={{ height: 44, paddingHorizontal: 16, borderRadius: 999, justifyContent: "center", backgroundColor: on ? colors.navy : colors.card, borderWidth: 1, borderColor: on ? colors.navy : colors.edge }}>
@@ -147,7 +150,7 @@ export default function VisitForm() {
   const [pickMonth, setPickMonth] = useState<string>("");
   const [search, setSearch] = useState("");
   const [options, setOptions] = useState<Option[]>([]);
-  const [fresh, setFresh] = useState<{ name: string; phone: string; email: string } | null>(null);
+  const [fresh, setFresh] = useState<{ name: string; phone: string; email: string; heardFrom?: string } | null>(null);
   const today = new Date().toISOString().slice(0, 10);
 
   const load = useCallback(async () => {
@@ -284,6 +287,16 @@ export default function VisitForm() {
                   <Field label="Name" value={fresh.name} onChange={(v) => setFresh({ ...fresh, name: v })} autoCapitalize="words" />
                   <Field label="Mobile" value={fresh.phone} onChange={(v) => setFresh({ ...fresh, phone: v })} keyboardType="phone-pad" />
                   <Field label="Email" value={fresh.email} onChange={(v) => setFresh({ ...fresh, email: v })} keyboardType="email-address" autoCapitalize="none" />
+                  {/* A phone booking: where they found MPE (the website's forms record their own). */}
+                  <AppText weight="semibold" style={{ fontSize: 14, marginTop: 4 }}>
+                    How did they hear about us?
+                  </AppText>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                    {HEARD_FROM.map((h) => (
+                      <Chip key={h} label={h} on={fresh.heardFrom === h} onPress={() => setFresh({ ...fresh, heardFrom: fresh.heardFrom === h ? "" : h })} />
+                    ))}
+                  </View>
+                  <Field label="Or in their words (optional)" value={fresh.heardFrom && !HEARD_FROM.includes(fresh.heardFrom) ? fresh.heardFrom : ""} onChange={(v) => setFresh({ ...fresh, heardFrom: v })} autoCapitalize="sentences" />
                   <PressableScale onPress={() => setFresh(null)} accessibilityLabel="Find an existing customer instead" style={{ height: 40, justifyContent: "center" }}>
                     <AppText weight="semibold" style={{ color: colors.orangeDeep }}>
                       Find an existing customer instead

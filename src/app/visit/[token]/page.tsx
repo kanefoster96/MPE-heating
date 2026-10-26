@@ -15,7 +15,7 @@ import { requestedWhen, whenLine } from "@/lib/visit-copy";
 import { londonNow } from "@/lib/schedule-time";
 import { arrivalClock } from "@/lib/visit-notify";
 import { fileLabel, sharedFilesForVisit } from "@/lib/job-files";
-import { askForAnotherTime } from "./actions";
+import { askForAnotherTime, cantBeIn } from "./actions";
 import { getJobReview } from "@/lib/job-completion";
 import { formatPence, invoiceNumber, paymentsForAppointments } from "@/lib/payments";
 
@@ -80,6 +80,8 @@ export default async function VisitPage({
         ? { lead: "Sorry we missed you.", em: "Pick another time." }
       : bookedInstead
         ? { lead: "You're booked in.", em: "See your visit." }
+      : visit.status === "booked" && visit.cantMakeAt && !visit.change
+        ? { lead: "Thanks for letting us know.", em: "Let's find another time." }
       : visit.status === "cancelled"
         ? { lead: "This visit is", em: "cancelled." }
         : comingBack
@@ -236,8 +238,24 @@ export default async function VisitPage({
                 the details by message once it&rsquo;s booked.
               </p>
             )}
+            {visit.status === "booked" && upcoming && visit.cantMakeAt && (
+              <p className="mt-5 rounded-2xl bg-cream px-4 py-3 text-text-2" data-cant-make>
+                You&rsquo;ve told us you won&rsquo;t be in, and your engineer knows. Pick another time below, or{" "}
+                <Link href="/messages" className="font-semibold text-terracotta-deep underline underline-offset-4">
+                  live chat with us
+                </Link>
+                .
+              </p>
+            )}
             {visit.status === "booked" && upcoming && (
               <div className="mt-6 flex flex-wrap gap-2">
+                {!visit.cantMakeAt && (
+                  <form action={cantBeIn.bind(null, token)} id="wont-be-in">
+                    <button type="submit" className="inline-flex min-h-11 items-center rounded-full border border-danger/40 px-4 text-sm font-semibold text-danger hover:border-danger">
+                      I won&rsquo;t be in
+                    </button>
+                  </form>
+                )}
                 <a
                   href={`/visit/${token}/calendar.ics`}
                   className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 text-sm font-semibold text-navy hover:border-navy/40"

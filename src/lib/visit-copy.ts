@@ -18,6 +18,8 @@ export type NoticeType =
   | "missed"
   // A request whose day went by without us booking it.
   | "past_request"
+  // Running late: the arrival window's moved on (lib/visit-notify.ts sendRunningLate).
+  | "late"
   | "service_due";
 
 export type VisitFacts = {
@@ -30,6 +32,8 @@ export type VisitFacts = {
   postcode?: string | null;
   /** A return visit: what we're coming back for ("fit the new diverter valve"). */
   returning?: string | null;
+  /** A call-out's fee, said when it's booked ("£50"); none on the maintenance plan. */
+  calloutFee?: string | null;
 };
 
 /** "Tuesday 27 October, between 8am and 12pm". */
@@ -62,6 +66,7 @@ const HEADLINE: Record<NoticeType, (v: VisitFacts) => string> = {
   hour: (v) => (v.returning ? "Confirming today's return visit" : `Confirming today's ${kindName(v.kind)}`),
   missed: () => `Sorry we missed you`,
   past_request: () => `Sorry, we didn't get to you`,
+  late: () => `Your arrival time has changed`,
   service_due: () => `Your boiler service is due`,
 };
 
@@ -84,9 +89,13 @@ export function noticeBody(
   const what = visitName(v);
   const where = [v.address, v.postcode].filter(Boolean).join(", ");
   const cantMake = `If you can't make it, let us know${opts.link ? `: ${opts.link}` : ` on ${opts.phone}`}`;
+  // MPE's engineer by name, as the one on their job ("your MPE engineer, Fergal").
+  const yourEngineer = opts.engineer ? `your MPE engineer, ${opts.engineer},` : "your MPE engineer";
+  const engineerLine = opts.engineer ? ` Your MPE engineer will be ${opts.engineer}.` : "";
+  const feeLine = v.calloutFee && v.kind === "callout" ? ` The call-out is ${v.calloutFee}, taken off your repair bill if you go ahead.` : "";
   switch (type) {
     case "booked":
-      return `${hi}you're booked in for your ${what} on ${whenLine(v)}${where ? ` at ${where}` : ""}. ${cantMake}`;
+      return `${hi}you're booked in for your ${what} on ${whenLine(v)}${where ? ` at ${where}` : ""}.${engineerLine}${feeLine} ${cantMake}`;
     case "moved":
       return `${hi}your ${what} has moved to ${whenLine(v)}${where ? ` at ${where}` : ""}. ${cantMake}`;
     case "cancelled":
@@ -96,7 +105,9 @@ export function noticeBody(
     case "hour":
       // The Academy's hour-before text: a named person expected at the
       // door, and nothing to do. No way out offered, just the number.
-      return `${hi}just confirming ${opts.engineer ? `${opts.engineer} from MPE` : "our engineer"} will be with you today between ${windowLabel(v.start, v.end).replace("–", " and ")} for your ${what}. If anything's changed, call ${opts.phone}.`;
+      return `${hi}just confirming ${yourEngineer} will be with you today between ${windowLabel(v.start, v.end).replace("–", " and ")} for your ${what}. If you won't be in, let us know${opts.link ? `: ${opts.link}` : `, call ${opts.phone}`}`;
+    case "late":
+      return `${hi}sorry, we're running behind today. ${yourEngineer.charAt(0).toUpperCase()}${yourEngineer.slice(1)} will now be with you between ${windowLabel(v.start, v.end).replace("–", " and ")}. If you won't be in, let us know${opts.link ? `: ${opts.link}` : `, call ${opts.phone}`}`;
     case "missed":
       return `${hi}we called round for your ${what} on ${longDate(v.day)} but couldn't get in. No problem, pick another time that suits${opts.link ? `: ${opts.link}` : ` and call us on ${opts.phone}`}`;
     case "past_request":

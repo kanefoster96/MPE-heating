@@ -27,6 +27,8 @@ export function visitEmailHtml(params: {
   bookLink?: string;
   /** Who's coming, for the hour-before message. */
   engineer?: string | null;
+  /** A call-out they can pay ahead (lib/callout-prepay.ts): the email's button. */
+  payLink?: string | null;
 }): string {
   const { type, visit, link, phone, phoneHref } = params;
   const hi = params.name ? `Hi ${escapeHtml(params.name.split(" ")[0])},` : "Hi,";
@@ -59,8 +61,10 @@ export function visitEmailHtml(params: {
         ? `<p ${P}>If you won't be in, let us know on the page below${params.canReplyByEmail ? ", by replying to this email," : ""} or by calling ${escapeHtml(phone)}.</p>`
       : `<p ${P}>If you can't make it, let us know${params.canReplyByEmail ? " by replying to this email," : ""} on the page below or by calling ${escapeHtml(phone)}.</p>`;
 
+  const prepay = type === "booked" && !!params.payLink;
   const bodyHtml = `<p ${P}>${hi}</p>
 <p ${P}>${intro[type]}</p>
+${prepay ? `<p ${P}>You can pay the call-out now from your phone, by Apple Pay, Google Pay or card. Or pay ${params.engineer ? escapeHtml(params.engineer) : "your engineer"} on the day.</p>` : ""}
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse">
 <tr><td ${LABEL}>Visit</td><td ${VALUE}>${escapeHtml(visit.returning ? "Return visit" : KIND_LABEL[visit.kind])}</td></tr>
 <tr><td ${LABEL}>${type === "requested" || type === "past_request" ? "You asked for" : type === "service_due" ? "Last visit" : type === "missed" ? "Booked for" : "When"}</td><td ${VALUE}>${escapeHtml(when)}</td></tr>
@@ -72,9 +76,9 @@ ${after}`;
     previewText: `${noticeHeadline(type, visit)}: ${when}`,
     heading: noticeHeadline(type, visit),
     bodyHtml,
-    ctaLabel: type === "cancelled" ? undefined : type === "missed" || type === "past_request" ? "Pick another time" : type === "service_due" ? "Book your service" : "See your visit",
-    ctaUrl: type === "cancelled" ? undefined : type === "service_due" ? (params.bookLink ?? link) : link,
-    secondaryCtaLabel: `Call ${phone}`,
-    secondaryCtaUrl: phoneHref,
+    ctaLabel: prepay ? `Pay the ${visit.calloutFee} call-out now` : type === "cancelled" ? undefined : type === "missed" || type === "past_request" ? "Pick another time" : type === "service_due" ? "Book your service" : "See your visit",
+    ctaUrl: prepay ? (params.payLink ?? link) : type === "cancelled" ? undefined : type === "service_due" ? (params.bookLink ?? link) : link,
+    secondaryCtaLabel: prepay ? "See your visit" : `Call ${phone}`,
+    secondaryCtaUrl: prepay ? link : phoneHref,
   });
 }

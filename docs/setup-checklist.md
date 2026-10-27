@@ -124,6 +124,14 @@ deployment.
       from 8am to 8pm, with the gas emergency number (0800 111 999). Any
       chat left unanswered for two hours in the day (counted from 8am for
       overnight ones) reminds the team once.
+- [ ] **Paying the call-out ahead:** a booked call-out's confirmation
+      (email, app and message), visit page and job card in the app offer
+      "Pay the £50 call-out now" (Apple Pay, Google Pay or card), "or pay
+      your engineer on the day". Not for plan members or return visits.
+      Nothing's charged until they tap it, and one started and left isn't
+      chased. Fergal sees it paid on the job, and the invoice for the
+      repair takes it off. If the visit's cancelled, it counts for their
+      next one (or refund it in Stripe).
 - [ ] Booking from the app (Book a call-out, Book a service, the
       services list): the form opens signed in, so someone signed in to
       the app sees "Booking as Sam Taylor, 12 Park Avenue…" with Change,

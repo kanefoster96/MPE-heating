@@ -18,6 +18,7 @@ import { fileLabel, sharedFilesForVisit } from "@/lib/job-files";
 import { askForAnotherTime, cantBeIn } from "./actions";
 import { getJobReview } from "@/lib/job-completion";
 import { formatPence, invoiceNumber, paymentsForAppointments } from "@/lib/payments";
+import { canPrepayCallout } from "@/lib/callout-prepay";
 
 export const metadata: Metadata = {
   title: "Your visit",
@@ -68,6 +69,8 @@ export default async function VisitPage({
     visit.status === "cancelled"
       ? ((await appointmentsForCustomer(visit.customerId)).filter((a) => a.createdAt > visit.createdAt && (a.status === "booked" || a.status === "done")).sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0] ?? null)
       : null;
+  // A booked call-out they can pay ahead from here (lib/callout-prepay.ts), or on the day.
+  const prepay = await canPrepayCallout(visit).catch(() => false);
   // A request whose day has gone without us booking it.
   const missedRequest = visit.status === "requested" && !upcoming;
 
@@ -246,6 +249,19 @@ export default async function VisitPage({
                 </Link>
                 .
               </p>
+            )}
+            {prepay && (
+              <div className="mt-6 rounded-2xl bg-cream px-4 py-4" data-prepay>
+                <a
+                  href={`/visit/${token}/pay`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-terracotta-deep px-5 text-sm font-semibold text-white hover:opacity-90"
+                >
+                  Pay the £50 call-out now
+                </a>
+                <p className="mt-2 text-sm text-text-2">
+                  Apple Pay, Google Pay or card. Or pay your engineer on the day. It comes off your repair bill if you go ahead.
+                </p>
+              </div>
             )}
             {visit.status === "booked" && upcoming && (
               <div className="mt-6 flex flex-wrap gap-2">

@@ -25,6 +25,8 @@ import { CATEGORY_LABEL, enquiriesForCustomer } from "@/lib/enquiries";
 import { arrivalClock, visitLink } from "@/lib/visit-notify";
 import { bookedPerDay } from "@/lib/dashboard";
 import { closedDays } from "@/lib/days-off";
+import { prepayLink, prepayable } from "@/lib/callout-prepay";
+import { planFor } from "@/lib/maintenance-plan";
 
 /**
  * The app's Jobs tab (mobile/app/(tabs)/jobs.tsx), built fresh from the
@@ -85,7 +87,7 @@ function paymentStep(payments: PaymentRequest[]): { step: JobStep; action?: JobA
   return { step: { label: "Paid", state: "done" }, action: { label: "Receipt", url: payLink(live[0]) } };
 }
 
-function visitCard(v: Appointment, today: string, payments: PaymentRequest[], hasFiles: boolean, returnVisit: Appointment | null = null): JobCard {
+function visitCard(v: Appointment, today: string, payments: PaymentRequest[], hasFiles: boolean, returnVisit: Appointment | null = null, onPlan = false): JobCard {
   // Not fixed first time: we found the fault and we're coming back (a part to fit).
   const comingBack = v.status === "done" && v.outcome === "return" && returnVisit?.status !== "done";
   const done = v.status === "done";
@@ -124,6 +126,8 @@ function visitCard(v: Appointment, today: string, payments: PaymentRequest[], ha
 
   const actions: JobAction[] = [];
   if (pay?.action) actions.push(pay.action);
+  // A booked call-out: pay the £50 ahead from their phone if they like (lib/callout-prepay.ts), or on the day.
+  if (!pay?.action && prepayable(v, { onPlan, payments })) actions.push({ label: "Pay the £50 call-out now", url: prepayLink(v) });
   if (v.status === "no_access") actions.push({ label: "Pick another time", url: visitLink(v), primary: true });
   if (v.status === "requested" && v.day < today) actions.push({ label: "Pick another day", url: `${visitLink(v)}#another-time`, primary: true });
   // Booked and still to come: they can say they won't be in (the team's told, and it's rebooked).
@@ -193,12 +197,13 @@ export async function customerJobs(user: User): Promise<{ active: JobCard[]; pre
   const customer = await customerForUser(user.id, user.email);
   if (!customer) return { active: [], previous: [] };
   const today = londonNow().dateISO;
-  const [visits, payments, quotes, files, enquiries] = await Promise.all([
+  const [visits, payments, quotes, files, enquiries, plan] = await Promise.all([
     appointmentsForCustomer(customer.id),
     paymentsForCustomer(customer.id),
     quotesForCustomer(customer.id),
     filesForCustomer(customer.id, { sharedOnly: true }).catch(() => []),
     enquiriesForCustomer(customer.id).catch(() => []),
+    planFor(customer.id).catch(() => null),
   ]);
   const byVisit = new Map<string, PaymentRequest[]>();
   for (const p of payments) if (p.appointmentId) byVisit.set(p.appointmentId, [...(byVisit.get(p.appointmentId) ?? []), p]);
@@ -210,7 +215,7 @@ export async function customerJobs(user: User): Promise<{ active: JobCard[]; pre
   for (const v of visits) {
     if (v.status === "cancelled") continue;
     const returnVisit = visits.find((r) => r.followUpOf === v.id && r.status !== "cancelled") ?? null;
-    const card = visitCard(v, today, byVisit.get(v.id) ?? [], filesByVisit.has(v.id), returnVisit);
+    const card = visitCard(v, today, byVisit.get(v.id) ?? [], filesByVisit.has(v.id), returnVisit, plan?.status === "active" || plan?.status === "past_due");
     // Not fixed first time: the call-out goes to history, and up top is the
     // repair still to be scheduled (then, once booked, the return visit's own card).
     const comingBack = v.status === "done" && v.outcome === "return";

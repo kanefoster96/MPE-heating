@@ -13,6 +13,7 @@ import {
   setAppointmentStatus,
   updateAppointment,
 } from "@/lib/appointments";
+import { releasePaidCallout } from "@/lib/callout-prepay";
 import { createCustomer, customerFieldsFromForm, customerLabel, getCustomer, listCustomers } from "@/lib/customers";
 import { closedDays } from "@/lib/days-off";
 import { APPOINTMENT_KINDS, KIND_DEFAULT_MINUTES, KIND_LABEL, PART_LABEL, PART_WINDOW, addDays, longDate, toHHMM, type AppointmentKind } from "@/lib/day-plan";
@@ -310,7 +311,10 @@ export async function visitAction(id: string, action: VisitAction, staffId: stri
     case "cancel_quietly": {
       await setAppointmentStatus(id, "cancelled");
       const sent = action === "cancel" && visit.customerId && visit.status !== "requested" ? await sendVisitNoticeForTeam(id, "cancelled", staffId) : null;
-      return { ok: true, message: `Cancelled.${sentLine(sent, name)}`, whatsapp: sent?.whatsapp ?? null };
+      // Paid the call-out ahead: it counts for their next visit (or refund it in Stripe).
+      const paidAhead = await releasePaidCallout(id);
+      const carried = paidAhead ? " Their call-out was paid: it comes off their next visit, or refund it in Stripe." : "";
+      return { ok: true, message: `Cancelled.${sentLine(sent, name)}${carried}`, whatsapp: sent?.whatsapp ?? null };
     }
     case "remove":
       if (!(await deleteAppointment(id))) return { ok: false, error: "Couldn't remove that visit." };

@@ -221,7 +221,12 @@ async function deliverVisitNotice(appointmentId: string, type: NoticeType, staff
     // A return visit says what it's for: what the first visit said, else its title.
     returning: appointment.followUpOf ? ((await getAppointment(appointment.followUpOf))?.returnNote ?? appointment.title ?? "finish the job") : null,
   };
-  const body = noticeBody(type, facts, { link, bookLink, engineer, phone: business.phoneDisplay, name: customer.name });
+  // A call-out they can pay ahead, from the booking confirmation (lib/callout-prepay.ts).
+  const payLink =
+    type === "booked" && facts.calloutFee
+      ? await import("@/lib/callout-prepay").then(async ({ canPrepayCallout, prepayLink }) => ((await canPrepayCallout(appointment)) ? prepayLink(appointment) : null)).catch(() => null)
+      : null;
+  const body = noticeBody(type, facts, { link, bookLink, engineer, phone: business.phoneDisplay, name: customer.name, payLink });
 
   const via = await deliverToCustomer(customer, {
     body,
@@ -247,6 +252,7 @@ async function deliverVisitNotice(appointmentId: string, type: NoticeType, staff
         phone: business.phoneDisplay,
         phoneHref: business.phoneHref,
         canReplyByEmail,
+        payLink,
       }),
   });
 

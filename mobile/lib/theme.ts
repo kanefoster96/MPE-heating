@@ -18,6 +18,8 @@ export const colors = {
   whatsapp: "#178245",
   whatsappTint: "#e5f3ea",
   success: "#136b39",
+  /** Behind success-coloured words: a pale green they read 6:1 on. */
+  successTint: "#e5f3ea",
   danger: "#c81e1e",
   /** The loading boxes: a step darker than the cream behind them. */
   skeleton: "#e5e0d9",

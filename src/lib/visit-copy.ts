@@ -34,6 +34,8 @@ export type VisitFacts = {
   returning?: string | null;
   /** A call-out's fee, said when it's booked ("£50"); none on the maintenance plan. */
   calloutFee?: string | null;
+  /** A call-out for a maintenance plan member: free, and said so. */
+  planFree?: boolean;
 };
 
 /** "Tuesday 27 October, between 8am and 12pm". */
@@ -92,7 +94,14 @@ export function noticeBody(
   // MPE's engineer by name, as the one on their job ("your MPE engineer, Fergal").
   const yourEngineer = opts.engineer ? `your MPE engineer, ${opts.engineer},` : "your MPE engineer";
   const engineerLine = opts.engineer ? ` Your MPE engineer will be ${opts.engineer}.` : "";
-  const feeLine = v.calloutFee && v.kind === "callout" ? ` The call-out is ${v.calloutFee}, taken off your repair bill if you go ahead.` : "";
+  const feeLine =
+    v.kind !== "callout"
+      ? ""
+      : v.calloutFee
+        ? ` The call-out is ${v.calloutFee}, taken off your repair bill if you go ahead.`
+        : v.planFree
+          ? " Your call-out's free with your MPE maintenance plan."
+          : "";
   // Paying it ahead from their phone (lib/callout-prepay.ts), or on the day.
   const payLine = feeLine && opts.payLink ? ` You can pay it now: ${opts.payLink} Or pay ${opts.engineer ?? "your engineer"} on the day.` : "";
   switch (type) {

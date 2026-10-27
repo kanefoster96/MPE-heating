@@ -3,6 +3,7 @@ import { CHAT_ON } from "@/lib/chat-on";
 import { createClient } from "@/lib/supabase/server";
 import { isCoach } from "@/lib/coach";
 import { customerForUser } from "@/lib/customers";
+import { planFor } from "@/lib/maintenance-plan";
 
 /**
  * Who's booking, for the booking forms (components/StepFlow.tsx): a
@@ -19,6 +20,8 @@ export async function GET() {
     } = await supabase.auth.getUser();
     if (!user || user.is_anonymous || (await isCoach(user.id))) return NextResponse.json({ known: null });
     const customer = await customerForUser(user.id, user.email);
+    // On the maintenance plan: the form says their call-out's free instead of the £50.
+    const plan = customer ? await planFor(customer.id).catch(() => null) : null;
     return NextResponse.json(
       {
         known: {
@@ -27,6 +30,7 @@ export async function GET() {
           postcode: customer?.postcode ?? "",
           email: customer?.email ?? user.email ?? "",
           phone: customer?.phone ?? "",
+          onPlan: plan?.status === "active" || plan?.status === "past_due",
         },
       },
       { headers: { "Cache-Control": "no-store" } },

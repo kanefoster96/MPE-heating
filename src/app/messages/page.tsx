@@ -10,6 +10,7 @@ import { ensureWelcome } from "@/lib/chat-welcome";
 import { CHAT_ON } from "@/lib/chat-on";
 import { resolveDisplayName } from "@/lib/display-name";
 import { CLUB } from "@/lib/club";
+import { sendSignInLink } from "@/app/account/actions";
 import {
   sendMemberMessage,
   markConversationReadAsMember,
@@ -27,7 +28,8 @@ export const metadata: Metadata = {
 // The live chat (Kanvas Academy's, with MPE's welcome, details ask and app
 // suggestion — lib/chat-welcome.ts). A visitor with no account gets an
 // anonymous session straight away, so they can type with no form first.
-export default async function MessagesPage() {
+export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ continue?: string; sent?: string; error?: string }> }) {
+  const params = await searchParams;
   if (!CHAT_ON) {
     return (
       <MessagesScreen title={`Chat with ${CLUB.name}`}>
@@ -45,6 +47,52 @@ export default async function MessagesPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // From a reply email, on a device that isn't the one they chatted on: their conversation's
+  // under the email they gave, so a sign-in link to it opens it, history and all.
+  if (!user && params.continue) {
+    return (
+      <MessagesScreen title={`Chat with ${CLUB.name}`} subtitle="Live chat">
+        <div className="flex-1 overflow-y-auto px-6 py-8">
+          {params.sent ? (
+            <div className="max-w-sm">
+              <h2 className="text-xl font-semibold tracking-tight">Check your email</h2>
+              <p className="mt-2 text-muted">
+                We&rsquo;ve sent a link to <strong className="text-foreground">{params.sent}</strong>. Open it on this device to see your conversation.
+              </p>
+              <a href="/messages?continue=1" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">
+                Use a different email
+              </a>
+            </div>
+          ) : (
+            <form action={sendSignInLink} className="flex max-w-sm flex-col gap-4">
+              <h2 className="text-xl font-semibold tracking-tight">See your conversation</h2>
+              <p className="text-muted">Enter the email you gave us in the chat. We&rsquo;ll email you a link that opens it here, with everything so far.</p>
+              {params.error && <p className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{params.error}</p>}
+              <input type="hidden" name="next" value="/messages" />
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium">Email</span>
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  inputMode="email"
+                  className="rounded-lg border border-border bg-background px-4 py-2.5 text-base outline-none focus:border-foreground/40"
+                />
+              </label>
+              <button type="submit" className="min-h-11 rounded-full bg-accent px-5 text-sm font-semibold text-accent-foreground hover:opacity-90">
+                Email me the link
+              </button>
+              <a href="/messages" className="inline-flex min-h-11 items-center text-sm text-muted underline underline-offset-4">
+                Start a new chat instead
+              </a>
+            </form>
+          )}
+        </div>
+      </MessagesScreen>
+    );
+  }
 
   if (!user) {
     return (
@@ -91,6 +139,7 @@ export default async function MessagesPage() {
           presenceName={presenceName}
           hasEmail={!guest || !!conversation.guestEmail}
           hasMobile={!!conversation.phone}
+          hasName={!guest || !!conversation.guestName}
           appStoreUrl={appStore}
           playStoreUrl={playStore}
           sendAction={sendMemberMessage}

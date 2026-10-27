@@ -10,7 +10,7 @@ import { callableUkNumber, coachPhoneOf } from "@/lib/coach-calls";
 import { business } from "@/lib/content";
 import { formatPhone } from "@/lib/phone";
 import { CLUB, clubLink } from "@/lib/club";
-import { londonNow } from "@/lib/schedule-time";
+import { teamHours } from "@/lib/team-hours";
 
 /**
  * Calls to the MPE (Twilio) number. It rings Fergal first (every admin's
@@ -48,15 +48,6 @@ export const MISSED_CALL_TEXT = `Sorry we missed your call. An ${CLUB.name} engi
 /** Rings before going to MPE's voicemail: short, so Fergal's own voicemail never picks it up. */
 const RING_SECONDS = 18;
 
-/** Calls ring Fergal from 8am to 8pm (London), every day; outside that, straight to voicemail. */
-const CALLS_FROM = 8 * 60;
-const CALLS_UNTIL = 20 * 60;
-
-/** Whether a call to the MPE number rings the team now. */
-export function callsOpen(): boolean {
-  const { minutes } = londonNow();
-  return minutes >= CALLS_FROM && minutes < CALLS_UNTIL;
-}
 
 const VOICE = 'voice="Polly.Amy-Neural" language="en-GB"';
 
@@ -142,7 +133,7 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
           sender_id: conversation.userId,
           sender_is_coach: false,
           channel: "sms",
-          body: paused ? "Called the MPE number (calls paused for the month)" : callsOpen() ? "Called the MPE number" : "Called the MPE number (out of hours: voicemail)",
+          body: paused ? "Called the MPE number (calls paused for the month)" : teamHours() ? "Called the MPE number" : "Called the MPE number (out of hours: voicemail)",
         });
         await bumpConversation(conversation.id);
         tip = await phoneOnlyTip(conversation.id, conversation.userId, conversation.guestEmail, conversation.guestName ?? formatPhone(caller));
@@ -160,9 +151,9 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
     return twiml(`<Say ${VOICE}>Thanks for calling ${SPOKEN_NAME}. Please message us in the MPE app or at ${SPOKEN_DOMAIN}, and an engineer will get back to you.</Say><Hangup/>`);
   }
 
-  // Out of hours (8pm to 8am): straight to voicemail, nobody's phone rings, and nobody's
+  // Out of hours (8pm to 8am, lib/team-hours.ts): straight to voicemail, nobody's phone rings, and nobody's
   // woken by a notification; it's waiting in their chat in the morning.
-  if (!callsOpen()) {
+  if (!teamHours()) {
     await logUsage("call_in", 1);
     if (conversationId && caller) await textAfterCall(conversationId, caller, MISSED_CALL_TEXT).catch(() => false);
     return voicemail(conversationId, true);
@@ -395,7 +386,7 @@ export async function handleRecording(conversationId: string | null, params: Rec
   });
   await bumpConversation(conversationId);
   // Out of hours it waits, unread, in their chat for the morning: nobody's woken by it.
-  if (callsOpen()) {
+  if (teamHours()) {
     await notifyStaffOfFamilyMessage({
       conversationId,
       fromName: conversation?.guest_name ? `${conversation.guest_name} (call)` : `Call from ${conversation?.phone ?? "unknown number"}`,

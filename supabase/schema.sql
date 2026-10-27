@@ -883,6 +883,10 @@ alter table public.twilio_months enable row level security;
 drop table if exists public.sms_sends;
 -- The one text after someone's first call (lib/missed-calls.ts): never sent to that number again.
 alter table public.chat_conversations add column if not exists call_text_sent_at timestamptz;
+-- Out of hours (8pm to 8am), the chat says when the team are back: once a night per conversation.
+alter table public.chat_conversations add column if not exists after_hours_sent_at timestamptz;
+-- A customer's message unanswered for two hours: the team are reminded once.
+alter table public.chat_conversations add column if not exists staff_nudged_at timestamptz;
 
 -- Every email the site sends (lib/resend.ts).
 create table if not exists public.email_log (

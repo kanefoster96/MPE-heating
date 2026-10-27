@@ -25,8 +25,11 @@ import { addCardUrl, removeCard } from "@/lib/customer-cards";
  */
 export async function sendSignInLink(formData: FormData) {
   if (!CHAT_ON) redirect("/account");
+  // From the chat's "continue your conversation" (a reply email opened on another device): back to the chat.
+  const toChat = formData.get("next") === "/messages";
+  const back = (params: Record<string, string>) => `${toChat ? "/messages" : "/account"}?${new URLSearchParams({ ...(toChat ? { continue: "1" } : {}), ...params }).toString()}`;
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!isValidEmail(email)) redirect(`/account?error=${encodeURIComponent("Enter a valid email address.")}`);
+  if (!isValidEmail(email)) redirect(back({ error: "Enter a valid email address." }));
 
   const supabase = await createClient();
   const {
@@ -40,13 +43,13 @@ export async function sendSignInLink(formData: FormData) {
   const origin = (await headers()).get("origin") || CLUB_SITE_URL;
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: `${origin}/auth/confirm?next=/account`, shouldCreateUser: true },
+    options: { emailRedirectTo: `${origin}/auth/confirm?next=${toChat ? "/messages" : "/account"}`, shouldCreateUser: true },
   });
   if (error) {
     console.error("sendSignInLink failed", error);
-    redirect(`/account?error=${encodeURIComponent("Couldn't send the link just now. Please try again in a minute.")}`);
+    redirect(back({ error: "Couldn't send the link just now. Please try again in a minute." }));
   }
-  redirect(`/account?sent=${encodeURIComponent(email)}`);
+  redirect(back({ sent: email }));
 }
 
 async function requireCustomer() {

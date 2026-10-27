@@ -7,6 +7,7 @@ import type { SaveDetailsResult } from "@/lib/chat-welcome";
 import { detailsAskFor, isAppPrompt } from "@/lib/chat-welcome-copy";
 
 type SendResult = { success: true } | { success: false; error: string };
+type DetailsInput = { name?: string; postcode?: string; email?: string; mobile?: string };
 
 /**
  * The customer's side of the live chat: Kanvas Academy's ChatThread, plus
@@ -22,6 +23,8 @@ export function CustomerChat(props: {
   presenceName: string;
   hasEmail: boolean;
   hasMobile: boolean;
+  /** They've given a name (or are signed in with one): the card doesn't ask again. */
+  hasName: boolean;
   appStoreUrl: string | null;
   playStoreUrl: string | null;
   sendAction: (input: SendMessageInput) => Promise<SendResult>;
@@ -29,7 +32,7 @@ export function CustomerChat(props: {
   getAttachmentUrlAction: (path: string) => Promise<string | null>;
   fetchNewMessagesAction: (conversationId: string, afterIso: string) => Promise<ChatMessage[]>;
   heartbeatAction: () => Promise<void>;
-  saveDetailsAction: (input: { email?: string; mobile?: string }) => Promise<SaveDetailsResult>;
+  saveDetailsAction: (input: DetailsInput) => Promise<SaveDetailsResult>;
 }) {
   const [saved, setSaved] = useState(false);
 
@@ -40,7 +43,7 @@ export function CustomerChat(props: {
       const wantEmail = ask.email && !props.hasEmail;
       const wantMobile = ask.mobile && !props.hasMobile;
       if (saved || (!wantEmail && !wantMobile)) return null;
-      return <DetailsCard wantEmail={wantEmail} wantMobile={wantMobile} onSave={props.saveDetailsAction} onSaved={() => setSaved(true)} />;
+      return <DetailsCard wantName={!props.hasName} wantEmail={wantEmail} wantMobile={wantMobile} onSave={props.saveDetailsAction} onSaved={() => setSaved(true)} />;
     }
     if (isAppPrompt(message.body) && (props.appStoreUrl || props.playStoreUrl)) {
       return <AppCard appStoreUrl={props.appStoreUrl} playStoreUrl={props.playStoreUrl} />;
@@ -69,17 +72,23 @@ export function CustomerChat(props: {
 const INPUT =
   "w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-base text-foreground outline-none focus:border-foreground/40 sm:text-sm";
 
+// Their name (unless we have it), postcode (optional: it tells the engineer
+// whether they're in our area), then whichever of email and mobile we lack.
 function DetailsCard({
+  wantName,
   wantEmail,
   wantMobile,
   onSave,
   onSaved,
 }: {
+  wantName: boolean;
   wantEmail: boolean;
   wantMobile: boolean;
-  onSave: (input: { email?: string; mobile?: string }) => Promise<SaveDetailsResult>;
+  onSave: (input: DetailsInput) => Promise<SaveDetailsResult>;
   onSaved: () => void;
 }) {
+  const [name, setName] = useState("");
+  const [postcode, setPostcode] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [busy, setBusy] = useState(false);
@@ -92,6 +101,8 @@ function DetailsCard({
         setBusy(true);
         setError(null);
         const result = await onSave({
+          ...(wantName ? { name } : {}),
+          ...(postcode.trim() ? { postcode } : {}),
           ...(wantEmail ? { email } : {}),
           ...(wantMobile ? { mobile } : {}),
         });
@@ -102,6 +113,16 @@ function DetailsCard({
       className="mt-1 flex w-full max-w-xs flex-col gap-2 rounded-2xl border border-border bg-surface p-3"
       data-details-card
     >
+      {wantName && (
+        <label className="flex flex-col gap-1 text-xs text-muted">
+          Your name
+          <input autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} className={INPUT} />
+        </label>
+      )}
+      <label className="flex flex-col gap-1 text-xs text-muted">
+        Postcode (optional)
+        <input autoComplete="postal-code" value={postcode} onChange={(e) => setPostcode(e.target.value)} placeholder="NE26 1AB" className={`${INPUT} uppercase`} />
+      </label>
       {wantEmail && (
         <label className="flex flex-col gap-1 text-xs text-muted">
           Email address

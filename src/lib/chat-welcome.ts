@@ -2,9 +2,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { findOrCreateCustomer } from "@/lib/customers";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { normalizePhone } from "@/lib/phone";
-import { isValidEmail } from "@/lib/validation";
+import { formatPostcode, isValidEmail, isValidPostcode } from "@/lib/validation";
+import { teamHours } from "@/lib/team-hours";
 import {
+  AFTER_HOURS_BODY,
   APP_PROMPT_BODY,
+  DETAILS_ASK_AFTER_HOURS,
   DETAILS_ASK_BOTH,
   DETAILS_ASK_EMAIL,
   DETAILS_ASK_MOBILE,
@@ -71,6 +74,25 @@ export async function ensureWelcome(conversationId: string): Promise<void> {
   }
 }
 
+/**
+ * 8pm to 8am: that the team aren't on the chat, when they're back, and the
+ * gas emergency number. Once a night per conversation (12 hours apart).
+ */
+async function sendAfterHours(admin: Admin, conversationId: string): Promise<void> {
+  const now = new Date();
+  const { data, error } = await admin
+    .from("chat_conversations")
+    .update({ after_hours_sent_at: now.toISOString() })
+    .eq("id", conversationId)
+    .or(`after_hours_sent_at.is.null,after_hours_sent_at.lt.${new Date(now.getTime() - 12 * 3_600_000).toISOString()}`)
+    .select("id");
+  if (error) {
+    console.error("chat flow: could not set after_hours_sent_at", error);
+    return;
+  }
+  if (data?.length) await sendAsMpe(admin, conversationId, AFTER_HOURS_BODY);
+}
+
 async function sendAppPrompt(admin: Admin, conversationId: string): Promise<void> {
   if (!(await claimOnce(admin, conversationId, "app_prompt_sent_at"))) return;
   const { appStore, playStore } = appLinks();
@@ -86,9 +108,11 @@ async function sendAppPrompt(admin: Admin, conversationId: string): Promise<void
 export async function afterCustomerMessage(conversationId: string, accountEmail: string | null, source: "web" | "app" = "web"): Promise<void> {
   try {
     const admin = createAdminClient();
+    const afterHours = !teamHours();
     // In the app they get a push when we reply, and are already in the app.
     if (source === "app") {
       await claimOnce(admin, conversationId, "app_prompt_sent_at");
+      if (afterHours) await sendAfterHours(admin, conversationId);
       return;
     }
     const { data: c } = await admin
@@ -100,10 +124,20 @@ export async function afterCustomerMessage(conversationId: string, accountEmail:
     const needEmail = !accountEmail && !c.guest_email;
     const needMobile = !c.phone;
     if (needEmail || needMobile) {
-      if (c.details_asked_at || !(await claimOnce(admin, conversationId, "details_asked_at"))) return;
-      await sendAsMpe(admin, conversationId, needEmail && needMobile ? DETAILS_ASK_BOTH : needEmail ? DETAILS_ASK_EMAIL : DETAILS_ASK_MOBILE);
+      if (c.details_asked_at || !(await claimOnce(admin, conversationId, "details_asked_at"))) {
+        if (afterHours) await sendAfterHours(admin, conversationId);
+        return;
+      }
+      if (afterHours) {
+        // The ask says the team are back at 8am, so it counts as tonight's notice.
+        await admin.from("chat_conversations").update({ after_hours_sent_at: new Date().toISOString() }).eq("id", conversationId);
+        await sendAsMpe(admin, conversationId, DETAILS_ASK_AFTER_HOURS);
+      } else {
+        await sendAsMpe(admin, conversationId, needEmail && needMobile ? DETAILS_ASK_BOTH : needEmail ? DETAILS_ASK_EMAIL : DETAILS_ASK_MOBILE);
+      }
       return;
     }
+    if (afterHours) await sendAfterHours(admin, conversationId);
     await sendAppPrompt(admin, conversationId);
   } catch (err) {
     console.error("afterCustomerMessage failed", err);
@@ -120,10 +154,14 @@ export type SaveDetailsResult = { success: true } | { success: false; error: str
 export async function saveCustomerDetails(
   conversationId: string,
   customerUserId: string,
-  input: { email?: string; mobile?: string },
+  input: { name?: string; postcode?: string; email?: string; mobile?: string },
 ): Promise<SaveDetailsResult> {
   const email = input.email?.trim().toLowerCase() ?? "";
   const mobileTyped = input.mobile?.trim() ?? "";
+  const name = input.name?.trim().replace(/\s+/g, " ").slice(0, 80) ?? "";
+  if (input.name !== undefined && name.length < 2) return { success: false, error: "Enter your name." };
+  const postcode = input.postcode?.trim().toUpperCase().replace(/\s+/g, " ").slice(0, 10) ?? "";
+  if (postcode && !isValidPostcode(postcode)) return { success: false, error: "Check your postcode, e.g. NE26 1AB." };
   if (input.email !== undefined && !isValidEmail(email)) return { success: false, error: "Enter a valid email address." };
   const mobile = mobileTyped ? normalizePhone(mobileTyped) : null;
   if (input.mobile !== undefined && !mobile) return { success: false, error: "Enter a valid UK mobile number, e.g. 07123 456789." };
@@ -132,6 +170,7 @@ export async function saveCustomerDetails(
   const update: Record<string, string> = {};
   if (email) update.guest_email = email;
   if (mobile) update.phone = mobile;
+  if (name) update.guest_name = name;
   if (Object.keys(update).length === 0) return { success: false, error: "Add your details first." };
 
   let { error } = await admin.from("chat_conversations").update(update).eq("id", conversationId);
@@ -157,12 +196,18 @@ export async function saveCustomerDetails(
 
   // Their customer record, for the schedule and the team's customer pages.
   const { data: convo } = await admin.from("chat_conversations").select("guest_name").eq("id", conversationId).maybeSingle();
-  await findOrCreateCustomer(admin, { name: (convo?.guest_name as string | null) ?? null, email: email || null, phone: mobile ? mobileTyped : null, conversationId });
+  await findOrCreateCustomer(admin, {
+    name: name || ((convo?.guest_name as string | null) ?? null),
+    email: email || null,
+    phone: mobile ? mobileTyped : null,
+    postcode: postcode ? formatPostcode(postcode) : null,
+    conversationId,
+  });
 
   await notifyStaffOfFamilyMessage({
     conversationId,
-    fromName: "Website chat",
-    body: `Left their details: ${[email, mobileTyped].filter(Boolean).join(" · ")}`,
+    fromName: name ? `${name} · website chat` : "Website chat",
+    body: `Left their details: ${[postcode ? formatPostcode(postcode) : "", email, mobileTyped].filter(Boolean).join(" · ")}`,
   });
   await sendAppPrompt(admin, conversationId);
   return { success: true };

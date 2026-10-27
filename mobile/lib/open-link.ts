@@ -33,6 +33,19 @@ export async function openSignedIn(path: string): Promise<void> {
   await openInApp(result.url || fallback);
 }
 
+/**
+ * A booking form. For someone signed in to the app it opens signed in,
+ * marked as from the app (?from=app): the form knows who they are, so the
+ * last step is one tap, and its thank-you says what happens next in the
+ * app (components/StepFlow.tsx on the site).
+ */
+export async function openBooking(url: string, signedIn: boolean): Promise<void> {
+  if (!signedIn) return openInApp(url);
+  const path = url.startsWith(SITE_URL) ? url.slice(SITE_URL.length) || "/" : url;
+  if (!path.startsWith("/")) return openInApp(url);
+  return openSignedIn(`${path}${path.includes("?") ? "&" : "?"}from=app`);
+}
+
 /** A phone call, WhatsApp or email: the phone's own app. */
 export function openExternal(url: string): void {
   Linking.openURL(url).catch(() => {});

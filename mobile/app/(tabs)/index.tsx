@@ -9,7 +9,7 @@ import { GuideRow, RowSkeleton, SectionTitle, ServiceRow } from "@/components/ro
 import { CountBadge } from "@/components/count-badge";
 import { useAuth } from "@/contexts/auth";
 import { useHomeData } from "@/lib/use-home";
-import { openExternal, openInApp } from "@/lib/open-link";
+import { openBooking, openExternal, openInApp } from "@/lib/open-link";
 import { MPE_PHONE, SITE_URL } from "@/lib/site";
 import { colors, fonts } from "@/lib/theme";
 
@@ -102,7 +102,7 @@ function CustomerHome() {
         <AppText style={{ color: colors.text2, fontSize: 16, marginTop: 4 }}>What can we help with today?</AppText>
 
         <View style={{ flexDirection: "row", gap: 12, marginTop: 16 }}>
-          <PressableScale onPress={() => openInApp(callout?.bookUrl ?? `${SITE_URL}/emergency`)} accessibilityLabel="Book a call-out. Boiler broken down? £50 call-out, taken off the repair." style={{ flex: 1 }}>
+          <PressableScale onPress={() => openBooking(callout?.bookUrl ?? `${SITE_URL}/emergency`, signedIn)} accessibilityLabel="Book a call-out. Boiler broken down? £50 call-out, taken off the repair." style={{ flex: 1 }}>
             <LinearGradient colors={TILE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 24, padding: 16, minHeight: 176, justifyContent: "space-between" }}>
               <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" }}>
                 <Ionicons name="flame" size={26} color="#fff" />
@@ -117,7 +117,7 @@ function CustomerHome() {
               </View>
             </LinearGradient>
           </PressableScale>
-          <PressableScale onPress={() => openInApp(servicing?.bookUrl ?? `${SITE_URL}/book/service`)} accessibilityLabel={`Book a service. ${servicing?.price ?? "From £79"}.`} style={{ flex: 1 }}>
+          <PressableScale onPress={() => openBooking(servicing?.bookUrl ?? `${SITE_URL}/book/service`, signedIn)} accessibilityLabel={`Book a service. ${servicing?.price ?? "From £79"}.`} style={{ flex: 1 }}>
             <View style={{ borderRadius: 24, padding: 16, minHeight: 176, justifyContent: "space-between", backgroundColor: colors.card, borderWidth: 1, borderColor: colors.edge }}>
               <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: colors.orangeLight, alignItems: "center", justifyContent: "center" }}>
                 <Ionicons name="build" size={24} color={colors.orangeDeep} />
@@ -169,7 +169,7 @@ function CustomerHome() {
           <View style={{ gap: 10 }}>
             {more.map((s, i) => (
               <FadeIn key={s.id} index={i}>
-                <ServiceRow service={s} onPress={() => openInApp(s.bookUrl)} />
+                <ServiceRow service={s} onPress={() => openBooking(s.bookUrl, signedIn)} />
               </FadeIn>
             ))}
             <SecondaryButton title="All services" icon="grid" onPress={() => router.push("/services")} />

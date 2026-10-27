@@ -8,7 +8,7 @@ import { TopBar } from "@/components/top-bar";
 import { CountBadge } from "@/components/count-badge";
 import { useAuth } from "@/contexts/auth";
 import { colors, fonts, orangeGradient } from "@/lib/theme";
-import { openInApp } from "@/lib/open-link";
+import { openBooking } from "@/lib/open-link";
 import { SITE_URL } from "@/lib/site";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -65,7 +65,7 @@ export default function TabsLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 8);
-  const { staff, unreadChats, waiting } = useAuth();
+  const { staff, signedIn, unreadChats, waiting } = useAuth();
 
   return (
     <Tabs
@@ -102,7 +102,7 @@ export default function TabsLayout() {
             // Straight to it, from wherever they are.
             e.preventDefault();
             if (staff) router.navigate("/jobs");
-            else openInApp(`${SITE_URL}/emergency`);
+            else openBooking(`${SITE_URL}/emergency`, signedIn);
           },
         }}
       />

@@ -88,6 +88,7 @@ function writeSaved(key: FlowKey, saved: Saved | null) {
 const PHOTOS_ON = CHAT_ON;
 
 type Notice = "unavailable" | "failed" | null;
+type Known = { name: string; address: string; postcode: string; email: string; phone: string };
 type FieldErrors = Partial<Record<"name" | "address" | "email" | "phone", string>>;
 
 export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
@@ -115,12 +116,39 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
   const [restored, setRestored] = useState(false);
   // Set once the visitor has moved a step, so focus only moves after that.
   const [moved, setMoved] = useState(false);
+  // Signed in (on the site, or opened from the app signed in): their details, so the last
+  // step is one tap. "Change" shows the usual fields, filled in.
+  const [known, setKnown] = useState<Known | null>(null);
+  const [changing, setChanging] = useState(false);
+  // Opened from the MPE app: everything after this reaches them there.
+  const fromApp = searchParams.get("from") === "app";
 
   const loaded = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Picked up once on the device, after the first render (the server has
   // no storage to read).
+  useEffect(() => {
+    if (!CHAT_ON) return;
+    let gone = false;
+    fetch("/api/booking/me", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { known: Known | null } | null) => {
+        const k = data?.known;
+        if (gone || !k) return;
+        setKnown(k);
+        setName((v) => v || k.name);
+        setAddress((v) => v || k.address);
+        setEmail((v) => v || k.email);
+        setPhone((v) => v || k.phone);
+        setPostcode((v) => v || k.postcode);
+      })
+      .catch(() => {});
+    return () => {
+      gone = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (loaded.current) return;
     loaded.current = true;
@@ -206,6 +234,17 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
   function shownRecap(): { q: string; a: string }[] {
     return [...recap(), ...(photos.paths.length ? [{ q: "Photos", a: `${photos.paths.length} added` }] : [])];
   }
+
+  // Signed in with everything this form needs: the details card, not the fields.
+  const contactStep = steps.find((st) => st.kind === "contact");
+  const useKnown =
+    !!known &&
+    !changing &&
+    contactStep?.kind === "contact" &&
+    (!contactStep.name || name.trim().length >= 2) &&
+    (!contactStep.address || address.trim().length >= 3) &&
+    isValidEmail(email.trim()) &&
+    !!normalizePhone(phone);
 
   async function submit(chosenEmail?: string) {
     const step = steps[index];
@@ -328,15 +367,22 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
               </li>
             ))}
           </ul>
-          <p className="mt-4 border-t border-line pt-4 text-text-2">
-            We&rsquo;ll confirm by email at <strong className="text-navy">{email.trim()}</strong>. No email? Check your junk folder too.
-            {steps.some((st) => st.kind === "when") && (
-              <>
-                {" "}
-                We&rsquo;ll text <strong className="text-navy">{phone.trim()}</strong> when your engineer&rsquo;s on the way.
-              </>
-            )}
-          </p>
+          {fromApp ? (
+            <p className="mt-4 border-t border-line pt-4 text-text-2">
+              We&rsquo;ll let you know here in the MPE app when it&rsquo;s confirmed
+              {steps.some((st) => st.kind === "when") ? ", and when your engineer\u2019s on the way" : ""}. It&rsquo;s on your Jobs tab now.
+            </p>
+          ) : (
+            <p className="mt-4 border-t border-line pt-4 text-text-2">
+              We&rsquo;ll confirm by email at <strong className="text-navy">{email.trim()}</strong>. No email? Check your junk folder too.
+              {steps.some((st) => st.kind === "when") && (
+                <>
+                  {" "}
+                  We&rsquo;ll text <strong className="text-navy">{phone.trim()}</strong> when your engineer&rsquo;s on the way.
+                </>
+              )}
+            </p>
+          )}
         </div>
 
         {sameDay && (
@@ -346,10 +392,17 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
           </div>
         )}
 
-        <Link href="/" className={`${PRIMARY} mt-8`}>
-          Back to home
-        </Link>
-        <ContactOptions className="mt-8" />
+        {fromApp ? (
+          // Opens the app behind this sheet at their Jobs tab (its own link scheme).
+          <a href="mpe://jobs" className={`${PRIMARY} mt-8`}>
+            Back to the app
+          </a>
+        ) : (
+          <Link href="/" className={`${PRIMARY} mt-8`}>
+            Back to home
+          </Link>
+        )}
+        {!fromApp && <ContactOptions className="mt-8" />}
       </div>
     );
   }
@@ -561,100 +614,123 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
               </ul>
             </div>
 
-            {step.name && (
-              <div className="flex flex-col gap-2">
-                <label htmlFor="flow-name" className={LABEL}>
-                  Your name
-                </label>
-                <input
-                  id="flow-name"
-                  autoComplete="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  aria-invalid={!!errors.name}
-                  aria-describedby={errors.name ? "flow-name-error" : undefined}
-                  className={`${INPUT} ${errors.name ? "border-red/60" : "border-line"}`}
-                />
-                {errors.name && (
-                  <p id="flow-name-error" className="text-xs text-red">
-                    {errors.name}
+            {useKnown ? (
+              // Signed in: who's booking, in one card, with a way to change it for this booking.
+              <div className="rounded-xl border border-line bg-white p-4 text-sm" data-known-booker>
+                <p className="text-xs uppercase tracking-widest text-text-2">Booking as</p>
+                <p className="mt-2 font-semibold text-navy">{name.trim()}</p>
+                {step.address && (
+                  <p className="text-text-2">
+                    {address.trim()}
+                    {postcode.trim() ? `, ${formatPostcode(postcode)}` : ""}
                   </p>
                 )}
+                <p className="text-text-2">
+                  {email.trim()} · {phone.trim()}
+                </p>
+                <button type="button" onClick={() => setChanging(true)} className="mt-1 inline-flex min-h-11 items-center font-semibold text-terracotta-deep underline underline-offset-4">
+                  Change
+                </button>
               </div>
-            )}
-
-            {step.address && (
-              <div className="flex flex-col gap-2">
-                <label htmlFor="flow-address" className={LABEL}>
-                  First line of your address
-                </label>
-                <input
-                  id="flow-address"
-                  autoComplete="address-line1"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  maxLength={200}
-                  aria-invalid={!!errors.address}
-                  aria-describedby={errors.address ? "flow-address-error" : undefined}
-                  className={`${INPUT} ${errors.address ? "border-red/60" : "border-line"}`}
-                />
-                {errors.address && (
-                  <p id="flow-address-error" className="text-xs text-red">
-                    {errors.address}
-                  </p>
+            ) : (
+              <>
+                {step.name && (
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="flow-name" className={LABEL}>
+                      Your name
+                    </label>
+                    <input
+                      id="flow-name"
+                      autoComplete="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      aria-invalid={!!errors.name}
+                      aria-describedby={errors.name ? "flow-name-error" : undefined}
+                      className={`${INPUT} ${errors.name ? "border-red/60" : "border-line"}`}
+                    />
+                    {errors.name && (
+                      <p id="flow-name-error" className="text-xs text-red">
+                        {errors.name}
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
+
+                {step.address && (
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="flow-address" className={LABEL}>
+                      First line of your address
+                    </label>
+                    <input
+                      id="flow-address"
+                      autoComplete="address-line1"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      maxLength={200}
+                      aria-invalid={!!errors.address}
+                      aria-describedby={errors.address ? "flow-address-error" : undefined}
+                      className={`${INPUT} ${errors.address ? "border-red/60" : "border-line"}`}
+                    />
+                    {errors.address && (
+                      <p id="flow-address-error" className="text-xs text-red">
+                        {errors.address}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="flow-email" className={LABEL}>
+                    Your email
+                  </label>
+                  <input
+                    id="flow-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    aria-invalid={!!errors.email}
+                    aria-describedby={errors.email ? "flow-email-error" : undefined}
+                    className={`${INPUT} ${errors.email ? "border-red/60" : "border-line"}`}
+                  />
+                  {errors.email && (
+                    <p id="flow-email-error" className="text-xs text-red">
+                      {errors.email}
+                    </p>
+                  )}
+                  {emailTypo.renderPrompt((chosen) => void submit(chosen))}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="flow-phone" className={LABEL}>
+                    Your mobile
+                  </label>
+                  <input
+                    id="flow-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder={PHONE_EXAMPLE}
+                    aria-invalid={!!errors.phone}
+                    aria-describedby={errors.phone ? "flow-phone-error" : "flow-phone-help"}
+                    className={`${INPUT} ${errors.phone ? "border-red/60" : "border-line"}`}
+                  />
+                  {errors.phone ? (
+                    <p id="flow-phone-error" className="text-xs text-red">
+                      {errors.phone}
+                    </p>
+                  ) : (
+                    <p id="flow-phone-help" className="text-xs text-text-2">
+                      So we can text or ring to confirm.
+                    </p>
+                  )}
+                </div>
+
+              </>
             )}
-
-            <div className="flex flex-col gap-2">
-              <label htmlFor="flow-email" className={LABEL}>
-                Your email
-              </label>
-              <input
-                id="flow-email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? "flow-email-error" : undefined}
-                className={`${INPUT} ${errors.email ? "border-red/60" : "border-line"}`}
-              />
-              {errors.email && (
-                <p id="flow-email-error" className="text-xs text-red">
-                  {errors.email}
-                </p>
-              )}
-              {emailTypo.renderPrompt((chosen) => void submit(chosen))}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label htmlFor="flow-phone" className={LABEL}>
-                Your mobile
-              </label>
-              <input
-                id="flow-phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder={PHONE_EXAMPLE}
-                aria-invalid={!!errors.phone}
-                aria-describedby={errors.phone ? "flow-phone-error" : "flow-phone-help"}
-                className={`${INPUT} ${errors.phone ? "border-red/60" : "border-line"}`}
-              />
-              {errors.phone ? (
-                <p id="flow-phone-error" className="text-xs text-red">
-                  {errors.phone}
-                </p>
-              ) : (
-                <p id="flow-phone-help" className="text-xs text-text-2">
-                  So we can text or ring to confirm.
-                </p>
-              )}
-            </div>
 
             {step.sameDay && (
               <div className={`rounded-xl border transition-colors ${sameDay ? "border-terracotta-deep bg-terracotta-deep/5" : "border-line bg-white"}`}>
@@ -700,7 +776,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
 
       {flow.fee && index === 0 && <FeeNote className="mt-4 w-full max-w-xl" />}
 
-      <ContactOptions className="mt-8" />
+      <ContactOptions className="mt-8" onAppPage={fromApp} />
     </>
   );
 }

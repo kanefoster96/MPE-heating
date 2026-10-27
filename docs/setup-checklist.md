@@ -124,6 +124,11 @@ deployment.
       from 8am to 8pm, with the gas emergency number (0800 111 999). Any
       chat left unanswered for two hours in the day (counted from 8am for
       overnight ones) reminds the team once.
+- [ ] **Plan members' call-outs are free, and said so:** a signed-in member
+      sees "You're on the MPE maintenance plan, so your call-out's free" on
+      the call-out form instead of the £50; their booking confirmation says
+      "Your call-out's free with your MPE maintenance plan"; and Fergal sees
+      "Plan member · free call-out" on their request, job card and job.
 - [ ] **Paying the call-out ahead:** a booked call-out's confirmation
       (email, app and message), visit page and job card in the app offer
       "Pay the £50 call-out now" (Apple Pay, Google Pay or card), "or pay

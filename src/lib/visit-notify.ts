@@ -218,6 +218,7 @@ async function deliverVisitNotice(appointmentId: string, type: NoticeType, staff
     address: appointment.address ?? customer.address,
     postcode: appointment.postcode ?? customer.postcode,
     calloutFee: appointment.kind === "callout" && !onPlan ? formatPence(CALLOUT_FEE_PENCE) : null,
+    planFree: appointment.kind === "callout" && onPlan,
     // A return visit says what it's for: what the first visit said, else its title.
     returning: appointment.followUpOf ? ((await getAppointment(appointment.followUpOf))?.returnNote ?? appointment.title ?? "finish the job") : null,
   };

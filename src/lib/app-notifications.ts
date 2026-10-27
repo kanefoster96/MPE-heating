@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import { planMembersAmong } from "@/lib/maintenance-plan";
 import { CLUB_SITE_URL } from "@/lib/club";
 import { customerForUser, getCustomer } from "@/lib/customers";
 import { appointmentsForCustomer, returnsToBook, waitingOnTeam } from "@/lib/appointments";
@@ -110,6 +111,9 @@ async function staffNotices(): Promise<AppNotice[]> {
   const [waiting, enquiries, returns] = await Promise.all([waitingOnTeam(today), listEnquiries({ status: "new" }).catch(() => []), returnsToBook().catch(() => [])]);
   const out: AppNotice[] = [];
 
+  // On the maintenance plan: free call-out, said on their request so Fergal knows before he books.
+  const members = await planMembersAmong([...waiting.map((v) => v.customerId), ...enquiries.map((e) => e.customerId)].filter((id): id is string => !!id)).catch(() => new Set<string>());
+  const member = (id: string | null) => (id && members.has(id) ? " · Plan member" : "");
   const requested = new Set(waiting.filter((v) => v.status === "requested" && v.enquiryId).map((v) => v.enquiryId));
   for (const e of enquiries) {
     if (requested.has(e.id)) continue;
@@ -117,7 +121,7 @@ async function staffNotices(): Promise<AppNotice[]> {
       id: `enquiry-${e.id}`,
       icon: "chatbubbles",
       title: `New booking: ${CATEGORY_LABEL[e.category]}${e.sameDay ? ", today" : ""}`,
-      text: [e.name, e.postcode].filter(Boolean).join(", ") || "From the website",
+      text: `${[e.name, e.postcode].filter(Boolean).join(", ") || "From the website"}${member(e.customerId)}`,
       at: e.createdAt,
       action: true,
       route: e.conversationId ? `/chat/${e.conversationId}` : "/chat",
@@ -132,7 +136,7 @@ async function staffNotices(): Promise<AppNotice[]> {
     // Answered on the visit's page in the app: accept, pick a time, or keep it.
     const route = `/job/${v.id}`;
     if (v.status === "requested") {
-      out.push({ id: `request-${v.id}`, icon: "time", title: `${who} asked for a ${KIND_LABEL[v.kind].toLowerCase()}`, text: requestedWhen(v.day, v.part), at: v.createdAt, action: true, route });
+      out.push({ id: `request-${v.id}`, icon: "time", title: `${who} asked for a ${KIND_LABEL[v.kind].toLowerCase()}`, text: `${requestedWhen(v.day, v.part)}${member(v.customerId)}`, at: v.createdAt, action: true, route });
     } else if (v.change) {
       out.push({ id: `change-${v.id}`, icon: "calendar", title: `${who} asked to move their visit`, text: `To ${requestedWhen(v.change.day, v.change.part)}${v.change.note ? `: "${v.change.note}"` : ""}`, at: v.change.at, action: true, route });
     }

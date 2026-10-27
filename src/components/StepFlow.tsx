@@ -88,7 +88,7 @@ function writeSaved(key: FlowKey, saved: Saved | null) {
 const PHOTOS_ON = CHAT_ON;
 
 type Notice = "unavailable" | "failed" | null;
-type Known = { name: string; address: string; postcode: string; email: string; phone: string };
+type Known = { name: string; address: string; postcode: string; email: string; phone: string; onPlan?: boolean };
 type FieldErrors = Partial<Record<"name" | "address" | "email" | "phone", string>>;
 
 export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
@@ -450,7 +450,9 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
         <h1 className="mt-2 text-[34px] font-bold leading-[1.05] tracking-[-0.03em] sm:text-5xl">
           {flow.title.lead} <span className="em block">{flow.title.em}</span>
         </h1>
-        <p className="mt-3 text-base leading-relaxed text-text-2">{flow.subtitle}</p>
+        <p className="mt-3 text-base leading-relaxed text-text-2">
+          {flow.fee && known?.onPlan ? "A few quick steps. Your call-out's free with your maintenance plan." : flow.subtitle}
+        </p>
       </div>
 
       <WizardStepIndicator total={total} current={index + 1} />
@@ -774,7 +776,15 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
         )}
       </div>
 
-      {flow.fee && index === 0 && <FeeNote className="mt-4 w-full max-w-xl" />}
+      {flow.fee && index === 0 &&
+        (known?.onPlan ? (
+          // A plan member, signed in: no £50 to explain.
+          <p className="mt-4 w-full max-w-xl rounded-2xl border border-success/30 bg-success/10 px-5 py-4 text-left text-sm font-semibold text-success" data-plan-free>
+            You&rsquo;re on the MPE maintenance plan, so your call-out&rsquo;s free.
+          </p>
+        ) : (
+          <FeeNote className="mt-4 w-full max-w-xl" />
+        ))}
 
       <ContactOptions className="mt-8" onAppPage={fromApp} />
     </>

@@ -139,6 +139,8 @@ export type StaffJob = {
   cantMake?: boolean;
   openPayment: { id: string; amount: string } | null;
   paid: boolean;
+  /** On the maintenance plan: no call-out fee. */
+  onPlan?: boolean;
 };
 
 export type StaffDay = {

@@ -43,7 +43,7 @@ export function visitEmailHtml(params: {
         : `${longDate(visit.day)}, between ${windowLabel(visit.start, visit.end).replace("–", " and ")}`;
 
   const intro: Record<NoticeType, string> = {
-    booked: `You're booked in. Here are the details.${params.engineer ? ` Your MPE engineer will be ${escapeHtml(params.engineer)}.` : ""}${visit.calloutFee && visit.kind === "callout" ? ` The call-out is ${escapeHtml(visit.calloutFee)}, taken off your repair bill if you go ahead.` : ""}`,
+    booked: `You're booked in. Here are the details.${params.engineer ? ` Your MPE engineer will be ${escapeHtml(params.engineer)}.` : ""}${visit.calloutFee && visit.kind === "callout" ? ` The call-out is ${escapeHtml(visit.calloutFee)}, taken off your repair bill if you go ahead.` : visit.planFree && visit.kind === "callout" ? " Your call-out's free with your MPE maintenance plan." : ""}`,
     moved: "We've moved your visit. Here's the new time.",
     cancelled: "This visit is cancelled. If you'd still like one, just reply or give us a call.",
     reminder: "A reminder that we're with you tomorrow.",

@@ -144,6 +144,13 @@ export function StaffJobCard({ job, day, onChanged, onPay }: { job: StaffJob; da
         </AppText>
         <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 1 }}>{[job.kind, job.title].filter(Boolean).join(": ")}</AppText>
         {place ? <AppText style={{ color: colors.text2, fontSize: 14, marginTop: 1 }}>{place}</AppText> : null}
+        {job.onPlan ? (
+          <View style={{ alignSelf: "flex-start", marginTop: 6, backgroundColor: colors.successTint, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+            <AppText weight="bold" style={{ color: colors.success, fontSize: 12 }}>
+              Plan member · free call-out
+            </AppText>
+          </View>
+        ) : null}
       </View>
       <View style={{ alignItems: "flex-end", gap: 8 }}>
         <View style={{ backgroundColor: status.bg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>

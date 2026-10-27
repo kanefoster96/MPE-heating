@@ -26,7 +26,7 @@ import { arrivalClock, visitLink } from "@/lib/visit-notify";
 import { bookedPerDay } from "@/lib/dashboard";
 import { closedDays } from "@/lib/days-off";
 import { prepayLink, prepayable } from "@/lib/callout-prepay";
-import { planFor } from "@/lib/maintenance-plan";
+import { planFor, planMembersAmong } from "@/lib/maintenance-plan";
 
 /**
  * The app's Jobs tab (mobile/app/(tabs)/jobs.tsx), built fresh from the
@@ -308,6 +308,8 @@ export type StaffJob = {
   cantMake: boolean;
   openPayment: { id: string; amount: string } | null;
   paid: boolean;
+  /** On the maintenance plan: no call-out fee. */
+  onPlan: boolean;
 };
 
 export type StaffDay = {
@@ -333,9 +335,11 @@ export async function staffDay(dayParam: string | null): Promise<StaffDay> {
     waitingOnTeamCount(today).catch(() => 0),
   ]);
   const shown = visits.filter((v) => v.status !== "cancelled").sort((a, b) => a.start - b.start);
-  const [customers, payments] = await Promise.all([
-    getCustomers(shown.map((v) => v.customerId).filter((id): id is string => !!id)),
+  const customerIds = shown.map((v) => v.customerId).filter((id): id is string => !!id);
+  const [customers, payments, members] = await Promise.all([
+    getCustomers(customerIds),
     paymentsForAppointments(shown.map((v) => v.id)),
+    planMembersAmong(customerIds).catch(() => new Set<string>()),
   ]);
   const dayClosed = (await closedDays(day, day).catch(() => new Map<string, string | null>())).get(day);
   const returns = (await returnsToBook().catch(() => [])).reverse();
@@ -346,7 +350,7 @@ export async function staffDay(dayParam: string | null): Promise<StaffDay> {
     closed: dayClosed === undefined ? false : dayClosed,
     waiting,
     strip: perDay.map((d) => ({ day: d.day, count: d.count, closed: closed.has(d.day) })),
-    jobs: shown.map((v) => toStaffJob(v, v.customerId ? customers.get(v.customerId) : undefined, payments.get(v.id) ?? [])),
+    jobs: shown.map((v) => toStaffJob(v, v.customerId ? customers.get(v.customerId) : undefined, payments.get(v.id) ?? [], !!v.customerId && members.has(v.customerId))),
     toSchedule: returns.map((v) => {
       const c = v.customerId ? returnCustomers.get(v.customerId) : undefined;
       const done = (v.completedAt ?? v.day).slice(0, 10);
@@ -364,7 +368,7 @@ export async function staffDay(dayParam: string | null): Promise<StaffDay> {
   };
 }
 
-function toStaffJob(v: Appointment, c: Customer | undefined, payments: PaymentRequest[]): StaffJob {
+function toStaffJob(v: Appointment, c: Customer | undefined, payments: PaymentRequest[], onPlan = false): StaffJob {
   const ps = payments.filter((p) => p.status !== "cancelled");
   const open = ps.find((p) => p.status === "open");
   return {
@@ -384,6 +388,7 @@ function toStaffJob(v: Appointment, c: Customer | undefined, payments: PaymentRe
     cantMake: !!v.cantMakeAt && v.status === "booked",
     openPayment: open ? { id: open.id, amount: formatPence(open.amountPence) } : null,
     paid: ps.length > 0 && !open,
+    onPlan,
   };
 }
 
@@ -465,10 +470,11 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
   const v = await getAppointment(id);
   if (!v || v.status === "cancelled") return null;
   const c = v.customerId ? await getCustomer(v.customerId) : null;
-  const [onJob, theirs, card] = await Promise.all([
+  const [onJob, theirs, card, members] = await Promise.all([
     paymentsForAppointments([v.id]).then((m) => m.get(v.id) ?? []),
     c ? paymentsForCustomer(c.id) : Promise.resolve([]),
     c && paymentsOn() ? savedCardFor(c) : Promise.resolve(null),
+    c ? planMembersAmong([c.id]).catch(() => new Set<string>()) : Promise.resolve(new Set<string>()),
   ]);
   const other = theirs.filter((p) => p.status === "open" && p.appointmentId !== v.id);
   const visits = new Map<string, string>();
@@ -512,7 +518,7 @@ export async function staffJob(id: string): Promise<StaffJobDetail | null> {
 
   const today = londonNow().dateISO;
   return {
-    job: toStaffJob(v, c ?? undefined, onJob),
+    job: toStaffJob(v, c ?? undefined, onJob, !!c && members.has(c.id)),
     quoteToBill,
     day: v.day,
     customerId: c?.id ?? null,

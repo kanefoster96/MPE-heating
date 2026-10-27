@@ -156,6 +156,13 @@ export async function planMemberByToken(token: string): Promise<PlanMember | nul
 }
 
 /** Their plan: the live one, else the latest (pending, or ended). Null if they've never had one. */
+/** Which of these customers are on the plan (paid up, or a payment being sorted): free call-outs. */
+export async function planMembersAmong(customerIds: string[]): Promise<Set<string>> {
+  if (!customerIds.length) return new Set();
+  const { data } = await createAdminClient().from("plan_members").select("customer_id").in("customer_id", [...new Set(customerIds)]).in("status", ["active", "past_due"]);
+  return new Set((data ?? []).map((r) => r.customer_id as string));
+}
+
 export async function planFor(customerId: string): Promise<PlanMember | null> {
   const { data } = await createAdminClient()
     .from("plan_members")

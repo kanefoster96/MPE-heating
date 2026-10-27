@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { business, freeOffers } from "@/lib/content";
@@ -28,6 +28,16 @@ const links: { label: string; href: string }[] = [
 
 export function Nav() {
   const [open, setOpen] = useState(false);
+
+  // While the menu's open the page behind it stays still, so a swipe scrolls the menu.
+  useEffect(() => {
+    if (!open) return;
+    const before = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = before;
+    };
+  }, [open]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white/85 backdrop-blur">
@@ -70,9 +80,10 @@ export function Nav() {
         }`}
       >
         <div className="overflow-hidden">
+          {/* The bar's pinned to the top, so the menu scrolls on its own: on a phone it's taller than the screen. */}
           <nav
             aria-label="Site"
-            className={`border-t border-line bg-white transition-opacity duration-200 ${
+            className={`max-h-[calc(100dvh-68px)] overflow-y-auto overscroll-contain border-t border-line bg-white pb-[max(1rem,env(safe-area-inset-bottom))] transition-opacity duration-200 ${
               open ? "opacity-100 delay-100" : "opacity-0"
             }`}
           >

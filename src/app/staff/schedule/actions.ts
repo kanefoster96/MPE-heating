@@ -1,5 +1,6 @@
 "use server";
 
+import { releasePaidCallout } from "@/lib/callout-prepay";
 import { londonNow } from "@/lib/schedule-time";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -105,6 +106,8 @@ export async function editAppointment(id: string, formData: FormData) {
 export async function changeAppointmentStatus(id: string, status: AppointmentStatus, day: string) {
   await requireStaff("/staff/schedule");
   await setAppointmentStatus(id, status);
+  // Cancelled after they'd paid the call-out ahead: it counts for their next visit (lib/callout-prepay.ts).
+  if (status === "cancelled") await releasePaidCallout(id);
   revalidatePath("/staff/schedule");
   revalidatePath("/staff/customers");
   redirect(dayHref(day) + `#visit-${id}`);

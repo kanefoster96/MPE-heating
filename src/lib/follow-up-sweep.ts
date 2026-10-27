@@ -505,6 +505,8 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
       .is("plan_status", null)
       // A quote's deposit isn't a bill: the quote's own follow-ups cover it.
       .or("quote_id.is.null,kind.neq.other")
+      // A call-out fee they started paying ahead and left (lib/callout-prepay.ts): optional, so never chased.
+      .or("kind.neq.callout_fee,created_by.not.is.null")
       .lt("reminder_count", 3)
       .lte("created_at", new Date(Date.now() - UNPAID_FIRST_DAYS * 86_400_000).toISOString());
     for (const row of data ?? []) {

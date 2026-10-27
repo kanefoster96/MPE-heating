@@ -82,7 +82,7 @@ export function noticeHeadline(type: NoticeType, v: VisitFacts): string {
 export function noticeBody(
   type: NoticeType,
   v: VisitFacts,
-  opts: { link?: string; phone: string; name?: string | null; engineer?: string | null; bookLink?: string },
+  opts: { link?: string; phone: string; name?: string | null; engineer?: string | null; bookLink?: string; payLink?: string | null },
 ): string {
   // Always a greeting, so no message starts in lower case without a name.
   const hi = opts.name ? `Hi ${opts.name.split(" ")[0]}, ` : "Hi, ";
@@ -93,9 +93,11 @@ export function noticeBody(
   const yourEngineer = opts.engineer ? `your MPE engineer, ${opts.engineer},` : "your MPE engineer";
   const engineerLine = opts.engineer ? ` Your MPE engineer will be ${opts.engineer}.` : "";
   const feeLine = v.calloutFee && v.kind === "callout" ? ` The call-out is ${v.calloutFee}, taken off your repair bill if you go ahead.` : "";
+  // Paying it ahead from their phone (lib/callout-prepay.ts), or on the day.
+  const payLine = feeLine && opts.payLink ? ` You can pay it now: ${opts.payLink} Or pay ${opts.engineer ?? "your engineer"} on the day.` : "";
   switch (type) {
     case "booked":
-      return `${hi}you're booked in for your ${what} on ${whenLine(v)}${where ? ` at ${where}` : ""}.${engineerLine}${feeLine} ${cantMake}`;
+      return `${hi}you're booked in for your ${what} on ${whenLine(v)}${where ? ` at ${where}` : ""}.${engineerLine}${feeLine}${payLine} ${cantMake}`;
     case "moved":
       return `${hi}your ${what} has moved to ${whenLine(v)}${where ? ` at ${where}` : ""}. ${cantMake}`;
     case "cancelled":

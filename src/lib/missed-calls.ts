@@ -10,6 +10,7 @@ import { callableUkNumber, coachPhoneOf } from "@/lib/coach-calls";
 import { business } from "@/lib/content";
 import { formatPhone } from "@/lib/phone";
 import { CLUB, clubLink } from "@/lib/club";
+import { londonNow } from "@/lib/schedule-time";
 
 /**
  * Calls to the MPE (Twilio) number. It rings Fergal first (every admin's
@@ -46,6 +47,16 @@ export const MISSED_CALL_TEXT = `Sorry we missed your call. An ${CLUB.name} engi
 
 /** Rings before going to MPE's voicemail: short, so Fergal's own voicemail never picks it up. */
 const RING_SECONDS = 18;
+
+/** Calls ring Fergal from 8am to 8pm (London), every day; outside that, straight to voicemail. */
+const CALLS_FROM = 8 * 60;
+const CALLS_UNTIL = 20 * 60;
+
+/** Whether a call to the MPE number rings the team now. */
+export function callsOpen(): boolean {
+  const { minutes } = londonNow();
+  return minutes >= CALLS_FROM && minutes < CALLS_UNTIL;
+}
 
 const VOICE = 'voice="Polly.Amy-Neural" language="en-GB"';
 
@@ -131,7 +142,7 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
           sender_id: conversation.userId,
           sender_is_coach: false,
           channel: "sms",
-          body: paused ? "Called the MPE number (calls paused for the month)" : "Called the MPE number",
+          body: paused ? "Called the MPE number (calls paused for the month)" : callsOpen() ? "Called the MPE number" : "Called the MPE number (out of hours: voicemail)",
         });
         await bumpConversation(conversation.id);
         tip = await phoneOnlyTip(conversation.id, conversation.userId, conversation.guestEmail, conversation.guestName ?? formatPhone(caller));
@@ -147,6 +158,14 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
       await notifyStaffOfFamilyMessage({ conversationId, fromName: caller ? `Call from ${formatPhone(caller)}` : "A call", body: "Called while calls are paused" }).catch(() => {});
     }
     return twiml(`<Say ${VOICE}>Thanks for calling ${SPOKEN_NAME}. Please message us in the MPE app or at ${SPOKEN_DOMAIN}, and an engineer will get back to you.</Say><Hangup/>`);
+  }
+
+  // Out of hours (8pm to 8am): straight to voicemail, nobody's phone rings, and nobody's
+  // woken by a notification; it's waiting in their chat in the morning.
+  if (!callsOpen()) {
+    await logUsage("call_in", 1);
+    if (conversationId && caller) await textAfterCall(conversationId, caller, MISSED_CALL_TEXT).catch(() => false);
+    return voicemail(conversationId, true);
   }
 
   const numbers = await ringNumbers().catch(() => [] as string[]);
@@ -277,14 +296,13 @@ async function textAfterCall(conversationId: string, caller: string, body: strin
   }
 }
 
-/** Nobody picked up: MPE's voicemail, filed in their chat. A withheld number is pointed at the website. */
-function voicemail(conversationId: string | null): Response {
+/** Nobody picked up (or it's out of hours): MPE's voicemail, filed in their chat. A withheld number is pointed at the website. */
+function voicemail(conversationId: string | null, closed = false): Response {
+  const why = closed ? "Our phones are open from 8am to 8pm." : "Sorry, our engineer can't get to the phone right now.";
   if (!conversationId) {
-    return twiml(
-      `<Say ${VOICE}>Thanks for calling ${SPOKEN_NAME}. Sorry, nobody can get to the phone right now. Please visit ${SPOKEN_DOMAIN} to live chat with us.</Say><Hangup/>`,
-    );
+    return twiml(`<Say ${VOICE}>Thanks for calling ${SPOKEN_NAME}. ${why} Please visit ${SPOKEN_DOMAIN} to live chat with us.</Say><Hangup/>`);
   }
-  const greeting = `Thanks for calling ${SPOKEN_NAME}. Sorry, our engineer can't get to the phone right now. Please leave a message after the tone, or live chat with us in the MPE app or at ${SPOKEN_DOMAIN}.`;
+  const greeting = `Thanks for calling ${SPOKEN_NAME}. ${why} Please leave a message after the tone, or live chat with us in the MPE app or at ${SPOKEN_DOMAIN}.`;
   // Twilio's built-in transcription caps the recording at two minutes.
   return twiml(
     `<Say ${VOICE}>${greeting}</Say>` +
@@ -376,11 +394,14 @@ export async function handleRecording(conversationId: string | null, params: Rec
     attachment_name: `${label}.mp3`,
   });
   await bumpConversation(conversationId);
-  await notifyStaffOfFamilyMessage({
-    conversationId,
-    fromName: conversation?.guest_name ? `${conversation.guest_name} (call)` : `Call from ${conversation?.phone ?? "unknown number"}`,
-    body: label,
-  });
+  // Out of hours it waits, unread, in their chat for the morning: nobody's woken by it.
+  if (callsOpen()) {
+    await notifyStaffOfFamilyMessage({
+      conversationId,
+      fromName: conversation?.guest_name ? `${conversation.guest_name} (call)` : `Call from ${conversation?.phone ?? "unknown number"}`,
+      body: label,
+    });
+  }
 }
 
 /** The voicemail's text is ready: add it to the voicemail message so it can be read without playing it. */

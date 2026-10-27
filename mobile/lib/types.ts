@@ -56,6 +56,8 @@ export type ChatConversation = {
   customerId?: string | null;
   guest?: boolean;
   lastFrom?: "web" | "app" | null;
+  /** Only ever phoned or texted (no email, not in the app): messages go from WhatsApp Business. */
+  phoneOnly?: boolean;
 };
 
 export type EnquiryStatus = "new" | "contacted" | "booked" | "done" | "closed";

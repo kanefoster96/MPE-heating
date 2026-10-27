@@ -21,6 +21,7 @@ function statusLine(c: Conversation): string {
   if (c.completed) return "Marked done";
   if (c.lastFrom === "app") return "Messaging from the app";
   if (c.lastFrom === "web") return "From the website chat";
+  if (c.phoneOnly) return "Phoned or texted: no app or email";
   if (c.guest) return "Website visitor";
   return "Open conversation";
 }

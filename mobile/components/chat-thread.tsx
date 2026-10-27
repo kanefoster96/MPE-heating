@@ -11,14 +11,14 @@ import { apiFetch, apiPost } from "@/lib/api";
 import { useAuth } from "@/contexts/auth";
 import { supabase } from "@/lib/supabase";
 import { uploadChatPhoto } from "@/lib/upload";
-import { openInApp } from "@/lib/open-link";
+import { openExternal, openInApp } from "@/lib/open-link";
 import { registerForPush } from "@/lib/push";
 import { colors, fonts } from "@/lib/theme";
 import type { ChatMessage, ChatReader, ConversationResponse, EnquiryCard, EnquiryStatus } from "@/lib/types";
 
 const POLL_MS = 6000;
 const GAP_FOR_DIVIDER_MS = 5 * 60_000;
-type Channel = "chat" | "email" | "sms";
+type Channel = "chat" | "email" | "sms" | "whatsapp";
 
 /** Messages by id, oldest first; a sent message replaces the stand-in shown while it was sending. */
 function merge(current: ChatMessage[], incoming: ChatMessage[], viewerId: string | null): ChatMessage[] {
@@ -39,8 +39,11 @@ function dayTime(iso: string): string {
   return `${WEEKDAYS[d.getDay()]} ${d.getDate()} · ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-const CHANNEL_LABEL: Record<Channel, string> = { chat: "Live chat", sms: "Text", email: "Email" };
-const CHANNEL_ICON = { chat: "chatbubble-ellipses", sms: "chatbox-ellipses", email: "mail" } as const;
+const CHANNEL_LABEL: Record<Channel, string> = { chat: "Live chat", sms: "Text", email: "Email", whatsapp: "WhatsApp" };
+/** In the menu: a text uses the month's calls and texts allowance; WhatsApp Business is free. */
+const CHANNEL_MENU_LABEL: Record<Channel, string> = { chat: "Live chat", sms: "Text (uses allowance)", email: "Email", whatsapp: "WhatsApp Business" };
+const CHANNEL_ICON = { chat: "chatbubble-ellipses", sms: "chatbox-ellipses", email: "mail", whatsapp: "logo-whatsapp" } as const;
+const MENU_ICON = { chat: "chatbubble-ellipses-outline", sms: "chatbox-ellipses-outline", email: "mail-outline", whatsapp: "logo-whatsapp" } as const;
 
 // One line at rest; grows to about five lines, then scrolls inside.
 const COMPOSER_MIN = 44;
@@ -136,11 +139,11 @@ export function ChatThread({
       setEnquiries(res.enquiries ?? []);
       setReaders(res.receipts ?? []);
       setPhone(res.conversation.phone);
-      // Reply the way they last got in touch: a text gets a text back.
+      // Someone who's only phoned or texted (no email, not in the app) can't see a
+      // message here, so it goes from WhatsApp Business: free, and Fergal's own.
       if (!channelSetRef.current) {
         channelSetRef.current = true;
-        const lastFromThem = [...res.messages].reverse().find((m) => !m.senderIsCoach);
-        if (res.viewer.staff && conversationId && lastFromThem?.channel === "sms" && res.conversation.phone) setChannel("sms");
+        if (res.viewer.staff && conversationId && res.conversation.phoneOnly && res.conversation.phone) setChannel("whatsapp");
       }
       latestRef.current = res.messages.at(-1)?.createdAt ?? null;
       onLoaded?.(res);
@@ -198,15 +201,27 @@ export function ChatThread({
     return () => subs.forEach((s) => s.remove());
   }, []);
 
+  /** Their number as WhatsApp wants it: 447700900123. */
+  const waNumber = (() => {
+    const raw = phone?.replace(/[^\d+]/g, "") ?? "";
+    const digits = raw.startsWith("+") ? raw.slice(1) : raw.startsWith("0") ? `44${raw.slice(1)}` : raw;
+    return /^\d{10,15}$/.test(digits) ? digits : null;
+  })();
+
   async function send(body: string, photo?: { uri: string; mimeType?: string }) {
     if (!id || (!body.trim() && !photo)) return;
+    // WhatsApp Business: their chat opens with the message typed, and he sends it there.
+    if (channel === "whatsapp" && !photo) {
+      if (waNumber) openExternal(`https://wa.me/${waNumber}?text=${encodeURIComponent(body.trim())}`);
+      return;
+    }
     const stand: ChatMessage = {
       id: `temp-${Date.now()}`,
       conversationId: id,
       senderId: viewerId,
       senderIsCoach: staff,
       body: body.trim(),
-      channel,
+      channel: channel === "whatsapp" ? "chat" : channel,
       attachmentPath: null,
       attachmentType: photo ? "image" : null,
       attachmentName: null,
@@ -220,7 +235,8 @@ export function ChatThread({
       const attachmentPath = photo ? await uploadChatPhoto(id, photo.uri, photo.mimeType) : undefined;
       await apiPost("/api/mobile/chat/send", {
         body: body.trim(),
-        ...(conversationId ? { conversationId, channel } : {}),
+        // A photo while on WhatsApp: kept in their chat here (WhatsApp takes photos from its own camera).
+        ...(conversationId ? { conversationId, channel: channel === "whatsapp" ? "chat" : channel } : {}),
         ...(attachmentPath ? { attachmentPath, attachmentType: "image", attachmentName: "Photo" } : {}),
       });
       haptic.success();
@@ -474,6 +490,14 @@ export function ChatThread({
         />
       )}
 
+      {staff && data?.conversation.phoneOnly && channel === "whatsapp" && (
+        <View style={{ borderTopWidth: 1, borderTopColor: colors.edge, backgroundColor: colors.cream, paddingHorizontal: 14, paddingVertical: 8 }}>
+          <AppText style={{ color: colors.text2, fontSize: 13, lineHeight: 18 }}>
+            No email or the MPE app for them, so this goes from your WhatsApp Business. Ask them to install the app from the text we sent, and the next message can go here.
+          </AppText>
+        </View>
+      )}
+
       {staff && !data?.conversation.isTeam && channel === "sms" && (
         // The number a text goes to (Kanvas Academy's): add one, or correct it.
         <View style={{ borderTopWidth: 1, borderTopColor: colors.edge, backgroundColor: colors.page, paddingHorizontal: 14, paddingVertical: 4 }}>
@@ -534,7 +558,7 @@ export function ChatThread({
             onChangeText={setDraft}
             multiline
             onContentSizeChange={(e) => setInputHeight(Math.min(COMPOSER_MAX, Math.max(COMPOSER_MIN, e.nativeEvent.contentSize.height + 20)))}
-            placeholder={channel === "sms" && !phone ? "Add a mobile number above first…" : "Type a message…"}
+            placeholder={channel === "sms" && !phone ? "Add a mobile number above first…" : channel === "whatsapp" ? "Type it here, then send it in WhatsApp…" : "Type a message…"}
             placeholderTextColor={colors.text2}
             accessibilityLabel="Message"
             style={{ height: draft ? inputHeight : COMPOSER_MIN, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 17, lineHeight: 22, fontFamily: fonts.regular, color: colors.navy, textAlignVertical: "top" }}
@@ -554,20 +578,20 @@ export function ChatThread({
                   <Ionicons name={channelMenu ? "chevron-up" : "chevron-down"} size={14} color={colors.navy} />
                 </Pressable>
                 {channelMenu && (
-                  <View style={{ position: "absolute", bottom: 48, left: 0, width: 190, borderRadius: 14, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.page, paddingVertical: 4, zIndex: 10, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
-                    {(["chat", "sms", "email"] as Channel[]).map((c) => (
+                  <View style={{ position: "absolute", bottom: 48, left: 0, width: 220, borderRadius: 14, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.page, paddingVertical: 4, zIndex: 10, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
+                    {(["chat", "sms", "email", ...(waNumber ? ["whatsapp"] : [])] as Channel[]).map((c) => (
                       <Pressable
                         key={c}
                         onPress={() => {
                           setChannel(c);
                           setChannelMenu(false);
                         }}
-                        accessibilityLabel={`${CHANNEL_LABEL[c]}${channel === c ? ", selected" : ""}`}
+                        accessibilityLabel={`${CHANNEL_MENU_LABEL[c]}${channel === c ? ", selected" : ""}`}
                         style={({ pressed }) => [{ minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12 }, pressed && { backgroundColor: colors.cream }]}
                       >
-                        <Ionicons name={`${CHANNEL_ICON[c]}-outline` as never} size={16} color={channel === c ? colors.navy : colors.text2} />
+                        <Ionicons name={MENU_ICON[c]} size={16} color={channel === c ? colors.navy : colors.text2} />
                         <AppText weight={channel === c ? "bold" : "regular"} style={{ fontSize: 14, flex: 1 }}>
-                          {CHANNEL_LABEL[c]}
+                          {CHANNEL_MENU_LABEL[c]}
                         </AppText>
                         {channel === c && <Ionicons name="checkmark" size={14} color={colors.navy} />}
                       </Pressable>
@@ -604,7 +628,7 @@ export function ChatThread({
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <AppText weight="bold" style={{ color: "#fff", fontSize: 15 }}>
-                    Send
+                    {channel === "whatsapp" ? "Open WhatsApp" : "Send"}
                   </AppText>
                 )}
               </View>

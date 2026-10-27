@@ -11,6 +11,7 @@ import { AppText, Card, LoadError, PressableScale, PrimaryButton, Skeleton, hapt
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost } from "@/lib/api";
 import { notify } from "@/lib/confirm";
+import { reportSend, type WhatsAppHandoff } from "@/lib/whatsapp-handoff";
 import { instalmentSchedule, scheduleSummary } from "@/lib/instalment-schedule";
 import { colors, fonts } from "@/lib/theme";
 import type { SheetContext } from "@/lib/types";
@@ -130,7 +131,7 @@ function NewPayment() {
     if (kind === "invoice" && schedule && !schedule.ok) return notify("Monthly payments", schedule.error);
     setBusy(`${kind}-${intent}`);
     try {
-      const res = await apiPost<{ id: string; message: string }>("/api/mobile/staff/payments/new", {
+      const res = await apiPost<{ id: string; message: string; whatsapp?: WhatsAppHandoff | null }>("/api/mobile/staff/payments/new", {
         customerId: ctx.customer.id,
         appointmentId: ctx.visit?.id ?? null,
         kind,
@@ -143,8 +144,8 @@ function NewPayment() {
       });
       haptic.success();
       if (intent === "send") {
-        notify("Sent", res.message);
         router.back();
+        await reportSend("Sent", res);
       } else {
         setSheet({ id: res.id, context: await apiFetch<SheetContext>(`/api/mobile/staff/payments/${res.id}`) });
       }

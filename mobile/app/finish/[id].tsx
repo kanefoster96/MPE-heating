@@ -10,6 +10,7 @@ import { AppText, Card, LoadError, PressableScale, PrimaryButton, Skeleton, hapt
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost } from "@/lib/api";
 import { notify } from "@/lib/confirm";
+import { reportSend, type WhatsAppHandoff } from "@/lib/whatsapp-handoff";
 import { openExternal } from "@/lib/open-link";
 import { colors, fonts } from "@/lib/theme";
 
@@ -158,7 +159,7 @@ export default function FinishJob() {
     if (asking && price !== "later" && !(Number(pounds.replace(/[£,\s]/g, "")) >= 1)) return notify("Not finished", "Enter the price for the return visit.");
     setSaving(true);
     try {
-      const res = await apiPost<{ message: string; invoiceId?: string }>(`/api/mobile/staff/jobs/${d.id}/finish`, {
+      const res = await apiPost<{ message: string; invoiceId?: string; whatsapp?: WhatsAppHandoff | null }>(`/api/mobile/staff/jobs/${d.id}/finish`, {
         report: d.report,
         privateNote: note,
         boiler: d.boiler,
@@ -171,7 +172,9 @@ export default function FinishJob() {
       });
       haptic.success();
       if (d.outcome === "return" && !d.returnVisit && (knowDay || res.invoiceId)) {
-        notify("Saved", res.message);
+        // The invoice couldn't reach them (no email or app): offered on WhatsApp Business first.
+        if (res.whatsapp) await reportSend("Saved", res);
+        else notify("Saved", res.message);
         // The day's known: on to booking the return visit, linked to this one.
         if (knowDay) router.replace(`/visit-form?followUp=${d.id}`);
         // Taking the price now: its invoice first (they're standing there), then back to the booking if there is one.

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/staff-auth";
 import { cancelQuote, createQuote, invoiceBalance, resendQuote } from "@/lib/quotes";
-import { viaPhrase } from "@/lib/visit-notify";
+import { reachedThem, viaPhrase } from "@/lib/visit-notify";
 
 type Context = { customerId: string; appointmentId: string | null };
 
@@ -38,9 +38,12 @@ export async function sendNewQuote(ctx: Context, formData: FormData) {
     redirect(`/staff/quotes/new?${q.toString()}`);
   }
   revalidatePath("/staff/quotes");
-  const done = created.sentVia.length ? `Sent by ${viaPhrase(created.sentVia)}.` : "Saved, but we couldn't reach them: add an email or mobile to their customer page.";
+  const done = reachedThem(created.sentVia) ? `Sent by ${viaPhrase(created.sentVia)}.` : NOT_REACHED;
   redirect(`/staff/quotes/${created.quote.id}?done=${encodeURIComponent(done)}`);
 }
+
+// They've only phoned us (no email, not in the app): their conversation alone isn't seen.
+const NOT_REACHED = "Saved, but it hasn't reached them: no email or the MPE app. Add their email, or send the link from WhatsApp Business.";
 
 /** On a quote: send it again, withdraw it, or invoice the rest once the work's done. */
 export async function manageQuote(id: string, formData: FormData) {
@@ -49,12 +52,12 @@ export async function manageQuote(id: string, formData: FormData) {
   let done = "Done.";
   if (intent === "resend") {
     const via = await resendQuote(id, user.id);
-    done = via.length ? `Sent again by ${viaPhrase(via)}.` : "Couldn't send it: it may no longer be open, or we can't reach them.";
+    done = !via.length ? "Couldn't send it: it may no longer be open." : reachedThem(via) ? `Sent again by ${viaPhrase(via)}.` : NOT_REACHED;
   } else if (intent === "cancel") {
     done = (await cancelQuote(id)) ? "Quote withdrawn." : "Only an open quote can be withdrawn.";
   } else if (intent === "invoice") {
     const result = await invoiceBalance(id, user.id);
-    done = result.ok ? `Invoice for the rest sent${result.sentVia.length ? ` by ${viaPhrase(result.sentVia)}` : ""}.` : result.error;
+    done = !result.ok ? result.error : reachedThem(result.sentVia) ? `Invoice for the rest sent by ${viaPhrase(result.sentVia)}.` : NOT_REACHED;
   }
   revalidatePath(`/staff/quotes/${id}`);
   redirect(`/staff/quotes/${id}?done=${encodeURIComponent(done)}`);

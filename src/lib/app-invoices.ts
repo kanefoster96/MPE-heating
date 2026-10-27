@@ -14,7 +14,7 @@ import {
   type PaidVia,
   type PaymentRequest,
 } from "@/lib/payments";
-import { viaPhrase } from "@/lib/visit-notify";
+import { notReachedLine, reachedThem, viaPhrase, whatsappHandoff, type WhatsAppHandoff } from "@/lib/visit-notify";
 
 /**
  * Invoices in the app (mobile/app/invoices.tsx and invoice/[id].tsx): the
@@ -110,17 +110,29 @@ export const INVOICE_ACTIONS = ["resend", "cancel", "stop_monthly", "restart_mon
 export type InvoiceAction = (typeof INVOICE_ACTIONS)[number];
 
 /** The website's buttons on an invoice: the link again, cancel, monthly payments (stop, restart, one taken in person), the receipt again. */
-export async function invoiceAction(id: string, action: InvoiceAction, amountPence: number | null, staffId: string): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+export async function invoiceAction(
+  id: string,
+  action: InvoiceAction,
+  amountPence: number | null,
+  staffId: string,
+): Promise<{ ok: true; message: string; whatsapp?: WhatsAppHandoff | null } | { ok: false; error: string }> {
   const p: PaymentRequest | null = await getPaymentRequest(id);
   if (!p) return { ok: false, error: "That invoice has gone." };
+  // Only phoned us, so no email or app: the team send it from WhatsApp Business instead.
+  const handoff = async (what: string) => {
+    const customer = p.customerId ? await getCustomer(p.customerId) : null;
+    return { ok: true as const, message: customer ? notReachedLine(customer) : "It hasn't reached them.", whatsapp: customer ? whatsappHandoff(customer, what, payLink(p)) : null };
+  };
   switch (action) {
     case "resend": {
       const via = await resendPaymentLink(id, staffId);
-      return via.length ? { ok: true, message: `Sent again by ${viaPhrase(via)}.` } : { ok: false, error: "Couldn't reach them: add an email or mobile to their details." };
+      if (!via.length) return { ok: false, error: "Couldn't send it: it may already be paid." };
+      return reachedThem(via) ? { ok: true, message: `Sent again by ${viaPhrase(via)}.` } : handoff(`Here's your invoice, ${formatPence(p.amountPence)}. You can pay it here by card, Apple Pay or Google Pay`);
     }
     case "receipt": {
       const via = await sendReceipt(id, staffId);
-      return via.length ? { ok: true, message: `Receipt sent by ${viaPhrase(via)}.` } : { ok: false, error: "Couldn't reach them: add an email or mobile to their details." };
+      if (!via.length) return { ok: false, error: "Couldn't send it: it isn't paid yet." };
+      return reachedThem(via) ? { ok: true, message: `Receipt sent by ${viaPhrase(via)}.` } : handoff(`Thanks for your payment. Your receipt`);
     }
     case "cancel": {
       const result = await cancelPaymentRequest(id);

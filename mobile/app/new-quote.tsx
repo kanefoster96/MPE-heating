@@ -9,6 +9,7 @@ import { AppText, Card, LoadError, PressableScale, PrimaryButton, Skeleton, hapt
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost } from "@/lib/api";
 import { notify } from "@/lib/confirm";
+import { reportSend, type WhatsAppHandoff } from "@/lib/whatsapp-handoff";
 import { instalmentSchedule } from "@/lib/instalment-schedule";
 import { colors, fonts } from "@/lib/theme";
 
@@ -102,7 +103,7 @@ export default function NewQuote() {
     if (schedule && !schedule.ok) return notify("Monthly payments", schedule.error);
     setSaving(true);
     try {
-      const res = await apiPost<{ id: string; message: string }>("/api/mobile/staff/quotes/new", {
+      const res = await apiPost<{ id: string; message: string; whatsapp?: WhatsAppHandoff | null }>("/api/mobile/staff/quotes/new", {
         customerId: ctx.customer.id,
         appointmentId: ctx.visit?.id ?? null,
         title,
@@ -113,8 +114,8 @@ export default function NewQuote() {
         balanceInstalments: monthlyOn ? months : null,
       });
       haptic.success();
-      notify("Quote sent", res.message);
       router.replace(`/quote/${res.id}`);
+      await reportSend("Quote sent", res);
     } catch (err) {
       haptic.warning();
       notify("Not sent", err instanceof Error ? err.message : "Please try again.");

@@ -11,12 +11,13 @@ import {
   createPaymentRequest,
   formatPence,
   parseLines,
+  payLink,
   paymentsOn,
   savedCardFor,
 } from "@/lib/payments";
 import { listProducts, upsellProducts } from "@/lib/products";
 import { availableCredits, spendCredits } from "@/lib/referrals";
-import { viaPhrase } from "@/lib/visit-notify";
+import { notReachedLine, reachedThem, viaPhrase, whatsappHandoff, type WhatsAppHandoff } from "@/lib/visit-notify";
 
 /**
  * A new invoice or call-out fee in the app (mobile/app/new-payment.tsx):
@@ -75,7 +76,7 @@ export type InvoiceBody = {
   creditIds?: string[];
 };
 
-export async function createInvoice(body: InvoiceBody, staffId: string): Promise<{ ok: true; id: string; message: string } | { ok: false; error: string }> {
+export async function createInvoice(body: InvoiceBody, staffId: string): Promise<{ ok: true; id: string; message: string; whatsapp?: WhatsAppHandoff | null } | { ok: false; error: string }> {
   if (typeof body.customerId !== "string") return { ok: false, error: "Pick the customer." };
   const kind = body.kind === "callout_fee" ? "callout_fee" : "invoice";
   const send = body.intent !== "take";
@@ -113,10 +114,12 @@ export async function createInvoice(body: InvoiceBody, staffId: string): Promise
   // Money off they were owed, now on this invoice: used.
   if (kind === "invoice" && body.creditIds?.length) await spendCredits(body.customerId, body.creditIds.filter((x) => typeof x === "string"), created.request.id);
   const foldedLine = created.folded ? " Their unpaid call-out fee is dropped: it's part of this bill." : "";
-  const message = (!send
-    ? "Saved. Take it now."
-    : created.sentVia.length
-      ? `Sent by ${viaPhrase(created.sentVia)}.`
-      : "Saved, but we couldn't reach them: add an email or mobile to their details.") + foldedLine;
-  return { ok: true, id: created.request.id, message };
+  // Only phoned us, so no email or app: the team send it from WhatsApp Business instead.
+  const unreached = send && !reachedThem(created.sentVia) ? await getCustomer(body.customerId) : null;
+  const message = (!send ? "Saved. Take it now." : unreached ? notReachedLine(unreached) : `Sent by ${viaPhrase(created.sentVia)}.`) + foldedLine;
+  const r = created.request;
+  const whatsapp = unreached
+    ? whatsappHandoff(unreached, r.kind === "callout_fee" ? `Here's your call-out fee, ${formatPence(r.amountPence)}. You can pay it here` : `Here's your invoice, ${formatPence(r.amountPence)}. You can pay it here by card, Apple Pay or Google Pay`, payLink(r))
+    : null;
+  return { ok: true, id: r.id, message, whatsapp };
 }

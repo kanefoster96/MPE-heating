@@ -3,12 +3,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { RowSkeleton, ServiceRow } from "@/components/rows";
 import { AppText, FadeIn, LoadError, PressableScale, SectionHeading } from "@/components/ui";
-import { openInApp } from "@/lib/open-link";
+import { openBooking } from "@/lib/open-link";
+import { useAuth } from "@/contexts/auth";
 import { useHomeData } from "@/lib/use-home";
 import { colors } from "@/lib/theme";
 
 /** The Services tab: every service MPE offers, with its price and Book, then the maintenance plan. */
 export default function ServicesScreen() {
+  const { signedIn } = useAuth();
   const insets = useSafeAreaInsets();
   const { data, error, load } = useHomeData();
 
@@ -24,11 +26,11 @@ export default function ServicesScreen() {
           <>
             {data.services.map((s, i) => (
               <FadeIn key={s.id} index={i}>
-                <ServiceRow service={s} onPress={() => openInApp(s.bookUrl)} />
+                <ServiceRow service={s} onPress={() => openBooking(s.bookUrl, signedIn)} />
               </FadeIn>
             ))}
             <FadeIn index={data.services.length} style={{ marginTop: 10 }}>
-              <PressableScale onPress={() => openInApp(data.plan.bookUrl)} accessibilityLabel={`${data.plan.title}. ${data.plan.price ?? "Get the plan details"}`}>
+              <PressableScale onPress={() => openBooking(data.plan.bookUrl, signedIn)} accessibilityLabel={`${data.plan.title}. ${data.plan.price ?? "Get the plan details"}`}>
                 <View style={{ backgroundColor: colors.navy, borderRadius: 22, padding: 20 }}>
                   <AppText weight="bold" style={{ color: "#ffc53d", fontSize: 12, letterSpacing: 1.6, textTransform: "uppercase" }}>
                     {data.plan.title}

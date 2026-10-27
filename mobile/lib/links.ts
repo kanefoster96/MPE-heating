@@ -86,6 +86,8 @@ export function targetFor(href: string, opts: { staff?: boolean } = {}): LinkTar
   // The "Confirm my email" button: signs the app in (app/app-sign-in.tsx), keeping its link.
   if (pathname === "/app-sign-in") return { route: path };
   if (pathname === "/messages") return { route: "/chat" };
+  // "Back to the app" at the end of a booking form opened from the app (mpe://jobs).
+  if (pathname === "/jobs") return { route: "/jobs" };
   if (pathname === "/account" || pathname.startsWith("/account/")) return opts.staff ? { route: "/menu" } : { route: accountRoute(path.split("#")[1] ?? "") };
   const guide = pathname.match(/^\/help\/([a-z0-9-]+)$/);
   if (guide) return { route: `/guide/${guide[1]}` };

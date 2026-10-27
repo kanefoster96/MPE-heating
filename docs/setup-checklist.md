@@ -124,6 +124,11 @@ deployment.
       from 8am to 8pm, with the gas emergency number (0800 111 999). Any
       chat left unanswered for two hours in the day (counted from 8am for
       overnight ones) reminds the team once.
+- [ ] Booking from the app (Book a call-out, Book a service, the
+      services list): the form opens signed in, so someone signed in to
+      the app sees "Booking as Sam Taylor, 12 Park Avenue…" with Change,
+      and the booking always lands on their account. Its thank-you says
+      updates come in the app, with **Back to the app** (mpe://jobs).
 - [ ] The chat's details card asks for their name, postcode (optional),
       email and mobile. A reply email's button opens the chat as it was on
       the same device; on another, it asks for their email and sends a

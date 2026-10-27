@@ -7,7 +7,7 @@ import { StaffJobCard } from "@/components/staff-job";
 import { AppText, Card, FadeIn, LoadError, PressableScale, PrimaryButton, SecondaryButton, Skeleton } from "@/components/ui";
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, readCached } from "@/lib/api";
-import { openInApp } from "@/lib/open-link";
+import { openBooking, openInApp } from "@/lib/open-link";
 import { SITE_URL } from "@/lib/site";
 import { colors } from "@/lib/theme";
 import type { JobCard, StaffDay, ToSchedule } from "@/lib/types";
@@ -129,8 +129,8 @@ function MyJobs() {
               </AppText>
               <AppText style={{ color: colors.text2, textAlign: "center" }}>When you book with us, the job shows here and we&apos;ll keep you posted at each step.</AppText>
               <View style={{ alignSelf: "stretch", gap: 10, marginTop: 8 }}>
-                <PrimaryButton title="Book a call-out" icon="flame" size="medium" onPress={() => openInApp(`${SITE_URL}/emergency`)} />
-                <SecondaryButton title="Book a service" icon="build" onPress={() => openInApp(`${SITE_URL}/book/service`)} />
+                <PrimaryButton title="Book a call-out" icon="flame" size="medium" onPress={() => openBooking(`${SITE_URL}/emergency`, true)} />
+                <SecondaryButton title="Book a service" icon="build" onPress={() => openBooking(`${SITE_URL}/book/service`, true)} />
               </View>
             </Card>
           )}

@@ -1,7 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { londonNow } from "@/lib/schedule-time";
 import { addDays } from "@/lib/day-plan";
-import { recordNotice, remindersDue, returnsToBook, type Appointment } from "@/lib/appointments";
+import { pricesToSend, recordNotice, remindersDue, returnsToBook, type Appointment } from "@/lib/appointments";
+import { getSetting, setSetting } from "@/lib/settings";
 import { getCustomer } from "@/lib/customers";
 import { syncTwilioTotal, usageAlerts } from "@/lib/twilio-usage";
 import { openEnquiriesSince } from "@/lib/enquiries";
@@ -56,6 +57,8 @@ const DAY_BEFORE_UNTIL = 21 * 60;
 const DAYTIME_FROM = 10 * 60;
 const DAYTIME_UNTIL = 19 * 60;
 const STAFF_FROM = 8 * 60;
+/** The team's reminder of prices to send and return visits to book: 9am and 1pm (London). */
+const WAITING_REMINDERS = [9 * 60, 13 * 60];
 const STAFF_UNTIL = 19 * 60;
 const MISSED_FROM = 12 * 60;
 const FOLLOW_UP_AFTER_HOURS = 24;
@@ -294,23 +297,33 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     }
   });
 
-  // 5c. The team: a return visit still not booked a day after the first visit. Once.
-  await stage("returns", async () => {
-    if (minutes < STAFF_FROM || minutes >= STAFF_UNTIL) return;
-    const dayAgo = new Date(Date.now() - 24 * 3_600_000).toISOString();
-    for (const v of await returnsToBook()) {
-      if (!v.completedAt || v.completedAt > dayAgo) continue;
-      // Its nudge as a request, if it had one, was before it was done.
-      if (v.staffNudgedAt && v.staffNudgedAt > v.completedAt) continue;
-      const who = v.customerId ? ((await getCustomer(v.customerId))?.name ?? "A customer") : "A customer";
-      await pushToUsers(await chatRecipientIds(), {
-        title: "Return visit to book",
-        body: `${who}'s return visit${v.returnNote ? ` (to ${v.returnNote})` : ""} isn't booked yet. They were told we'd be in touch.`,
-        data: { kind: "link", href: `/staff/jobs/${v.id}` },
-      });
-      await admin.from("appointments").update({ staff_nudged_at: new Date().toISOString() }).eq("id", v.id);
-      result.staffNudged++;
-    }
+  // 5c. The team: what's waiting on them after a call-out (a price to send,
+  // a return visit to book), at 9am and again at 1pm, in case a busy
+  // morning pushed it out of mind. One push each time, for everything.
+  await stage("waiting", async () => {
+    const slot = WAITING_REMINDERS.filter((m) => minutes >= m).pop();
+    if (slot === undefined || minutes >= STAFF_UNTIL) return;
+    const key = `${today} ${slot}`;
+    if ((await getSetting("waiting_reminder_for")) === key) return;
+    // Marked first: a slow push mustn't mean a second one five minutes later.
+    if (!(await setSetting("waiting_reminder_for", key))) return;
+    const [prices, returns] = await Promise.all([pricesToSend(), returnsToBook()]);
+    if (!prices.length && !returns.length) return;
+    const names = async (visits: Appointment[]) => {
+      const list = await Promise.all(visits.slice(0, 3).map(async (v) => (v.customerId ? ((await getCustomer(v.customerId))?.name?.split(" ")[0] ?? null) : null)));
+      const known = list.filter((n): n is string => !!n);
+      return known.length ? ` (${known.join(", ")}${visits.length > known.length ? " and more" : ""})` : "";
+    };
+    const parts = [
+      prices.length ? `${prices.length} price${prices.length === 1 ? "" : "s"} to send${await names(prices)}` : null,
+      returns.length ? `${returns.length} return visit${returns.length === 1 ? "" : "s"} to book${await names(returns)}` : null,
+    ].filter(Boolean);
+    await pushToUsers(await chatRecipientIds(), {
+      title: "Waiting on you",
+      body: `${parts.join(" and ")}. Once the part's priced or in, it's a couple of taps from the Jobs tab.`,
+      data: { kind: "link", href: "/staff/jobs" },
+    });
+    result.staffNudged += prices.length + returns.length;
   });
 
   // 6. The team: new jobs and customers' requests waiting two hours.

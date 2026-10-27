@@ -150,7 +150,7 @@ export type StaffDay = {
   toSchedule?: ToSchedule[];
 };
 
-export type ToSchedule = { id: string; name: string; what: string; found: string; since: string; waitingDays: number; conversationId: string | null };
+export type ToSchedule = { id: string; name: string; what: string; found: string; since: string; waitingDays: number; conversationId: string | null; priceNeeded?: boolean };
 
 /** An invoice or call-out fee on the Payment sheet (src/lib/app-jobs.ts on the site). */
 export type JobPayment = {

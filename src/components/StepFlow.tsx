@@ -16,7 +16,7 @@ import { SuccessCheck } from "./SuccessCheck";
 import { ContactOptions, LIVE_CHAT_ON } from "./ContactOptions";
 import { ChatButton } from "./ChatButton";
 import { FeeNote } from "./FeeNote";
-import { MailIcon, PhoneIcon } from "./icons";
+import { ChatIcon, MailIcon, PhoneIcon } from "./icons";
 import { DayPartPicker } from "./DayPartPicker";
 import { isISODate, isPart, PART_LABEL } from "@/lib/day-plan";
 import { requestedWhen } from "@/lib/visit-copy";
@@ -274,7 +274,9 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
     }
   }
 
-  const callButtons = (
+  // Call first, then a second way: live chat when it's for today (the same-day
+  // tick, the thank-you), email when the booking itself didn't go through.
+  const callButtons = (second: "chat" | "email") => (
     <div className="grid grid-cols-[1.35fr_1fr] gap-2.5">
       <a
         href={business.phoneHref}
@@ -283,12 +285,12 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
         <PhoneIcon className="h-4 w-4" aria-hidden="true" />
         {business.phoneDisplay}
       </a>
-<a
-        href={business.emailHref}
+      <a
+        href={second === "chat" ? business.chatHref : business.emailHref}
         className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-navy/20 bg-white px-3 text-sm font-semibold text-navy"
       >
-        <MailIcon className="h-4 w-4" aria-hidden="true" />
-        Email us
+        {second === "chat" ? <ChatIcon className="h-4 w-4" aria-hidden="true" /> : <MailIcon className="h-4 w-4" aria-hidden="true" />}
+        {second === "chat" ? business.chatLabel : "Email us"}
       </a>
     </div>
   );
@@ -327,15 +329,20 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
             ))}
           </ul>
           <p className="mt-4 border-t border-line pt-4 text-text-2">
-            We&rsquo;ll be in touch by text on <strong className="text-navy">{phone.trim()}</strong> or by email at{" "}
-            <strong className="text-navy">{email.trim()}</strong>. No email? Check your junk folder too.
+            We&rsquo;ll confirm by email at <strong className="text-navy">{email.trim()}</strong>. No email? Check your junk folder too.
+            {steps.some((st) => st.kind === "when") && (
+              <>
+                {" "}
+                We&rsquo;ll text <strong className="text-navy">{phone.trim()}</strong> when your engineer&rsquo;s on the way.
+              </>
+            )}
           </p>
         </div>
 
         {sameDay && (
           <div className="mt-4 w-full rounded-2xl border border-line bg-white p-5 text-left">
             <p className="text-sm text-text-2">{sameDayCopy.callLine}</p>
-            <div className="mt-3">{callButtons}</div>
+            <div className="mt-3">{callButtons("chat")}</div>
           </div>
         )}
 
@@ -664,7 +671,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
                 {sameDay && (
                   <div className="fold-in px-4 pb-4" data-sameday-call>
                     <p className="mb-3 text-sm text-text-2">{sameDayCopy.callLine}</p>
-                    {callButtons}
+                    {callButtons("chat")}
                   </div>
                 )}
               </div>
@@ -678,7 +685,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
                   {notice === "unavailable" ? "Online booking is taking a short break." : "That didn’t send."}
                 </p>
                 <p className="mt-1 text-text-2">Call or email us and we&rsquo;ll sort it straight away.</p>
-                <div className="mt-3">{callButtons}</div>
+                <div className="mt-3">{callButtons("email")}</div>
               </div>
             )}
 

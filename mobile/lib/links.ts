@@ -40,6 +40,7 @@ function teamRoute(pathname: string, search: URLSearchParams): string | null {
   const exact: Record<string, string> = {
     "/staff": "/",
     "/staff/messages": "/chat",
+    "/staff/jobs": "/jobs",
     "/staff/customers": "/customers",
     "/staff/customers/new": "/customer-form",
     "/staff/schedule": day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? `/calendar?day=${day}` : "/calendar",

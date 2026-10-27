@@ -9,7 +9,7 @@ import { pushToUsers } from "@/lib/push";
 import { londonNow } from "@/lib/schedule-time";
 import { addDays, longDate } from "@/lib/day-plan";
 import { calloutCreditFor, checkoutUrl, createPaymentRequest, formatPence, parseLines, paymentsOn, type PaymentLine } from "@/lib/payments";
-import { getAppointment } from "@/lib/appointments";
+import { getAppointment, priceSent } from "@/lib/appointments";
 
 /**
  * Quotes, mostly for new boilers (Kanvas One's "quotes they accept online,
@@ -220,6 +220,8 @@ export async function createQuote(params: {
   }
   const quote = mapRow(data as Row);
   const sentVia = await sendQuote(quote, customer, params.staffId);
+  // A price for a job waiting on one (lib/app-finish.ts): off the team's list.
+  await priceSent(customer.id);
   return { ok: true, quote, sentVia };
 }
 

@@ -237,6 +237,37 @@ export async function sendVisitNotice(
   return via;
 }
 
+/**
+ * Whether a message reached them somewhere they'll see it: the app, a text
+ * or an email. Their conversation alone doesn't count: someone who's only
+ * ever phoned can't see it (no app, not signed in on the website).
+ */
+export function reachedThem(via: string[]): boolean {
+  return via.some((v) => v !== "chat");
+}
+
+/** "Open in WhatsApp Business": their number and the message, ready for the team to send by hand. */
+export type WhatsAppHandoff = { phone: string; text: string };
+
+/**
+ * For a price, an invoice or a receipt that couldn't reach them (no email,
+ * no app): the team send it from WhatsApp Business on their phone instead,
+ * which costs nothing. The message points at the app, so the next one can
+ * go there.
+ */
+export function whatsappHandoff(customer: Pick<Customer, "name" | "phoneE164">, what: string, link: string): WhatsAppHandoff | null {
+  const phone = customer.phoneE164?.replace(/\D/g, "");
+  if (!phone) return null;
+  const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, ";
+  return { phone, text: `${hi}it's ${CLUB.name}. ${what}: ${link}\n\nFor updates on your job and to chat with us, get the ${CLUB.name} app: ${CLUB_SITE_URL.replace(/\/$/, "")}/app` };
+}
+
+/** What the team's told when it only reached their conversation. */
+export function notReachedLine(customer: Pick<Customer, "name">): string {
+  const who = customer.name ? customer.name.split(" ")[0] : "They";
+  return `Saved, but it hasn't reached ${customer.name ? who : "them"}: no email or the ${CLUB.name} app.`;
+}
+
 /** "by message, email and text". */
 export function viaPhrase(via: string[]): string {
   const words = via.map((v) => (v === "chat" ? "message" : v === "app" ? "the app" : v));

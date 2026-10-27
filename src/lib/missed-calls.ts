@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrCreateConversationByPhone } from "@/lib/chat-db";
-import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
+import { chatRecipientIds, notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
+import { pushToUsers } from "@/lib/push";
+import { customerForConversation } from "@/lib/customers";
 import { sendSms, smsAllowed, validateTwilioSignature } from "@/lib/twilio";
 import { billedMinutes, logUsage, usagePaused } from "@/lib/twilio-usage";
 import { SmsOptedOutError } from "@/lib/sms-opt-out";
@@ -36,7 +38,7 @@ const SPOKEN_DOMAIN = xml(CLUB.domainSpoken);
 // gets). The link is the website's Get the app page, which sends a phone
 // to its app store, with live chat there for anyone without the app.
 
-/** After a call Fergal answered: the app, for tracking the job and chatting for free. */
+/** Sent the moment Fergal answers, so he can ask them to install the app from it while they're talking: tracking the job and chatting for free. */
 export const AFTER_CALL_TEXT = `Thanks for calling ${CLUB.name}. Get the MPE app to track your job and live chat with your engineer: ${clubLink("/app")}`;
 
 /** After a call nobody answered: someone will get back to them, and the app's quicker. */
@@ -115,6 +117,7 @@ async function ringNumbers(): Promise<string[]> {
 export async function handleIncomingCall(from: string | undefined): Promise<Response> {
   const caller = from && from.startsWith("+") ? from : null; // withheld numbers arrive as "anonymous" etc.
   let conversationId: string | null = null;
+  let tip: { name: string; textedBefore: boolean } | null = null;
   // The month's calls and texts allowance is used and Settings says pause:
   // a short message pointing at the app (about a penny), and it's logged.
   const paused = await usagePaused().catch(() => false);
@@ -131,6 +134,7 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
           body: paused ? "Called the MPE number (calls paused for the month)" : "Called the MPE number",
         });
         await bumpConversation(conversation.id);
+        tip = await phoneOnlyTip(conversation.id, conversation.userId, conversation.guestEmail, conversation.guestName ?? formatPhone(caller));
       }
     } catch (err) {
       console.error("incoming call: failed to file the call", err);
@@ -146,6 +150,16 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
   }
 
   const numbers = await ringNumbers().catch(() => [] as string[]);
+  // Someone we can only reach on this number: a tip on Fergal's lock screen as it rings.
+  if (tip && conversationId && numbers.length) {
+    await pushToUsers(await chatRecipientIds(), {
+      title: `${tip.name} is calling`,
+      body: tip.textedBefore
+        ? "No email or app for them yet. They had the MPE app link by text last time: ask them to install it, so job updates and your arrival time reach them free."
+        : "No email or app for them yet. When you answer, they get a text with the MPE app link: ask them to install it, so job updates and your arrival time reach them free.",
+      data: { kind: "chat", conversationId },
+    }).catch(() => {});
+  }
   if (!numbers.length) {
     await logUsage("call_in", 1);
     if (conversationId && caller) await textAfterCall(conversationId, caller, MISSED_CALL_TEXT).catch(() => false);
@@ -153,9 +167,33 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
   }
   return twiml(
     `<Dial timeout="${RING_SECONDS}" answerOnBridge="true" action="${callbackUrl("/after", conversationId, caller)}">` +
-      numbers.map((n) => `<Number>${n}</Number>`).join("") +
+      // The app text goes the moment it's answered (handleAnswered), not after.
+      numbers.map((n) => `<Number statusCallbackEvent="answered" statusCallback="${callbackUrl("/answered", conversationId, caller)}">${n}</Number>`).join("") +
       `</Dial>`,
   );
+}
+
+/**
+ * A caller we can only reach on their phone (no email on file, not in the
+ * app): who they are, and whether they've had the app text before.
+ * Null for anyone with an email or the app.
+ */
+async function phoneOnlyTip(conversationId: string, userId: string | null, guestEmail: string | null, name: string): Promise<{ name: string; textedBefore: boolean } | null> {
+  const admin = createAdminClient();
+  if (guestEmail?.trim()) return null;
+  if (userId) {
+    const { count } = await admin.from("push_tokens").select("token", { count: "exact", head: true }).eq("user_id", userId);
+    if (count) return null;
+  }
+  const customer = await customerForConversation(conversationId).catch(() => null);
+  if (customer?.email) return null;
+  const { data } = await admin.from("chat_conversations").select("call_text_sent_at").eq("id", conversationId).maybeSingle();
+  return { name: customer?.name || name, textedBefore: !!data?.call_text_sent_at };
+}
+
+/** Fergal answered: the app text now, while they're still talking (once per number, ever). */
+export async function handleAnswered(conversationId: string | null, caller: string | null): Promise<void> {
+  if (conversationId && caller) await textAfterCall(conversationId, caller, AFTER_CALL_TEXT).catch(() => false);
 }
 
 /**

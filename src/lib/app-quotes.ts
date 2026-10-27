@@ -1,11 +1,11 @@
 import { getAppointment, pendingForCustomer } from "@/lib/appointments";
 import { customerLabel, getCustomer, getCustomers } from "@/lib/customers";
 import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
-import { formatPence, getPaymentRequest, invoiceNumber, paymentsOn } from "@/lib/payments";
+import { formatPence, getPaymentRequest, invoiceNumber, payLink, paymentsOn } from "@/lib/payments";
 import { listProducts } from "@/lib/products";
 import { QUOTE_STATUS_LABEL, cancelQuote, createQuote, getQuote, invoiceBalance, listQuotes, quoteLink, quoteNumber, resendQuote } from "@/lib/quotes";
 import { londonNow } from "@/lib/schedule-time";
-import { viaPhrase } from "@/lib/visit-notify";
+import { notReachedLine, reachedThem, viaPhrase, whatsappHandoff, type WhatsAppHandoff } from "@/lib/visit-notify";
 
 /**
  * Quotes in the app (mobile/app/quotes.tsx, new-quote.tsx, quote/[id].tsx):
@@ -76,7 +76,7 @@ export type QuoteBody = {
   balanceInstalments?: number | null;
 };
 
-export async function sendNewQuote(body: QuoteBody, staffId: string): Promise<{ ok: true; id: string; message: string } | { ok: false; error: string }> {
+export async function sendNewQuote(body: QuoteBody, staffId: string): Promise<{ ok: true; id: string; message: string; whatsapp?: WhatsAppHandoff | null } | { ok: false; error: string }> {
   if (typeof body.customerId !== "string") return { ok: false, error: "Pick the customer." };
   const created = await createQuote({
     staffId,
@@ -90,7 +90,16 @@ export async function sendNewQuote(body: QuoteBody, staffId: string): Promise<{ 
     balanceInstalments: Number(body.balanceInstalments) || null,
   });
   if (!created.ok) return created;
-  return { ok: true, id: created.quote.id, message: created.sentVia.length ? `Sent by ${viaPhrase(created.sentVia)}.` : "Saved, but we couldn't reach them: add an email or mobile to their details." };
+  const q = created.quote;
+  if (reachedThem(created.sentVia)) return { ok: true, id: q.id, message: `Sent by ${viaPhrase(created.sentVia)}.` };
+  // Only phoned us, so no email or app: the team send it from WhatsApp Business instead.
+  const customer = await getCustomer(q.customerId);
+  return { ok: true, id: q.id, message: customer ? notReachedLine(customer) : "Saved, but it hasn't reached them.", whatsapp: customer ? quoteHandoff(customer, q) : null };
+}
+
+/** A quote for "Open in WhatsApp Business": what it's for, the price, and its link. */
+function quoteHandoff(customer: NonNullable<Awaited<ReturnType<typeof getCustomer>>>, q: { title: string; totalPence: number; publicToken: string }): WhatsAppHandoff | null {
+  return whatsappHandoff(customer, `Here's your quote, ${formatPence(q.totalPence)} (${q.title.replace(/\.$/, "")}). You can see what's included and accept it here`, quoteLink(q));
 }
 
 const WHEN = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", day: "numeric", month: "long" });
@@ -143,17 +152,26 @@ export async function quoteAction(
   staffId: string,
   /** Invoicing from a job's Payment button: on that job, and kept to take there and then. */
   opts: { jobId?: string | null; take?: boolean } = {},
-): Promise<{ ok: true; message: string; paymentId?: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; message: string; paymentId?: string; whatsapp?: WhatsAppHandoff | null } | { ok: false; error: string }> {
   if (action === "resend") {
     const via = await resendQuote(id, staffId);
-    return via.length ? { ok: true, message: `Sent again by ${viaPhrase(via)}.` } : { ok: false, error: "Couldn't send it: it may no longer be open, or we can't reach them." };
+    if (!via.length) return { ok: false, error: "Couldn't send it: it may no longer be open." };
+    if (reachedThem(via)) return { ok: true, message: `Sent again by ${viaPhrase(via)}.` };
+    const q = await getQuote(id);
+    const customer = q ? await getCustomer(q.customerId) : null;
+    return { ok: true, message: customer ? notReachedLine(customer) : "It hasn't reached them.", whatsapp: customer && q ? quoteHandoff(customer, q) : null };
   }
   if (action === "cancel") return (await cancelQuote(id)) ? { ok: true, message: "Quote withdrawn." } : { ok: false, error: "Only an open quote can be withdrawn." };
   const result = await invoiceBalance(id, staffId, { appointmentId: opts.jobId ?? null, send: !opts.take });
   if (!result.ok) return result;
+  if (opts.take) return { ok: true, paymentId: result.requestId, message: "Invoice ready: take it now." };
+  if (reachedThem(result.sentVia)) return { ok: true, paymentId: result.requestId, message: `Invoice for the rest sent by ${viaPhrase(result.sentVia)}.` };
+  const [p, q] = await Promise.all([getPaymentRequest(result.requestId), getQuote(id)]);
+  const customer = q ? await getCustomer(q.customerId) : null;
   return {
     ok: true,
     paymentId: result.requestId,
-    message: opts.take ? "Invoice ready: take it now." : `Invoice for the rest sent${result.sentVia.length ? ` by ${viaPhrase(result.sentVia)}` : ""}.`,
+    message: customer ? notReachedLine(customer) : "It hasn't reached them.",
+    whatsapp: customer && p ? whatsappHandoff(customer, `Here's your invoice, ${formatPence(p.amountPence)}. You can pay it here by card, Apple Pay or Google Pay`, payLink(p)) : null,
   };
 }

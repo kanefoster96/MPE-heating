@@ -6,11 +6,11 @@ import { ScreenHeader } from "@/components/screen-header";
 import { AppText, Card, LoadError, PrimaryButton, Skeleton, haptic } from "@/components/ui";
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost } from "@/lib/api";
-import { notify } from "@/lib/confirm";
+import { confirmAction, notify } from "@/lib/confirm";
 import { colors, fonts } from "@/lib/theme";
 import type { StaffCustomer } from "@/lib/types";
 
-type Field = { key: string; label: string; keyboard?: "phone-pad" | "email-address"; caps?: "none" | "words" | "characters" | "sentences"; multiline?: boolean };
+type Field = { key: string; label: string; keyboard?: "phone-pad" | "email-address"; caps?: "none" | "words" | "characters" | "sentences"; multiline?: boolean; hint?: string };
 
 const GROUPS: { title: string; fields: Field[] }[] = [
   {
@@ -18,7 +18,13 @@ const GROUPS: { title: string; fields: Field[] }[] = [
     fields: [
       { key: "name", label: "Name", caps: "words" },
       { key: "phone", label: "Mobile", keyboard: "phone-pad" },
-      { key: "email", label: "Email (their booking, receipts and updates go here)", keyboard: "email-address", caps: "none" },
+      {
+        key: "email",
+        label: "Email",
+        keyboard: "email-address",
+        caps: "none",
+        hint: "Ask for it on the phone: their booking, your price and receipts go there free. No email? Ask them to install the MPE app from the text we sent them.",
+      },
       { key: "address", label: "Address", caps: "words" },
       { key: "postcode", label: "Postcode", caps: "characters" },
     ],
@@ -64,6 +70,16 @@ export default function CustomerForm() {
 
   async function save() {
     if (!values || saving) return;
+    // Phone only: worth one more ask before booking them in.
+    if (!values.email?.trim() && (!id || then)) {
+      const who = values.name?.trim().split(" ")[0] || "They";
+      const ok = await confirmAction(
+        "No email?",
+        `Without an email or the MPE app, ${who === "They" ? "they" : who} only get${who === "They" ? "" : "s"} a text for the booking and when you're on the way. Your price and invoices go from your WhatsApp Business. Ask for their email, or ask them to install the app from the text we sent.`,
+        "Save without",
+      );
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       // On to what he was doing: booking a visit, an invoice or a quote for them, else their page.
@@ -127,6 +143,7 @@ export default function CustomerForm() {
                         accessibilityLabel={f.label}
                         style={{ minHeight: f.multiline ? 80 : 50, borderRadius: 14, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.cream, paddingHorizontal: 14, paddingVertical: f.multiline ? 12 : 0, fontSize: 16, fontFamily: fonts.regular, color: colors.navy, textAlignVertical: f.multiline ? "top" : "center" }}
                       />
+                      {f.hint && !values[f.key]?.trim() ? <AppText style={{ color: colors.text2, fontSize: 13, lineHeight: 18, marginLeft: 4 }}>{f.hint}</AppText> : null}
                     </View>
                   ))}
                 </Card>

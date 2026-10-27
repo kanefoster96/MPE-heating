@@ -3,9 +3,9 @@ import { customerLabel, getCustomer } from "@/lib/customers";
 import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
 import { completeJob, getJobReview } from "@/lib/job-completion";
 import { CERT_LABEL, CERT_TYPES, fileLabel, filesForCustomer } from "@/lib/job-files";
-import { calloutCreditFor, cancelPaymentRequest, createPaymentRequest, formatPence, invoiceNumber, paymentsForAppointments, resendPaymentLink } from "@/lib/payments";
+import { calloutCreditFor, cancelPaymentRequest, createPaymentRequest, formatPence, invoiceNumber, payLink, paymentsForAppointments, resendPaymentLink, type PaymentRequest } from "@/lib/payments";
 import { londonNow } from "@/lib/schedule-time";
-import { viaPhrase } from "@/lib/visit-notify";
+import { notReachedLine, reachedThem, viaPhrase, whatsappHandoff, type WhatsAppHandoff } from "@/lib/visit-notify";
 
 /**
  * Finishing a job in the app (mobile/app/finish/[id].tsx): the website's
@@ -90,13 +90,13 @@ export type FinishBody = {
   pricePounds?: string;
 };
 
-export async function finish(id: string, body: FinishBody, staffId: string): Promise<{ ok: true; message: string; invoiceId?: string } | { ok: false; error: string }> {
+export async function finish(id: string, body: FinishBody, staffId: string): Promise<{ ok: true; message: string; invoiceId?: string; whatsapp?: WhatsAppHandoff | null } | { ok: false; error: string }> {
   const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
   const coming = body.outcome === "return";
   const price = coming && (body.price === "take" || body.price === "send" || body.price === "later") ? body.price : null;
 
   // The price is known: the invoice is made first, so the summary they get carries its link.
-  let invoice: { id: string; amount: string } | null = null;
+  let invoice: { id: string; amount: string; request: PaymentRequest } | null = null;
   if (price === "take" || price === "send") {
     const visit = await getAppointment(id);
     if (!visit?.customerId) return { ok: false, error: "There's no customer on this job to invoice." };
@@ -117,7 +117,7 @@ export async function finish(id: string, body: FinishBody, staffId: string): Pro
       send: false,
     });
     if (!created.ok) return created.error === "Check the amounts." ? { ok: false, error: "Check the price: it needs to be more than the call-out they've paid." } : created;
-    invoice = { id: created.request.id, amount: formatPence(created.request.amountPence) };
+    invoice = { id: created.request.id, amount: formatPence(created.request.amountPence), request: created.request };
   }
 
   const result = await completeJob({
@@ -143,8 +143,21 @@ export async function finish(id: string, body: FinishBody, staffId: string): Pro
     if (invoice) await cancelPaymentRequest(invoice.id);
     return result;
   }
-  if (invoice && price === "send" && body.sendSummary !== true) await resendPaymentLink(invoice.id, staffId);
-  const sent = result.sentVia.length ? ` Summary sent by ${viaPhrase(result.sentVia)}.` : "";
+  // Sent with the summary; on its own if there wasn't one.
+  const invoiceVia = invoice && price === "send" ? (body.sendSummary === true ? result.sentVia : await resendPaymentLink(invoice.id, staffId)) : [];
+  const sent = reachedThem(result.sentVia) ? ` Summary sent by ${viaPhrase(result.sentVia)}.` : "";
+  // Only phoned us, so no email or app: the invoice goes from WhatsApp Business instead.
+  if (invoice && price === "send" && !reachedThem(invoiceVia)) {
+    const visit = await getAppointment(id);
+    const customer = visit?.customerId ? await getCustomer(visit.customerId) : null;
+    const note = text(body.returnNote, 300).trim().replace(/\.$/, "");
+    return {
+      ok: true,
+      message: `Saved: you're coming back. ${customer ? notReachedLine(customer).replace(/^Saved, but it/, "The invoice") : "The invoice hasn't reached them."}`,
+      invoiceId: invoice.id,
+      whatsapp: customer ? whatsappHandoff(customer, `Thanks for having us today. We'll be back to ${note}. Here's the invoice for it, ${invoice.amount}, to pay before then`, payLink(invoice.request)) : null,
+    };
+  }
   if (!coming) return { ok: true, message: `Job done.${sent}` };
   const next =
     price === "take" && invoice

@@ -7,6 +7,7 @@ import { AppText, Card, LoadError, PressableScale, Skeleton, haptic } from "@/co
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/confirm";
+import { reportSend, type WhatsAppHandoff } from "@/lib/whatsapp-handoff";
 import { openInApp } from "@/lib/open-link";
 import { colors } from "@/lib/theme";
 
@@ -79,10 +80,10 @@ export default function QuoteScreen() {
 
   async function act(action: string) {
     try {
-      const res = await apiPost<{ message: string }>(`/api/mobile/staff/quotes/${id}`, { action });
+      const res = await apiPost<{ message: string; whatsapp?: WhatsAppHandoff | null }>(`/api/mobile/staff/quotes/${id}`, { action });
       haptic.success();
-      notify("Done", res.message);
       load();
+      await reportSend("Done", res);
     } catch (err) {
       haptic.warning();
       notify("Not done", err instanceof Error ? err.message : "Please try again.");

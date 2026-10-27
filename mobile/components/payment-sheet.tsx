@@ -7,6 +7,7 @@ import { AppText, PressableScale, PrimaryButton, haptic } from "@/components/ui"
 import { useTapToPay, type TapWith } from "@/components/tap-to-pay";
 import { apiPost } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/confirm";
+import { reportSend, type WhatsAppHandoff } from "@/lib/whatsapp-handoff";
 import { colors, fonts } from "@/lib/theme";
 import type { JobPayment, SheetContext } from "@/lib/types";
 
@@ -115,7 +116,7 @@ export function PaymentSheet({ visible, context, onClose, onDone }: { visible: b
     if (!chosen) return null;
     setBusy(action);
     try {
-      return await apiPost<{ ok: boolean; message: string; leftPence: number }>("/api/mobile/staff/payments/take", { paymentId: chosen.id, jobId: context.jobId, action, amountPence });
+      return await apiPost<{ ok: boolean; message: string; leftPence: number; whatsapp?: WhatsAppHandoff | null }>("/api/mobile/staff/payments/take", { paymentId: chosen.id, jobId: context.jobId, action, amountPence });
     } catch (err) {
       haptic.warning();
       notify("Not done", err instanceof Error ? err.message : "Please try again.");
@@ -146,8 +147,9 @@ export function PaymentSheet({ visible, context, onClose, onDone }: { visible: b
     const res = await post("resend");
     if (!res) return;
     haptic.success();
-    notify("Link sent", `${res.message} ${first ?? "They"} can pay with Apple Pay, Google Pay or card from there.`);
     onDone();
+    if (res.whatsapp) await reportSend("Link sent", res);
+    else notify("Link sent", `${res.message} ${first ?? "They"} can pay with Apple Pay, Google Pay or card from there.`);
   }
 
   async function takeCash() {

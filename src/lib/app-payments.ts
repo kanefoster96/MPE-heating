@@ -6,6 +6,7 @@ import {
   formatPence,
   getPaymentRequest,
   linkPaymentToVisit,
+  payLink,
   markPaidInPerson,
   paidTowards,
   paymentsOn,
@@ -14,7 +15,7 @@ import {
   savedCardFor,
   sendReceipt,
 } from "@/lib/payments";
-import { viaPhrase } from "@/lib/visit-notify";
+import { notReachedLine, reachedThem, viaPhrase, whatsappHandoff, type WhatsAppHandoff } from "@/lib/visit-notify";
 
 /**
  * The app's Payment sheet (mobile/components/payment-sheet.tsx), from a
@@ -68,7 +69,7 @@ export async function takePayment(params: {
   action: TakeAction;
   amountPence: number | null;
   staffId: string;
-}): Promise<{ ok: true; message: string; leftPence: number } | { ok: false; error: string; status: number }> {
+}): Promise<{ ok: true; message: string; leftPence: number; whatsapp?: WhatsAppHandoff | null } | { ok: false; error: string; status: number }> {
   const payment = await getPaymentRequest(params.paymentId);
   if (!payment) return { ok: false, error: "That payment has gone.", status: 404 };
   if (params.jobId) {
@@ -94,8 +95,16 @@ export async function takePayment(params: {
     }
     case "resend": {
       const via = await resendPaymentLink(payment.id, params.staffId);
-      if (!via.length) return { ok: false, error: "Couldn't reach them: add an email or mobile to their details.", status: 400 };
-      return { ok: true, message: `Sent to their ${viaPhrase(via)}.`, leftPence: payment.amountPence - (await paidTowards(payment.id)) };
+      if (!via.length) return { ok: false, error: "Couldn't send it: it may already be paid.", status: 400 };
+      const leftPence = payment.amountPence - (await paidTowards(payment.id));
+      if (reachedThem(via)) return { ok: true, message: `Sent to their ${viaPhrase(via)}.`, leftPence };
+      const customer = payment.customerId ? await getCustomer(payment.customerId) : null;
+      return {
+        ok: true,
+        message: customer ? notReachedLine(customer) : "It hasn't reached them.",
+        leftPence,
+        whatsapp: customer ? whatsappHandoff(customer, `Here's the link to pay ${formatPence(leftPence)}, by card, Apple Pay or Google Pay`, payLink(payment)) : null,
+      };
     }
     case "bank_transfer": {
       const result = await markPaidInPerson(payment.id, "bank_transfer", params.staffId);

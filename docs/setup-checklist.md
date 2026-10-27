@@ -103,10 +103,18 @@ deployment.
 - [ ] Optional: create an API key (**Account → API keys & tokens →
       Create**, Standard) for sending.
 - [ ] Calls to it ring Fergal's mobile (07448 628 101, or each admin's
-      saved mobile), showing the caller's number. Not answered in 18 seconds: MPE's voicemail. Either way the call's logged
-      in their chat, and after their first ever call they get one text
-      (never again to that number, and not if they have the app) pointing
-      them at the app and live chat.
+      saved mobile), showing the caller's number. Not answered in 18
+      seconds: MPE's voicemail. Either way the call's logged in their chat.
+      On their first ever call they get one text pointing them at the app
+      and live chat (never again to that number, and not if they have the
+      app): the moment Fergal answers, so he can ask them to install it
+      while they're talking, or straight away if it's missed. For a caller
+      with no email or app, Fergal also gets a notification as it rings,
+      reminding him to ask.
+- [ ] Customers who've only phoned (no email, no app): booking them in
+      asks for their email first. If they still have neither, a quote,
+      invoice or payment link can't reach them, so the app offers **Open
+      in WhatsApp Business** with the message and link ready to send.
 - [ ] Texts are kept to two per customer: that one after their first
       call, and "on my way" (plus "running late" when it happens). Anyone
       with the app gets those as free notifications instead. A booking, a

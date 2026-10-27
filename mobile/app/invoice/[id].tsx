@@ -10,6 +10,7 @@ import { AppText, Card, LoadError, PressableScale, PrimaryButton, Skeleton, hapt
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/confirm";
+import { reportSend, type WhatsAppHandoff } from "@/lib/whatsapp-handoff";
 import { openInApp } from "@/lib/open-link";
 import { colors, fonts } from "@/lib/theme";
 import type { SheetContext } from "@/lib/types";
@@ -94,11 +95,11 @@ function Invoice() {
 
   async function act(action: string, amountPence?: number) {
     try {
-      const res = await apiPost<{ message: string }>(`/api/mobile/staff/invoices/${id}`, { action, amountPence });
+      const res = await apiPost<{ message: string; whatsapp?: WhatsAppHandoff | null }>(`/api/mobile/staff/invoices/${id}`, { action, amountPence });
       haptic.success();
-      notify("Done", res.message);
       setRecord(null);
       load();
+      await reportSend("Done", res);
     } catch (err) {
       haptic.warning();
       notify("Not done", err instanceof Error ? err.message : "Please try again.");

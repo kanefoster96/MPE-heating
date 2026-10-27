@@ -35,7 +35,7 @@ export async function sendMemberMessage(
 }
 
 /** The details form under "what's your email address?" in the chat. */
-export async function saveChatDetails(input: { email?: string; mobile?: string }): Promise<SaveDetailsResult> {
+export async function saveChatDetails(input: { name?: string; postcode?: string; email?: string; mobile?: string }): Promise<SaveDetailsResult> {
   const user = await requireUser();
   const conversation = await getOrCreateConversation(user.id);
   if (!conversation) return { success: false, error: "Chat is temporarily unavailable — please try again shortly." };

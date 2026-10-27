@@ -25,6 +25,9 @@ deployment.
 - [ ] Create a project at supabase.com, in the London region.
 - [ ] **SQL editor:** paste in all of `supabase/schema.sql` and run it.
       Run it again after every update that changes it: it's safe to re-run.
+- [ ] Re-run it after the out-of-hours chat update: it adds the once-a-night
+      "we're back at 8am" note and the two-hour reminder for unanswered
+      chats. Until you do, the chat works but neither is sent.
 - [ ] Re-run it after the "price to send" update: it adds "price still to
       send" to a call-out finished as coming back. Until you do, jobs still
       finish, but nothing goes on the "price to send" list.
@@ -114,6 +117,17 @@ deployment.
       while they're talking, or straight away if it's missed. For a caller
       with no email or app, Fergal also gets a notification as it rings,
       reminding him to ask.
+- [ ] **Out of hours (8pm to 8am)** for the chat too: nobody's notified of
+      a customer's message at night. At 8am the team get one summary
+      ("3 new messages since 8pm: Sam, Jo and 07700 900123"). A website
+      chat at night gets an automatic reply that the team are on the chat
+      from 8am to 8pm, with the gas emergency number (0800 111 999). Any
+      chat left unanswered for two hours in the day (counted from 8am for
+      overnight ones) reminds the team once.
+- [ ] The chat's details card asks for their name, postcode (optional),
+      email and mobile. A reply email's button opens the chat as it was on
+      the same device; on another, it asks for their email and sends a
+      sign-in link that opens their conversation.
 - [ ] Customers who've only phoned (no email, no app): booking them in
       asks for their email first. If they still have neither, the app
       offers **Open in WhatsApp Business**, with the message ready, for

@@ -16,6 +16,8 @@ import { takeDueInstalments } from "@/lib/instalments";
 import { dropUnpaidDeposit, sendQuoteFollowUp } from "@/lib/quotes";
 import { sendCertificateRenewals } from "@/lib/job-files";
 import { sendDueMonthReport } from "@/lib/monthly-report";
+import { TEAM_FROM, TEAM_UNTIL } from "@/lib/team-hours";
+import { formatPhone } from "@/lib/phone";
 
 /**
  * Every automatic message to customers, and the team's nudges, in one pass.
@@ -93,6 +95,30 @@ export type SweepResult = {
   serviceDue: number;
   staffNudged: number;
 };
+
+/** Who each conversation's with, for the team's pushes: their customer name, the name they gave, or their number. Null for the team chat. */
+async function conversationNames(ids: string[]): Promise<(string | null)[]> {
+  const admin = createAdminClient();
+  const [{ data: convos }, { data: customers }] = await Promise.all([
+    admin.from("chat_conversations").select("id, guest_name, phone, is_team").in("id", ids),
+    admin.from("customers").select("conversation_id, name").in("conversation_id", ids),
+  ]);
+  const byId = new Map((convos ?? []).map((c) => [c.id as string, c]));
+  const customerName = new Map((customers ?? []).map((c) => [c.conversation_id as string, c.name as string | null]));
+  return ids.map((id) => {
+    const c = byId.get(id);
+    if (!c || c.is_team) return null;
+    return customerName.get(id)?.trim() || (c.guest_name as string | null)?.trim() || (c.phone ? formatPhone(c.phone as string) : "A website visitor");
+  });
+}
+
+/** "Sam, Jo and 2 more". */
+function listNames(names: string[]): string {
+  const shown = names.slice(0, 3);
+  const more = names.length - shown.length;
+  if (more > 0) return `${shown.join(", ")} and ${more} more`;
+  return shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]}` : (shown[0] ?? "");
+}
 
 const hoursSince = (iso: string) => (Date.now() - new Date(iso).getTime()) / 3_600_000;
 
@@ -327,6 +353,68 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
   });
 
   // 6. The team: new jobs and customers' requests waiting two hours.
+  // 5e. The team: what came in overnight (8pm to 8am, when nobody's notified), in one push from 8am.
+  await stage("overnight", async () => {
+    // Only first thing: a sweep that first runs late in the day (a deploy, say) doesn't send it at teatime.
+    if (minutes < TEAM_FROM || minutes >= TEAM_FROM + 120) return;
+    if ((await getSetting("overnight_summary_for")) === today) return;
+    // Marked first: a slow push mustn't mean a second one five minutes later.
+    if (!(await setSetting("overnight_summary_for", today))) return;
+    const eight = Date.now() - (minutes - TEAM_FROM) * 60_000;
+    const since = new Date(eight - (24 * 60 - (TEAM_UNTIL - TEAM_FROM)) * 60_000).toISOString();
+    const { data: rows } = await admin.from("chat_messages").select("conversation_id").eq("sender_is_coach", false).gte("created_at", since).lt("created_at", new Date(eight).toISOString());
+    const ids = [...new Set((rows ?? []).map((r) => r.conversation_id as string))];
+    if (!ids.length) return;
+    const names = (await conversationNames(ids)).filter((n) => n !== null) as string[];
+    if (!names.length) return;
+    await pushToUsers(await chatRecipientIds(), {
+      title: "Overnight",
+      body: `${names.length} new message${names.length === 1 ? "" : "s"} since 8pm: ${listNames(names)}.`,
+      data: names.length === 1 ? { kind: "chat", conversationId: ids[0] } : { kind: "link", href: "/staff/messages" },
+    });
+    result.staffNudged += names.length;
+  });
+
+  // 5f. The team: a customer's message with no reply for two hours (counted from 8am for
+  // one that came in overnight). Once each. A new booking's chased by the stage below instead.
+  await stage("chats", async () => {
+    if (minutes < TEAM_FROM || minutes >= TEAM_UNTIL) return;
+    const eight = Date.now() - (minutes - TEAM_FROM) * 60_000;
+    const due = Date.now() - 2 * 3_600_000;
+    const { data: convos } = await admin
+      .from("chat_conversations")
+      .select("id, staff_nudged_at")
+      .eq("is_team", false)
+      .is("completed_at", null)
+      .gte("last_message_at", new Date(Date.now() - 3 * 86_400_000).toISOString())
+      // Anything since (a reply, or theirs) is under two hours old: nothing to chase yet.
+      .lte("last_message_at", new Date(due).toISOString())
+      .limit(200);
+    const waiting: string[] = [];
+    for (const c of convos ?? []) {
+      // The last message a person wrote (automatic ones have no sender): theirs, not ours.
+      const { data: last } = await admin.from("chat_messages").select("sender_is_coach, created_at").eq("conversation_id", c.id as string).not("sender_id", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!last || last.sender_is_coach) continue;
+      const at = new Date(last.created_at as string).getTime();
+      if (Math.max(at, eight) > due) continue;
+      if (c.staff_nudged_at && new Date(c.staff_nudged_at as string).getTime() >= at) continue;
+      waiting.push(c.id as string);
+    }
+    if (!waiting.length) return;
+    const { data: booking } = await admin.from("enquiries").select("conversation_id").in("conversation_id", waiting).eq("status", "new");
+    const chased = new Set((booking ?? []).map((e) => e.conversation_id as string));
+    const ids = waiting.filter((id) => !chased.has(id));
+    if (!ids.length) return;
+    const names = (await conversationNames(ids)).map((n) => n ?? "A customer");
+    await pushToUsers(await chatRecipientIds(), {
+      title: "Waiting for a reply",
+      body: `${listNames(names)} ${ids.length === 1 ? "has" : "have"} been waiting over two hours for a reply in the chat.`,
+      data: ids.length === 1 ? { kind: "chat", conversationId: ids[0] } : { kind: "link", href: "/staff/messages" },
+    });
+    await admin.from("chat_conversations").update({ staff_nudged_at: new Date().toISOString() }).in("id", ids);
+    result.staffNudged += ids.length;
+  });
+
   // 5d. The month's calls and texts: Twilio's own total (every half hour), and a heads-up at each £5 of the £20.
   await stage("usage", async () => {
     await syncTwilioTotal();

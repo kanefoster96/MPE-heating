@@ -101,7 +101,8 @@ export async function notifyMemberOfReply(params: {
     html: chatReplyEmailHtml({
       coachName,
       message,
-      chatUrl: `${siteUrl}/messages`,
+      // On this device the chat opens as it was; on another, they're asked for this email and sent a link that opens it.
+      chatUrl: `${siteUrl}/messages?continue=1`,
       canReplyByEmail: !!replyTo,
     }),
   });

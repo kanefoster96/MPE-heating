@@ -73,6 +73,8 @@ export async function completeJob(params: {
   /** "return": not fixed yet, coming back (a part to fit); `returnNote` says what for. */
   outcome?: "fixed" | "return";
   returnNote?: string;
+  /** Coming back without a price yet: on the team's list until a quote or invoice goes. Defaults to yes when coming back. */
+  priceNeeded?: boolean;
 }): Promise<{ ok: true; sentVia: string[] } | { ok: false; error: string }> {
   const visit = await getAppointment(params.appointmentId);
   if (!visit) return { ok: false, error: "That visit's gone." };
@@ -102,6 +104,12 @@ export async function completeJob(params: {
     })
     .eq("id", visit.id);
   if (error) return { ok: false, error: "Couldn't save that. Please try again." };
+  // Whether the price is still to send: only on the first finish, so saving it again later doesn't put
+  // one that's been sent back on the list. On its own, so a database without the column still finishes jobs.
+  if (visit.status !== "done") {
+    const { error: priceError } = await admin.from("appointments").update({ price_needed: coming && (params.priceNeeded ?? true) }).eq("id", visit.id);
+    if (priceError) console.error("completeJob: saving price_needed failed (re-run the schema?)", visit.id, priceError);
+  }
 
   const customer = visit.customerId ? await getCustomer(visit.customerId) : null;
   if (!customer) return { ok: true, sentVia: [] };

@@ -477,6 +477,9 @@ create index if not exists appointments_follow_up_idx on public.appointments (fo
 alter table public.appointments add column if not exists past_request_sent_at timestamptz;
 -- The customer said they won't be in (from their visit page or the app): reminders stop, the team rebooks.
 alter table public.appointments add column if not exists cant_make_at timestamptz;
+-- Finished as 'return' without a price yet (it depends on the part): the
+-- team owe them one. Cleared when a quote or invoice goes to the customer.
+alter table public.appointments add column if not exists price_needed boolean not null default false;
 
 -- A customer's review of a job: their stars and words, for MPE. Everyone is
 -- also asked to post it publicly (the review link in Settings), whatever

@@ -163,7 +163,8 @@ function stripLabel(iso: string, i: number): { top: string; bottom: string } {
 /**
  * A repair agreed after a call-out but not booked yet (waiting on a part,
  * say): dotted, with a timer, under every day so it can go straight onto
- * the day being looked at once the part's in.
+ * the day being looked at once the part's in. With its price still to
+ * send, that comes first: Send the price opens a quote for the job.
  */
 function RepairToSchedule({ item, day, dayLabel }: { item: ToSchedule; day: string; dayLabel: string }) {
   const router = useRouter();
@@ -185,15 +186,30 @@ function RepairToSchedule({ item, day, dayLabel }: { item: ToSchedule; day: stri
             <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 19, marginTop: 2 }}>
               To {item.what}. Call-out {item.since}.
             </AppText>
+            {item.priceNeeded && (
+              <AppText weight="bold" style={{ color: colors.orangeDeep, fontSize: 14, marginTop: 4 }}>
+                Price to send
+              </AppText>
+            )}
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.text3} />
         </View>
       </PressableScale>
+      {item.priceNeeded && (
+        <PressableScale onPress={() => router.push(`/new-quote?visit=${item.id}`)} accessibilityLabel={`Send ${item.name} the price`}>
+          <View style={{ minHeight: 44, borderRadius: 999, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6, paddingHorizontal: 12 }}>
+            <Ionicons name="document-text" size={16} color="#fff" />
+            <AppText weight="bold" style={{ color: "#fff", fontSize: 14 }}>
+              Send the price
+            </AppText>
+          </View>
+        </PressableScale>
+      )}
       <View style={{ flexDirection: "row", gap: 8 }}>
         <PressableScale onPress={() => router.push(`/visit-form?followUp=${item.id}&day=${day}`)} accessibilityLabel={`Book it for ${dayLabel}`} style={{ flex: 1 }}>
-          <View style={{ minHeight: 44, borderRadius: 999, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6, paddingHorizontal: 12 }}>
-            <Ionicons name="calendar" size={16} color="#fff" />
-            <AppText weight="bold" style={{ color: "#fff", fontSize: 14 }} numberOfLines={1}>
+          <View style={{ minHeight: 44, borderRadius: 999, backgroundColor: item.priceNeeded ? colors.card : colors.orangeDeep, borderWidth: item.priceNeeded ? 1 : 0, borderColor: colors.edge, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6, paddingHorizontal: 12 }}>
+            <Ionicons name="calendar" size={16} color={item.priceNeeded ? colors.navy : "#fff"} />
+            <AppText weight="bold" style={{ color: item.priceNeeded ? colors.navy : "#fff", fontSize: 14 }} numberOfLines={1}>
               Book for {dayLabel.toLowerCase() === "today" || dayLabel.toLowerCase() === "tomorrow" ? dayLabel.toLowerCase() : dayLabel.split(" ").slice(0, 3).join(" ")}
             </AppText>
           </View>

@@ -25,6 +25,9 @@ deployment.
 - [ ] Create a project at supabase.com, in the London region.
 - [ ] **SQL editor:** paste in all of `supabase/schema.sql` and run it.
       Run it again after every update that changes it: it's safe to re-run.
+- [ ] Re-run it after the "price to send" update: it adds "price still to
+      send" to a call-out finished as coming back. Until you do, jobs still
+      finish, but nothing goes on the "price to send" list.
 - [ ] Re-run it after the calls and texts allowance update: it adds the
       record of call minutes and texts (for the £20 allowance), and the
       once-only text after a first call.

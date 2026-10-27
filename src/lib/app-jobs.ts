@@ -316,7 +316,7 @@ export type StaffDay = {
   toSchedule: ToSchedule[];
 };
 
-export type ToSchedule = { id: string; name: string; what: string; found: string; since: string; waitingDays: number; conversationId: string | null };
+export type ToSchedule = { id: string; name: string; what: string; found: string; since: string; waitingDays: number; conversationId: string | null; priceNeeded: boolean };
 
 export async function staffDay(dayParam: string | null): Promise<StaffDay> {
   const today = londonNow().dateISO;
@@ -353,6 +353,7 @@ export async function staffDay(dayParam: string | null): Promise<StaffDay> {
         since: longDate(v.day),
         waitingDays: Math.max(0, Math.round((Date.parse(today) - Date.parse(done)) / 86_400_000)),
         conversationId: c?.conversationId ?? null,
+        priceNeeded: v.priceNeeded,
       };
     }),
   };

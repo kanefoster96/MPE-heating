@@ -28,6 +28,9 @@ type Draft = {
   outcome: "fixed" | "return";
   returnNote: string;
   returnVisit: { id: string; when: string } | null;
+  /** First time finishing as "coming back": ask about the price and the day. */
+  askPrice: boolean;
+  priceNeeded: boolean;
   sendSummary: boolean;
   askReview: boolean;
   reviewed: string | null;
@@ -48,7 +51,7 @@ function Label({ children, hint }: { children: ReactNode; hint?: string }) {
   );
 }
 
-function Input({ label, value, onChange, multiline, placeholder }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string }) {
+function Input({ label, value, onChange, multiline, placeholder, keyboardType }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string; keyboardType?: "decimal-pad" }) {
   return (
     <View style={{ gap: 4, flex: 1 }}>
       <AppText weight="semibold" style={{ fontSize: 13, color: colors.text2, marginLeft: 4 }}>
@@ -59,11 +62,29 @@ function Input({ label, value, onChange, multiline, placeholder }: { label: stri
         onChangeText={onChange}
         multiline={multiline}
         placeholder={placeholder}
+        keyboardType={keyboardType}
         placeholderTextColor={colors.text3}
         accessibilityLabel={label}
         style={{ minHeight: multiline ? 110 : 50, borderRadius: 14, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.card, paddingHorizontal: 14, paddingVertical: multiline ? 12 : 0, fontSize: 16, fontFamily: fonts.regular, color: colors.navy, textAlignVertical: multiline ? "top" : "center" }}
       />
     </View>
+  );
+}
+
+/** One of a few answers, as a full-width row with a radio mark. */
+function Option({ label, detail, on, onPress }: { label: string; detail?: string; on: boolean; onPress: () => void }) {
+  return (
+    <PressableScale onPress={onPress} accessibilityLabel={`${label}${on ? ", selected" : ""}`}>
+      <View style={{ minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: on ? colors.orangeDeep : colors.edge, backgroundColor: on ? colors.orangeLight : colors.card, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingVertical: 10 }}>
+        <Ionicons name={on ? "radio-button-on" : "radio-button-off"} size={20} color={on ? colors.orangeDeep : colors.text2} />
+        <View style={{ flex: 1 }}>
+          <AppText weight="bold" style={{ fontSize: 15 }}>
+            {label}
+          </AppText>
+          {detail ? <AppText style={{ color: colors.text2, fontSize: 13, lineHeight: 18 }}>{detail}</AppText> : null}
+        </View>
+      </View>
+    </PressableScale>
   );
 }
 
@@ -87,8 +108,11 @@ function Toggle({ title, detail, value, onChange, disabled }: { title: string; d
  * comes in 11 months); a private note for next time; the summary to them
  * and the review ask; and photos and certificates for the job. Not fixed
  * yet (a part to order): "Coming back", with what for. They're told what
- * was found, there's no review ask, and the return visit is booked next.
- * Opened again later, it edits what was saved.
+ * was found, there's no review ask, and two questions follow. The price:
+ * take it now, send the invoice now, or send it once the part's priced
+ * (it goes on his list, with reminders at 9am and 1pm). The day: book the
+ * return visit now, or once the part's in. Opened again later, it edits
+ * what was saved.
  */
 export default function FinishJob() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -100,6 +124,9 @@ export default function FinishJob() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
+  const [price, setPrice] = useState<"take" | "send" | "later" | null>(null);
+  const [pounds, setPounds] = useState("");
+  const [knowDay, setKnowDay] = useState<boolean | null>(null);
 
   const load = useCallback(
     async (keep = false) => {
@@ -123,11 +150,15 @@ export default function FinishJob() {
 
   const set = (patch: Partial<Draft>) => setD((x) => (x ? { ...x, ...patch } : x));
 
+  const asking = !!d && d.outcome === "return" && d.askPrice;
+
   async function save() {
     if (!d || saving) return;
+    if (asking && (!price || knowDay === null)) return notify("Not finished", "Say whether you know the price and the day of the return visit.");
+    if (asking && price !== "later" && !(Number(pounds.replace(/[£,\s]/g, "")) >= 1)) return notify("Not finished", "Enter the price for the return visit.");
     setSaving(true);
     try {
-      const res = await apiPost<{ message: string }>(`/api/mobile/staff/jobs/${d.id}/finish`, {
+      const res = await apiPost<{ message: string; invoiceId?: string }>(`/api/mobile/staff/jobs/${d.id}/finish`, {
         report: d.report,
         privateNote: note,
         boiler: d.boiler,
@@ -136,12 +167,16 @@ export default function FinishJob() {
         askReview: d.outcome === "return" ? false : d.askReview,
         outcome: d.outcome,
         returnNote: d.returnNote,
+        ...(asking ? { price, pricePounds: pounds } : {}),
       });
       haptic.success();
-      if (d.outcome === "return" && !d.returnVisit) {
-        // Coming back: straight on to booking the return visit, linked to this one.
+      if (d.outcome === "return" && !d.returnVisit && (knowDay || res.invoiceId)) {
         notify("Saved", res.message);
-        router.replace(`/visit-form?followUp=${d.id}`);
+        // The day's known: on to booking the return visit, linked to this one.
+        if (knowDay) router.replace(`/visit-form?followUp=${d.id}`);
+        // Taking the price now: its invoice first (they're standing there), then back to the booking if there is one.
+        if (res.invoiceId && price === "take") (knowDay ? router.push : router.replace)(`/invoice/${res.invoiceId}`);
+        else if (!knowDay) router.back();
         return;
       }
       notify(d.done ? "Saved" : "Job done", res.message);
@@ -213,8 +248,32 @@ export default function FinishJob() {
                     <AppText style={{ color: colors.text2, fontSize: 13, lineHeight: 18 }}>
                       {d.returnVisit
                         ? `Return visit booked: ${d.returnVisit.when}.`
-                        : `${first === "them" ? "They're" : `${first}'s`} told what you found and that you'll be back, with no review ask yet. Next, you book the return visit.`}
+                        : `${first === "them" ? "They're" : `${first}'s`} told what you found and that you'll be back, with no review ask yet.`}
+                      {!d.askPrice && d.priceNeeded ? " Price still to send." : ""}
                     </AppText>
+                    {d.askPrice && (
+                      <>
+                        <AppText weight="bold" style={{ fontSize: 15, marginTop: 6 }}>
+                          Do you know the price?
+                        </AppText>
+                        <Option label="Yes: take it now" detail="Before you leave, by card." on={price === "take"} onPress={() => setPrice("take")} />
+                        <Option label="Yes: send the invoice" detail={`${first === "them" ? "They pay" : `${first} pays`} it online, before the return visit.`} on={price === "send"} onPress={() => setPrice("send")} />
+                        <Option label="Not yet: I'll send it" detail="Once the part's priced. It goes on your list, with a reminder at 9am and 1pm." on={price === "later"} onPress={() => setPrice("later")} />
+                        {(price === "take" || price === "send") && (
+                          <View style={{ gap: 4 }}>
+                            <View style={{ flexDirection: "row" }}>
+                              <Input label="Price for the return visit, £" value={pounds} onChange={setPounds} placeholder="180" keyboardType="decimal-pad" />
+                            </View>
+                            <AppText style={{ color: colors.text2, fontSize: 13, lineHeight: 18 }}>Parts and labour. A call-out they&apos;ve paid comes off it; one not paid yet is part of it.</AppText>
+                          </View>
+                        )}
+                        <AppText weight="bold" style={{ fontSize: 15, marginTop: 6 }}>
+                          Do you know the day?
+                        </AppText>
+                        <Option label="Yes: book it now" on={knowDay === true} onPress={() => setKnowDay(true)} />
+                        <Option label="Not yet: when the part's in" detail="It waits under “To be scheduled” on your Jobs tab." on={knowDay === false} onPress={() => setKnowDay(false)} />
+                      </>
+                    )}
                   </Card>
                 )}
               </View>
@@ -302,8 +361,8 @@ export default function FinishJob() {
           </ScrollView>
           <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 12), backgroundColor: colors.page, borderTopWidth: 1, borderTopColor: colors.edge }}>
             <PrimaryButton
-              title={saving ? "Saving…" : d.outcome === "return" && !d.returnVisit ? "Save and book the return visit" : d.done ? "Save" : "Mark job done"}
-              icon={d.outcome === "return" && !d.returnVisit ? "calendar" : "checkmark-done"}
+              title={saving ? "Saving…" : asking && price === "take" ? "Save and take payment" : asking && knowDay ? "Save and book the return visit" : d.done ? "Save" : d.outcome === "return" ? "Save" : "Mark job done"}
+              icon={asking && price === "take" ? "card" : asking && knowDay ? "calendar" : "checkmark-done"}
               onPress={save}
             />
           </View>

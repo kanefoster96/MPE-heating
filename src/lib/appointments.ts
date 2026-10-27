@@ -66,6 +66,8 @@ export type Appointment = {
   pastRequestSentAt: string | null;
   /** They said they won't be in: rebook them. */
   cantMakeAt: string | null;
+  /** Coming back, with the price still to send (it depends on the part). */
+  priceNeeded: boolean;
   /** The customer asked to move it: to this day and part of the day. */
   change: { day: string; part: Part | null; note: string | null; at: string } | null;
 };
@@ -109,6 +111,7 @@ type Row = {
   follow_up_of: string | null;
   past_request_sent_at: string | null;
   cant_make_at: string | null;
+  price_needed: boolean | null;
   change_day: string | null;
   change_part: Part | null;
   change_note: string | null;
@@ -155,6 +158,7 @@ function mapAppointment(r: Row): Appointment {
     followUpOf: r.follow_up_of ?? null,
     pastRequestSentAt: r.past_request_sent_at ?? null,
     cantMakeAt: r.cant_make_at ?? null,
+    priceNeeded: r.price_needed === true,
     change:
       r.change_day && r.change_requested_at
         ? { day: r.change_day, part: r.change_part ?? null, note: r.change_note ?? null, at: r.change_requested_at }
@@ -255,6 +259,17 @@ export async function visitChain(visit: Appointment): Promise<Appointment[]> {
     parent = before.followUpOf;
   }
   return chain;
+}
+
+/** A price has gone to the customer (a quote or an invoice): nothing's owed them now. */
+export async function priceSent(customerId: string): Promise<void> {
+  await createAdminClient().from("appointments").update({ price_needed: false }).eq("customer_id", customerId).eq("price_needed", true);
+}
+
+/** Visits finished as "coming back" whose price is still to send. */
+export async function pricesToSend(): Promise<Appointment[]> {
+  const { data } = await createAdminClient().from("appointments").select("*").eq("price_needed", true).eq("status", "done").order("completed_at").limit(200);
+  return ((data ?? []) as Row[]).map(mapAppointment);
 }
 
 /** Visits finished as "coming back" with no return visit booked yet: the team's to book. */

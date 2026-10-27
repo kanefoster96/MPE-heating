@@ -6,7 +6,7 @@ import { business } from "@/lib/content";
 import { chatRecipientIds } from "@/lib/chat-routing";
 import { pushToUsers } from "@/lib/push";
 import { getCustomer, type Customer } from "@/lib/customers";
-import { getAppointment, visitChain, type Appointment } from "@/lib/appointments";
+import { getAppointment, priceSent, visitChain, type Appointment } from "@/lib/appointments";
 import { deliverToCustomer } from "@/lib/visit-notify";
 import { invoiceEmailHtml } from "@/lib/emails/invoice";
 import { instalmentSchedule, scheduleSummary } from "@/lib/instalment-schedule";
@@ -495,6 +495,8 @@ export async function createPaymentRequest(params: {
   // The repair's invoice, with the call-out fee still unpaid: the £50 comes
   // off the repair, so the fee's dropped (and its reminders with it), and
   // they're told so with this invoice.
+  // An invoice from the team is the price for a job waiting on one (lib/app-finish.ts).
+  if (params.kind === "invoice" && params.staffId) await priceSent(customer.id);
   const folded = params.kind === "invoice" && params.staffId ? await foldOpenCalloutFees(params.appointmentId ? { appointmentId: params.appointmentId } : { customerId: customer.id }) : 0;
   const foldedLine = folded ? " Your call-out fee is part of this bill, so there's nothing else to pay." : "";
   const charge = params.chargeNow ? await chargeSavedCard(request.id) : undefined;

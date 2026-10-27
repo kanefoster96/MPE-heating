@@ -9,6 +9,7 @@ import { AppText, Card, LoadError, PressableScale, PrimaryButton, Skeleton, hapt
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost } from "@/lib/api";
 import { notify } from "@/lib/confirm";
+import { reportSend, type WhatsAppHandoff } from "@/lib/whatsapp-handoff";
 import { colors, fonts } from "@/lib/theme";
 
 type Kind = { key: string; label: string; minutes: number };
@@ -199,7 +200,7 @@ export default function VisitForm() {
     if (!draft || saving) return;
     setSaving(true);
     try {
-      const res = await apiPost<{ id: string; day: string; message: string }>("/api/mobile/staff/schedule/visit", {
+      const res = await apiPost<{ id: string; day: string; message: string; whatsapp?: WhatsAppHandoff | null }>("/api/mobile/staff/schedule/visit", {
         id: draft.id,
         kind: draft.kind,
         day: draft.day,
@@ -217,8 +218,9 @@ export default function VisitForm() {
         notify: notifyThem,
       });
       haptic.success();
-      notify(draft.id ? "Saved" : "Booked", res.message);
       router.replace(`/job/${res.id}`);
+      // They've only phoned (no email or app): the details go from WhatsApp Business.
+      await reportSend(draft.id ? "Saved" : "Booked", res);
     } catch (err) {
       haptic.warning();
       notify("Not saved", err instanceof Error ? err.message : "Please try again.");

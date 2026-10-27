@@ -8,6 +8,8 @@ import { resolveDisplayName } from "@/lib/display-name";
 import { TEAM_CHAT_NAME, teamReadReceipts } from "@/lib/team-chat";
 import { ENQUIRY_STEPS, enquiryCards } from "@/lib/app-chat";
 import { customerIdForConversation } from "@/lib/app-customer";
+import { getCustomer } from "@/lib/customers";
+import { hasPushDevice } from "@/lib/push";
 
 /**
  * A chat for the app. A customer gets their own (made on first open, with
@@ -27,13 +29,21 @@ export async function GET(request: Request) {
     if (!conversation) return mobileJson({ error: "That conversation has gone." }, 404);
     let title = TEAM_CHAT_NAME;
     let guest = false;
+    let accountEmail: string | null = null;
     if (!conversation.isTeam) {
       const { data } = await createAdminClient().auth.admin.getUserById(conversation.userId);
       guest = isGuestUser(data?.user);
       title = guest ? conversation.guestName || "Guest" : resolveDisplayName(data?.user, "Customer");
+      accountEmail = guest ? null : (data?.user?.email ?? null);
     }
     // Who they are, for the name at the top: their customer page, if they're one yet.
     const customerId = conversation.isTeam || after ? null : await customerIdForConversation(conversation.id);
+    // Only ever phoned or texted (no email anywhere, not in the app, not on the website):
+    // the composer offers WhatsApp Business, since a message here wouldn't reach them.
+    const phoneOnly =
+      !conversation.isTeam && !after && !!conversation.phone && !conversation.guestEmail && !accountEmail && conversation.memberLastSource !== "web" && conversation.memberLastSource !== "app"
+        ? !(customerId && (await getCustomer(customerId))?.email) && !(await hasPushDevice(conversation.userId))
+        : false;
     // Their bookings with where each is up to; for the team chat, who's seen what.
     const [enquiries, receipts] = await Promise.all([
       conversation.isTeam || after ? Promise.resolve([]) : enquiryCards(conversation.id),
@@ -49,6 +59,7 @@ export async function GET(request: Request) {
         customerId,
         guest,
         lastFrom: conversation.memberLastSource,
+        phoneOnly,
       },
       messages: await getMessagesForApp(conversation.id, after),
       viewer: { id: caller.user.id, staff: true },

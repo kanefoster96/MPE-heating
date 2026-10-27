@@ -103,7 +103,10 @@ deployment.
 - [ ] Optional: create an API key (**Account → API keys & tokens →
       Create**, Standard) for sending.
 - [ ] Calls to it ring Fergal's mobile (07448 628 101, or each admin's
-      saved mobile), showing the caller's number. Not answered in 18
+      saved mobile), showing the caller's number, from **8am to 8pm**
+      every day. From 8pm to 8am they go straight to voicemail ("Our phones
+      are open from 8am to 8pm"), and the voicemail waits in their chat
+      for the morning without a notification. Not answered in 18
       seconds: MPE's voicemail. Either way the call's logged in their chat.
       On their first ever call they get one text pointing them at the app
       and live chat (never again to that number, and not if they have the
@@ -112,14 +115,17 @@ deployment.
       with no email or app, Fergal also gets a notification as it rings,
       reminding him to ask.
 - [ ] Customers who've only phoned (no email, no app): booking them in
-      asks for their email first. If they still have neither, a quote,
-      invoice or payment link can't reach them, so the app offers **Open
-      in WhatsApp Business** with the message and link ready to send.
+      asks for their email first. If they still have neither, the app
+      offers **Open in WhatsApp Business**, with the message ready, for
+      their booking (and any move or cancellation), a quote, an invoice or
+      payment link, and a receipt. In their chat, messages go from
+      WhatsApp Business too. Texts are the same for every customer: the
+      one after their first call, "on my way" and "running late".
 - [ ] Texts are kept to two per customer: that one after their first
       call, and "on my way" (plus "running late" when it happens). Anyone
-      with the app gets those as free notifications instead. A booking, a
-      cancellation or a failed payment is only texted if there's no email
-      for them. Everything else goes by the app and email.
+      with the app gets those as free notifications instead. Everything
+      else goes by the app and email (a failed monthly payment is texted
+      only if there's no email, which is rare: paying monthly needs one).
 - [ ] **The £20 allowance** (excluding VAT): every call minute and text
       is logged and priced at Twilio's UK rates, at a fixed exchange rate,
       and checked every 30 minutes against Twilio's own month total (the

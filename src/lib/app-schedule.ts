@@ -18,7 +18,7 @@ import { closedDays } from "@/lib/days-off";
 import { APPOINTMENT_KINDS, KIND_DEFAULT_MINUTES, KIND_LABEL, PART_LABEL, PART_WINDOW, addDays, longDate, toHHMM, type AppointmentKind } from "@/lib/day-plan";
 import { enquiriesForConversation, enquiryNotes, visitKindFor } from "@/lib/enquiries";
 import { londonNow } from "@/lib/schedule-time";
-import { sendVisitNotice, viaPhrase } from "@/lib/visit-notify";
+import { reachedThem, sendVisitNoticeForTeam, viaPhrase, type WhatsAppHandoff } from "@/lib/visit-notify";
 import type { NoticeType } from "@/lib/visit-copy";
 
 /**
@@ -209,9 +209,13 @@ function asForm(body: VisitBody): FormData {
   return form;
 }
 
-function sentLine(sent: string[] | null, name: string | null): string {
-  if (sent === null) return "";
-  return sent.length ? ` ${name ? `${name.split(" ")[0]} was` : "They were"} told by ${viaPhrase(sent)}.` : " We couldn't reach them: add a mobile or email to their details.";
+type Told = Awaited<ReturnType<typeof sendVisitNoticeForTeam>> | null;
+
+/** Who was told and how; for someone who's only phoned (no email, no app), that it hasn't reached them yet. */
+function sentLine(told: Told, name: string | null): string {
+  if (told === null) return "";
+  const who = name ? name.split(" ")[0] : null;
+  return reachedThem(told.via) ? ` ${who ? `${who} was` : "They were"} told by ${viaPhrase(told.via)}.` : ` It hasn't reached ${who ?? "them"}: no email or the MPE app.`;
 }
 
 /** Adds or saves a visit, as the schedule's form does. */
@@ -219,7 +223,7 @@ export async function saveVisit(
   id: string | null,
   body: VisitBody,
   staffId: string,
-): Promise<{ ok: true; id: string; day: string; message: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; id: string; day: string; message: string; whatsapp?: WhatsAppHandoff | null } | { ok: false; error: string }> {
   const form = asForm(body);
   // A new customer typed in: made first.
   const fresh = body.newCustomer;
@@ -253,8 +257,8 @@ export async function saveVisit(
         if ((e.status === "new" || e.status === "contacted") && categoriesFor(input.kind).includes(e.category)) await markEnquiryBooked(e.id, staffId);
       }
     }
-    const sent = body.notify && input.customerId ? await sendVisitNotice(created, "booked", staffId) : null;
-    return { ok: true, id: created, day: input.day, message: `Booked for ${longDate(input.day)}.${sentLine(sent, customer?.name ?? null)}` };
+    const sent = body.notify && input.customerId ? await sendVisitNoticeForTeam(created, "booked", staffId) : null;
+    return { ok: true, id: created, day: input.day, message: `Booked for ${longDate(input.day)}.${sentLine(sent, customer?.name ?? null)}`, whatsapp: sent?.whatsapp ?? null };
   }
 
   const before = await getAppointment(id);
@@ -268,15 +272,15 @@ export async function saveVisit(
   if (!ok) return { ok: false, error: "Couldn't save that visit." };
   if (wasRequest && before.enquiryId) await markEnquiryBooked(before.enquiryId, staffId);
   const notice: NoticeType | null = wasRequest || before.customerId !== input.customerId ? "booked" : timeChanged && before.status === "booked" ? "moved" : null;
-  const sent = notice && body.notify && input.customerId ? await sendVisitNotice(id, notice, staffId) : null;
-  return { ok: true, id, day: input.day, message: `${wasRequest ? "Booked" : timeChanged ? "Moved" : "Saved"}.${sentLine(sent, customer?.name ?? null)}` };
+  const sent = notice && body.notify && input.customerId ? await sendVisitNoticeForTeam(id, notice, staffId) : null;
+  return { ok: true, id, day: input.day, message: `${wasRequest ? "Booked" : timeChanged ? "Moved" : "Saved"}.${sentLine(sent, customer?.name ?? null)}`, whatsapp: sent?.whatsapp ?? null };
 }
 
 export const VISIT_ACTIONS = ["accept", "keep", "send", "booked", "cancel", "cancel_quietly", "remove", "no_return"] as const;
 export type VisitAction = (typeof VISIT_ACTIONS)[number];
 
 /** The buttons on a visit: accept a request as asked, keep the time they asked to move, send the details again, back to booked, cancel (telling them or not), remove. */
-export async function visitAction(id: string, action: VisitAction, staffId: string): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+export async function visitAction(id: string, action: VisitAction, staffId: string): Promise<{ ok: true; message: string; whatsapp?: WhatsAppHandoff | null } | { ok: false; error: string }> {
   const visit = await getAppointment(id);
   if (!visit) return { ok: false, error: "That visit's gone." };
   const customer = visit.customerId ? await getCustomer(visit.customerId) : null;
@@ -287,8 +291,8 @@ export async function visitAction(id: string, action: VisitAction, staffId: stri
       if (visit.day < londonNow().dateISO) return { ok: false, error: "That day's gone. Pick a new time with Move or change." };
       await acceptRequest(id);
       if (visit.enquiryId) await markEnquiryBooked(visit.enquiryId, staffId);
-      const sent = visit.customerId ? await sendVisitNotice(id, "booked", staffId) : null;
-      return { ok: true, message: `Booked as they asked.${sentLine(sent, name)}` };
+      const sent = visit.customerId ? await sendVisitNoticeForTeam(id, "booked", staffId) : null;
+      return { ok: true, message: `Booked as they asked.${sentLine(sent, name)}`, whatsapp: sent?.whatsapp ?? null };
     }
     case "keep":
       await clearChangeRequest(id);
@@ -296,8 +300,8 @@ export async function visitAction(id: string, action: VisitAction, staffId: stri
     case "send": {
       if (!visit.customerId) return { ok: false, error: "There's no customer on this visit." };
       const type: NoticeType = visit.status === "cancelled" ? "cancelled" : visit.status === "no_access" ? "missed" : visit.lastNotice === "moved" ? "moved" : "booked";
-      const sent = await sendVisitNotice(id, type, staffId);
-      return { ok: true, message: sent.length ? `Sent to ${name ?? "them"} by ${viaPhrase(sent)}.` : "We couldn't reach them: add a mobile or email to their details." };
+      const sent = await sendVisitNoticeForTeam(id, type, staffId);
+      return reachedThem(sent.via) ? { ok: true, message: `Sent to ${name ?? "them"} by ${viaPhrase(sent.via)}.` } : { ok: true, message: `It hasn't reached ${name ? name.split(" ")[0] : "them"}: no email or the MPE app.`, whatsapp: sent.whatsapp };
     }
     case "booked":
       await setAppointmentStatus(id, "booked");
@@ -305,8 +309,8 @@ export async function visitAction(id: string, action: VisitAction, staffId: stri
     case "cancel":
     case "cancel_quietly": {
       await setAppointmentStatus(id, "cancelled");
-      const sent = action === "cancel" && visit.customerId && visit.status !== "requested" ? await sendVisitNotice(id, "cancelled", staffId) : null;
-      return { ok: true, message: `Cancelled.${sentLine(sent, name)}` };
+      const sent = action === "cancel" && visit.customerId && visit.status !== "requested" ? await sendVisitNoticeForTeam(id, "cancelled", staffId) : null;
+      return { ok: true, message: `Cancelled.${sentLine(sent, name)}`, whatsapp: sent?.whatsapp ?? null };
     }
     case "remove":
       if (!(await deleteAppointment(id))) return { ok: false, error: "Couldn't remove that visit." };

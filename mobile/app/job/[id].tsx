@@ -11,6 +11,7 @@ import { AppText, Card, LoadError, PressableScale, PrimaryButton, Skeleton, hapt
 import { useAuth } from "@/contexts/auth";
 import { apiFetch, apiPost, readCached } from "@/lib/api";
 import { confirmAction, notify } from "@/lib/confirm";
+import { reportSend, type WhatsAppHandoff } from "@/lib/whatsapp-handoff";
 import { colors } from "@/lib/theme";
 import type { JobPayment, SheetContext, StaffJobDetail } from "@/lib/types";
 
@@ -104,11 +105,11 @@ function Job() {
     if (!data || busy) return false;
     setBusy(action);
     try {
-      const res = await apiPost<{ message: string }>("/api/mobile/staff/schedule/visit/action", { id: data.job.id, action });
+      const res = await apiPost<{ message: string; whatsapp?: WhatsAppHandoff | null }>("/api/mobile/staff/schedule/visit/action", { id: data.job.id, action });
       haptic.success();
-      notify("Done", res.message);
       if (action === "remove") router.back();
       else load();
+      await reportSend("Done", res);
       return true;
     } catch (err) {
       haptic.warning();

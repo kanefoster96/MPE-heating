@@ -15,7 +15,7 @@ import {
   setAppointmentStatus,
   updateAppointment,
 } from "@/lib/appointments";
-import { sendOnMyWay, sendRunningLate, sendVisitNotice, viaPhrase } from "@/lib/visit-notify";
+import { reachedThem, sendOnMyWay, sendRunningLate, sendVisitNotice, viaPhrase } from "@/lib/visit-notify";
 import type { NoticeType } from "@/lib/visit-copy";
 import { createCustomer, customerFieldsFromForm, customerLabel, listCustomers } from "@/lib/customers";
 import type { AppointmentStatus } from "@/lib/day-plan";
@@ -150,7 +150,8 @@ function wantsNotice(formData: FormData): boolean {
 }
 
 function sentParam(sent: string[] | null): Record<string, string> {
-  return sent === null ? {} : { sent: sent.length ? sent.join(",") : "none" };
+  // Only their conversation, which someone who's only phoned can't see: not sent, as far as they're concerned.
+  return sent === null ? {} : { sent: reachedThem(sent) ? sent.join(",") : "none" };
 }
 
 /** "On my way": tells the customer who's coming and roughly when. */

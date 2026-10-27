@@ -67,9 +67,9 @@ export type Delivery = {
   email?: "always" | "if-no-text";
   /**
    * Whether it goes by text when the app can't reach them: "always" for
-   * what can't wait (on my way, running late), "fallback" for a booking, a
-   * cancellation or a failed payment when there's no email either. Left
-   * out: never (the app and email only), which is most messages.
+   * what can't wait (on my way, running late), "fallback" for a failed
+   * monthly payment when there's no email either. Left out: never (the app
+   * and email only), which is most messages.
    */
   text?: "always" | "fallback";
   /** A shorter version for the text (one segment, under 160 characters). */
@@ -127,8 +127,8 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
 
   // 3. A text, to a UK mobile, only when the app can't reach them, and only
   // for what can't wait: "on my way" and running late (`text: "always"`).
-  // A booking, a cancellation or a failed payment (`"fallback"`) is texted
-  // only if there's no email either. Everything else: the app and email.
+  // A failed monthly payment (`"fallback"`) is texted only if there's no
+  // email either. Everything else: the app and email.
   const wantsText = d.text === "always" || (d.text === "fallback" && !(RESEND_ON && customer.email));
   const smsBody = d.text ? smsText(d.smsBody ?? d.body, CLUB.name, d.smsOptOut) : "";
   if (TWILIO_ON && wantsText && !inApp && customer.phoneE164?.startsWith("+447") && (await smsAllowed())) {
@@ -182,9 +182,24 @@ export async function sendVisitNotice(
   /** The member of staff sending it; none for automatic messages. */
   staffId: string | null,
 ): Promise<string[]> {
+  return (await deliverVisitNotice(appointmentId, type, staffId))?.via ?? [];
+}
+
+/**
+ * The same, for the team in the app: and when it reached nowhere they'll
+ * see it (they've only phoned: no email, no app), the message ready to send
+ * from WhatsApp Business instead.
+ */
+export async function sendVisitNoticeForTeam(appointmentId: string, type: NoticeType, staffId: string): Promise<{ via: string[]; whatsapp: WhatsAppHandoff | null; name: string | null }> {
+  const sent = await deliverVisitNotice(appointmentId, type, staffId);
+  if (!sent) return { via: [], whatsapp: null, name: null };
+  return { via: sent.via, whatsapp: reachedThem(sent.via) ? null : handoffMessage(sent.customer, sent.body), name: sent.customer.name };
+}
+
+async function deliverVisitNotice(appointmentId: string, type: NoticeType, staffId: string | null): Promise<{ via: string[]; body: string; customer: Customer } | null> {
   const appointment = await getAppointment(appointmentId);
   const customer = appointment?.customerId ? await getCustomer(appointment.customerId) : null;
-  if (!appointment || !customer) return [];
+  if (!appointment || !customer) return null;
 
   const link = visitLink(appointment);
   const bookLink = `${CLUB_SITE_URL.replace(/\/$/, "")}/book/service`;
@@ -216,8 +231,10 @@ export async function sendVisitNotice(
     // Reminders don't need an email as well as a text; confirmations and changes do.
     email: type === "hour" || type === "reminder" ? "if-no-text" : "always",
     smsOptOut: type === "service_due",
-    // Texts cost: only running late always, and a booking or cancellation if there's no email.
-    text: type === "late" ? "always" : type === "booked" || type === "moved" || type === "cancelled" ? "fallback" : undefined,
+    // Texts cost, so they're the same for everyone: running late (and "on my way", sendOnMyWay).
+    // A booking, a move or a cancellation for someone with no email or app goes from the
+    // team's WhatsApp Business instead (sendVisitNoticeForTeam).
+    text: type === "late" ? "always" : undefined,
     smsBody: shortNotice(type, facts, { name: customer.name, engineer, appLink: `${CLUB_SITE_URL.replace(/\/$/, "")}/app` }),
     emailHtml: (canReplyByEmail) =>
       visitEmailHtml({
@@ -234,7 +251,7 @@ export async function sendVisitNotice(
   });
 
   await recordNotice(appointment.id, type, via);
-  return via;
+  return { via, body, customer };
 }
 
 /**
@@ -260,6 +277,13 @@ export function whatsappHandoff(customer: Pick<Customer, "name" | "phoneE164">, 
   if (!phone) return null;
   const hi = customer.name ? `Hi ${customer.name.split(" ")[0]}, ` : "Hi, ";
   return { phone, text: `${hi}it's ${CLUB.name}. ${what}: ${link}\n\nFor updates on your job and to chat with us, get the ${CLUB.name} app: ${CLUB_SITE_URL.replace(/\/$/, "")}/app` };
+}
+
+/** A whole message (a visit's details, say) for WhatsApp Business, with the app at the end. */
+export function handoffMessage(customer: Pick<Customer, "phoneE164">, body: string): WhatsAppHandoff | null {
+  const phone = customer.phoneE164?.replace(/\D/g, "");
+  if (!phone) return null;
+  return { phone, text: `${body}\n\nFor updates on your job and to chat with us, get the ${CLUB.name} app: ${CLUB_SITE_URL.replace(/\/$/, "")}/app` };
 }
 
 /** What the team's told when it only reached their conversation. */

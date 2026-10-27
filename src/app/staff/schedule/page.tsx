@@ -69,7 +69,7 @@ const SUCCESS: Record<string, string> = {
 function successLine(success: string, sent: string | undefined): string {
   const base = SUCCESS[success] ?? "Done.";
   if (!sent) return base;
-  if (sent === "none") return `${base} We couldn't send them the details: add an email or mobile to their customer page.`;
+  if (sent === "none") return `${base} It hasn't reached them: no email or the MPE app. Send them the details from WhatsApp Business, or add their email.`;
   return `${base} They've been sent the details by ${viaPhrase(sent.split(","))}.`;
 }
 

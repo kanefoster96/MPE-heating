@@ -7,12 +7,13 @@ import { CHAT_ON } from "@/lib/chat-on";
 import { META_PIXEL_ID } from "@/lib/meta-pixel";
 import { CookieSettingsButton } from "./CookieSettingsButton";
 
-export function Footer() {
+// `freeBand={false}` on the homepage, where the closing card has just asked.
+export function Footer({ freeBand = true }: { freeBand?: boolean } = {}) {
   return (
     <footer className="border-t border-line bg-cream py-12 text-navy">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <FreeBand />
-        <div className="mt-10 flex flex-col gap-10 sm:flex-row sm:justify-between">
+        {freeBand && <FreeBand />}
+        <div className={`${freeBand ? "mt-10 " : ""}flex flex-col gap-10 sm:flex-row sm:justify-between`}>
           <div>
             <Image src="/mpe-logo.png" alt={business.fullName} width={1189} height={513} className="h-12 w-auto" />
             <div className="mt-5 flex flex-col gap-2 text-sm text-text-2">

@@ -1,37 +1,24 @@
 import Link from "next/link";
 import { business, hero } from "@/lib/content";
 import { contactHref } from "@/lib/enquiry";
-import { FlameIcon } from "./icons";
-import { HeroCallOutCard } from "./HeroCallOutCard";
+import { CheckIcon } from "./icons";
+import { Stars } from "./Stars";
 
-// The hero in the kanvas.one layout, without the phone mockup. Left: a
-// proof pill (who we are, and a way to ask straight away), the two-tone
-// headline with the orange clause on its own line, one line of copy, one
-// big button and a line of quiet links. Right: the orange card that
-// explains the £50 call-out. Centred and stacked on a phone; two columns from 1024px.
+// The hero sells one thing: a same-day call-out for a broken-down boiler.
+// Left: the two-tone headline, one line of copy, the one big button (the
+// only orange button on the page), the number, and a quiet row of proof.
+// Right (under it on a phone): what happens, in three steps on a white
+// card. The £50 is said twice: in the line of copy and in step three.
 export function Hero() {
   return (
     <section className="overflow-x-clip bg-page pt-10 pb-12 sm:pt-14 lg:pt-[72px] lg:pb-24">
-      <div className="mx-auto max-w-6xl px-5 text-center sm:px-6 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-center lg:gap-16 lg:text-left">
+      <div className="mx-auto max-w-6xl px-5 text-center sm:px-6 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-center lg:gap-16 lg:text-left">
         <div className="flex flex-col items-center lg:items-start">
-          <a
-            href={business.chatHref}
-            className="inline-flex items-center gap-2.5 rounded-full bg-grey py-[5px] pr-4 pl-[5px] text-left text-sm leading-[1.3] text-text-2 transition-colors hover:bg-[#ebe8e3]"
-          >
-            <span aria-hidden="true" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-[image:var(--grad)] text-white">
-              <FlameIcon className="h-[18px] w-[18px]" strokeWidth={2.2} />
-            </span>
-            <span>
-              <span className="block">{hero.proof.line1}</span>
-              <span className="block font-semibold text-terracotta-deep">{hero.proof.line2} &rsaquo;</span>
-            </span>
-          </a>
-
-          <h1 className="mt-5 max-w-[14ch] text-[44px] font-bold leading-[1.02] tracking-[-0.045em] [text-wrap:balance] sm:text-[64px] lg:max-w-[13ch] lg:text-[clamp(56px,5.2vw,74px)]">
+          <h1 className="max-w-[14ch] text-[44px] font-bold leading-[1.02] tracking-[-0.045em] [text-wrap:balance] sm:text-[64px] lg:max-w-[13ch] lg:text-[clamp(56px,5.2vw,74px)]">
             {hero.headline.lead} <span className="em block">{hero.headline.em}</span>
           </h1>
 
-          <p className="mt-5 max-w-[600px] text-lg leading-normal text-text-2 sm:text-xl">{hero.subline}</p>
+          <p className="mt-5 max-w-[560px] text-lg leading-normal text-text-2 sm:text-xl">{hero.subline}</p>
 
           <div className="mt-7 w-full max-w-[430px]">
             <Link
@@ -40,20 +27,38 @@ export function Hero() {
             >
               {hero.cta}
             </Link>
-            <p className="mt-2.5 text-[15px] text-text-2">
-              <a href={business.phoneHref} className="inline-flex min-h-11 items-center font-semibold text-terracotta-deep">
-                Prefer to talk first? Call {business.phoneDisplay}
-              </a>
-              <span aria-hidden="true"> &middot; </span>
-              <a href={business.chatHref} className="inline-flex min-h-11 items-center font-semibold text-navy">
-                {business.chatLabel}
-              </a>
-            </p>
+            <a href={business.phoneHref} className="mt-1.5 inline-flex min-h-11 items-center text-[15px] font-semibold text-navy">
+              or call {business.phoneDisplay}
+            </a>
           </div>
+
+          <ul className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-text-2 lg:justify-start">
+            {hero.trust.map((item, i) => (
+              <li key={item} className="flex items-center gap-1.5">
+                {i === 0 ? <Stars size="h-3.5 w-3.5" /> : <CheckIcon className="h-4 w-4 text-whatsapp-dark" strokeWidth={3} aria-hidden="true" />}
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <div className="mx-auto mt-10 w-full max-w-[440px] lg:mt-0">
-          <HeroCallOutCard />
+        <div className="mx-auto mt-10 w-full max-w-[440px] text-left lg:mt-0">
+          <div className="rounded-[22px] border-[1.5px] border-edge bg-white px-5 pt-5 pb-3 shadow-[0_18px_40px_-26px_rgba(31,42,58,0.35)] sm:px-6">
+            <h2 className="text-xl font-extrabold tracking-[-0.02em]">{hero.steps.heading}</h2>
+            <ol className="mt-1">
+              {hero.steps.items.map((step, i) => (
+                <li key={step.title} className={`flex gap-3.5 py-3.5 ${i ? "border-t border-edge" : ""}`}>
+                  <span aria-hidden="true" className="grid h-8 w-8 flex-none place-items-center rounded-full bg-navy text-sm font-bold text-white">
+                    {i + 1}
+                  </span>
+                  <span>
+                    <span className="block text-base font-bold leading-snug">{step.title}</span>
+                    <span className="mt-0.5 block text-[15px] leading-snug text-text-2">{step.text}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
       </div>
     </section>

@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { londonNow } from "@/lib/schedule-time";
+import { londonInstant, londonNow } from "@/lib/schedule-time";
 import { addDays } from "@/lib/day-plan";
 import { pricesToSend, recordNotice, remindersDue, returnsToBook, type Appointment } from "@/lib/appointments";
 import { getSetting, setSetting } from "@/lib/settings";
@@ -16,7 +16,7 @@ import { takeDueInstalments } from "@/lib/instalments";
 import { dropUnpaidDeposit, sendQuoteFollowUp } from "@/lib/quotes";
 import { sendCertificateRenewals } from "@/lib/job-files";
 import { sendDueMonthReport } from "@/lib/monthly-report";
-import { TEAM_FROM, TEAM_UNTIL } from "@/lib/team-hours";
+import { TEAM_FROM, TEAM_UNTIL, teamHours } from "@/lib/team-hours";
 import { formatPhone } from "@/lib/phone";
 
 /**
@@ -360,17 +360,20 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     if ((await getSetting("overnight_summary_for")) === today) return;
     // Marked first: a slow push mustn't mean a second one five minutes later.
     if (!(await setSetting("overnight_summary_for", today))) return;
-    const eight = Date.now() - (minutes - TEAM_FROM) * 60_000;
-    const since = new Date(eight - (24 * 60 - (TEAM_UNTIL - TEAM_FROM)) * 60_000).toISOString();
-    const { data: rows } = await admin.from("chat_messages").select("conversation_id").eq("sender_is_coach", false).gte("created_at", since).lt("created_at", new Date(eight).toISOString());
-    const ids = [...new Set((rows ?? []).map((r) => r.conversation_id as string))];
-    if (!ids.length) return;
-    const names = (await conversationNames(ids)).filter((n) => n !== null) as string[];
-    if (!names.length) return;
+    // 8pm yesterday to 8am today, London time: 11 or 13 hours on the nights the clocks change.
+    const since = londonInstant(addDays(today, -1), TEAM_UNTIL).toISOString();
+    const until = londonInstant(today, TEAM_FROM).toISOString();
+    const { data: rows } = await admin.from("chat_messages").select("conversation_id").eq("sender_is_coach", false).gte("created_at", since).lt("created_at", until);
+    const found = [...new Set((rows ?? []).map((r) => r.conversation_id as string))];
+    if (!found.length) return;
+    // Customers' conversations only (not the team chat), each with its name.
+    const named = (await conversationNames(found)).map((name, i) => ({ id: found[i], name })).filter((c): c is { id: string; name: string } => c.name !== null);
+    if (!named.length) return;
+    const names = named.map((c) => c.name);
     await pushToUsers(await chatRecipientIds(), {
       title: "Overnight",
       body: `${names.length} new message${names.length === 1 ? "" : "s"} since 8pm: ${listNames(names)}.`,
-      data: names.length === 1 ? { kind: "chat", conversationId: ids[0] } : { kind: "link", href: "/staff/messages" },
+      data: named.length === 1 ? { kind: "chat", conversationId: named[0].id } : { kind: "link", href: "/staff/messages" },
     });
     result.staffNudged += names.length;
   });
@@ -418,7 +421,8 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
   // 5d. The month's calls and texts: Twilio's own total (every half hour), and a heads-up at each £5 of the £20.
   await stage("usage", async () => {
     await syncTwilioTotal();
-    await usageAlerts();
+    // Not at night: a £5 step passed overnight is told at 8am.
+    if (teamHours()) await usageAlerts();
   });
 
   await stage("staff", async () => {
@@ -499,17 +503,21 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     if (minutes < DAYTIME_FROM || minutes >= DAYTIME_UNTIL) return;
     const { data } = await admin
       .from("payment_requests")
-      .select("id, number, kind, amount_pence, reminder_count, created_at, reminded_at, customer_id")
+      .select("id, number, kind, amount_pence, reminder_count, created_at, reminded_at, customer_id, created_by, appointment_id")
       .eq("status", "open")
       // Being paid monthly: Stripe takes it, and chases a missed one itself.
       .is("plan_status", null)
       // A quote's deposit isn't a bill: the quote's own follow-ups cover it.
       .or("quote_id.is.null,kind.neq.other")
-      // A call-out fee they started paying ahead and left (lib/callout-prepay.ts): optional, so never chased.
-      .or("kind.neq.callout_fee,created_by.not.is.null")
       .lt("reminder_count", 3)
       .lte("created_at", new Date(Date.now() - UNPAID_FIRST_DAYS * 86_400_000).toISOString());
+    // A call-out fee they started paying ahead and left (lib/callout-prepay.ts) is optional until
+    // the visit: not chased while it's still to come. After it, it's a bill like any other.
+    const prepaidVisits = [...new Set((data ?? []).filter((r) => r.kind === "callout_fee" && !r.created_by && r.appointment_id).map((r) => r.appointment_id as string))];
+    const { data: ahead } = prepaidVisits.length ? await admin.from("appointments").select("id").in("id", prepaidVisits).eq("status", "booked").gte("day", today) : { data: [] };
+    const notYet = new Set((ahead ?? []).map((a) => a.id as string));
     for (const row of data ?? []) {
+      if (row.kind === "callout_fee" && !row.created_by && notYet.has(row.appointment_id as string)) continue;
       const count = (row.reminder_count as number) ?? 0;
       const age = hoursSince(row.created_at as string) / 24;
       const due = count === 0 ? age >= UNPAID_FIRST_DAYS : count === 1 ? age >= UNPAID_SECOND_DAYS : age >= UNPAID_TEAM_DAYS;

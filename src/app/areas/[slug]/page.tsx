@@ -89,7 +89,7 @@ export default async function AreaPageRoute({ params }: { params: Promise<Params
                 We also cover{" "}
                 {nearbyAreas.map((a, i) => (
                   <span key={a.slug}>
-                    <Link href={`/areas/${a.slug}`} className="font-semibold text-navy underline decoration-navy/30 underline-offset-4">
+                    <Link href={`/areas/${a.slug}`} className="inline-flex min-h-11 items-center font-semibold text-navy underline decoration-navy/30 underline-offset-4">
                       {a.name}
                     </Link>
                     {i < nearbyAreas.length - 1 ? ", " : ""}

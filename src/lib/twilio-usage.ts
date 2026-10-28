@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { londonInstant, londonNow } from "@/lib/schedule-time";
 import { getSetting } from "@/lib/settings";
 
 /**
@@ -51,8 +52,13 @@ export function billedMinutes(seconds: number): number {
   return Math.max(1, Math.ceil((Number(seconds) || 0) / 60));
 }
 
-function monthStart(now = new Date()): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+/** This month in London ("2026-10"): the allowance resets at midnight on the 1st, UK time. */
+function londonMonth(): string {
+  return londonNow().dateISO.slice(0, 7);
+}
+
+function monthStart(): Date {
+  return londonInstant(`${londonMonth()}-01`, 0);
 }
 
 export type MonthUsage = {
@@ -82,16 +88,29 @@ const LABEL: Record<UsageKind, { label: string; unit: string }> = {
   transcription: { label: "Voicemails written out", unit: "minutes" },
 };
 
+/** Every usage row since `start`, a page at a time: a busy month runs past the database's 1,000-row reply. */
+async function usageRowsSince(start: Date): Promise<{ kind: UsageKind; units: number; usd: number }[]> {
+  const admin = createAdminClient();
+  const all: { kind: UsageKind; units: number; usd: number }[] = [];
+  for (let from = 0; from < 50_000; from += 1000) {
+    const { data, error } = await admin.from("twilio_usage").select("kind, units, usd").gte("created_at", start.toISOString()).order("id").range(from, from + 999);
+    if (error) throw error;
+    all.push(...((data ?? []) as { kind: UsageKind; units: number; usd: number }[]));
+    if (!data || data.length < 1000) break;
+  }
+  return all;
+}
+
 export async function monthUsage(): Promise<MonthUsage> {
   const admin = createAdminClient();
   const start = monthStart();
-  const [{ data: rows }, { data: month }, pause] = await Promise.all([
-    admin.from("twilio_usage").select("kind, units, usd").gte("created_at", start.toISOString()),
-    admin.from("twilio_months").select("twilio_usd").eq("month", start.toISOString().slice(0, 7)).maybeSingle(),
+  const [rows, { data: month }, pause] = await Promise.all([
+    usageRowsSince(start),
+    admin.from("twilio_months").select("twilio_usd").eq("month", londonMonth()).maybeSingle(),
     getSetting("twilio_pause_when_used").catch(() => null),
   ]);
   const totals = new Map<UsageKind, { units: number; usd: number }>();
-  for (const r of (rows ?? []) as { kind: UsageKind; units: number; usd: number }[]) {
+  for (const r of rows) {
     const t = totals.get(r.kind) ?? { units: 0, usd: 0 };
     totals.set(r.kind, { units: t.units + Number(r.units), usd: t.usd + Number(r.usd) });
   }
@@ -115,7 +134,7 @@ export async function monthUsage(): Promise<MonthUsage> {
   const projectedPence = day >= 3 ? Math.round(numberPence + (variable / day) * days) : spentPence;
   const pauseWhenUsed = pause === "1";
   return {
-    month: start.toISOString().slice(0, 7),
+    month: londonMonth(),
     parts,
     numberPence,
     estimatePence,
@@ -157,7 +176,7 @@ export function poundsFromPence(p: number): string {
 export async function syncTwilioTotal(): Promise<void> {
   if (!process.env.TWILIO_ACCOUNT_SID || !(process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_API_KEY_SECRET)) return;
   const admin = createAdminClient();
-  const month = monthStart().toISOString().slice(0, 7);
+  const month = londonMonth();
   const { data: row } = await admin.from("twilio_months").select("checked_at").eq("month", month).maybeSingle();
   if (row?.checked_at && Date.now() - new Date(row.checked_at as string).getTime() < 30 * 60_000) return;
   try {

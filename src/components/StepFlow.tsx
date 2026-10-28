@@ -137,10 +137,12 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
         const k = data?.known;
         if (gone || !k) return;
         setKnown(k);
-        setName((v) => v || k.name);
-        setAddress((v) => v || k.address);
-        setEmail((v) => v || k.email);
-        setPhone((v) => v || k.phone);
+        // Their account's details, over anything a draft on this device brought back
+        // (a shared computer, or someone else signed in before).
+        if (k.name) setName(k.name);
+        if (k.address) setAddress(k.address);
+        if (k.email) setEmail(k.email);
+        if (k.phone) setPhone(k.phone);
         setPostcode((v) => v || k.postcode);
       })
       .catch(() => {});
@@ -167,9 +169,13 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
 
   useEffect(() => {
     if (!loaded.current || sent) return;
-    const any = Object.keys(choices).length || Object.keys(texts).length || postcode || name || email || phone;
-    writeSaved(flow.key, any ? { index, choices, texts, postcode, name, email, phone, savedAt: Date.now() } : null);
-  }, [flow.key, index, choices, texts, postcode, name, email, phone, sent]);
+    // Only what they typed: their account's details stay off the device, so the next
+    // person on it never sees them.
+    const own = (value: string, fromAccount: string | undefined) => (known && value === fromAccount ? "" : value);
+    const kept = { name: own(name, known?.name), email: own(email, known?.email), phone: own(phone, known?.phone), postcode: own(postcode, known?.postcode) };
+    const any = Object.keys(choices).length || Object.keys(texts).length || kept.postcode || kept.name || kept.email || kept.phone;
+    writeSaved(flow.key, any ? { index, choices, texts, ...kept, savedAt: Date.now() } : null);
+  }, [flow.key, index, choices, texts, postcode, name, email, phone, sent, known]);
 
   // Every step change goes back to the top and puts focus on the question,
   // so the next step is never missed (Academy trial form).
@@ -195,10 +201,13 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
     writeSaved(flow.key, null);
     setChoices({});
     setTexts({});
-    setPostcode("");
-    setName("");
-    setEmail("");
-    setPhone("");
+    // Signed in: their account's details again, else empty.
+    setPostcode(known?.postcode ?? "");
+    setName(known?.name ?? "");
+    setAddress(known?.address ?? "");
+    setEmail(known?.email ?? "");
+    setPhone(known?.phone ?? "");
+    setChanging(false);
     setSameDay(false);
     photos.clear();
     setRestored(false);
@@ -259,7 +268,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
     setErrors(next);
     if (Object.keys(next).length) return;
     // A doubtful address asks first; the prompt calls back with the choice.
-    if (chosenEmail === undefined && !emailTypo.check()) return;
+    if (chosenEmail === undefined && !(known && finalEmail === known.email) && !emailTypo.check()) return;
 
     setSending(true);
     setNotice(null);

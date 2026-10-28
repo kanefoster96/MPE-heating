@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { CHAT_ON } from "@/lib/chat-on";
 import { createClient } from "@/lib/supabase/server";
 import { isCoach } from "@/lib/coach";
-import { customerForUser } from "@/lib/customers";
+import { findCustomerForUser } from "@/lib/customers";
 import { planFor } from "@/lib/maintenance-plan";
 
 /**
@@ -19,7 +19,8 @@ export async function GET() {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user || user.is_anonymous || (await isCoach(user.id))) return NextResponse.json({ known: null });
-    const customer = await customerForUser(user.id, user.email);
+    // Read only: opening a form mustn't make a customer record.
+    const customer = await findCustomerForUser(user.id, user.email);
     // On the maintenance plan: the form says their call-out's free instead of the £50.
     const plan = customer ? await planFor(customer.id).catch(() => null) : null;
     return NextResponse.json(

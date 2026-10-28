@@ -170,7 +170,7 @@ export function RoundField({
             placeholder={placeholder}
             aria-invalid={!!error && !isValidEmail(email)}
             aria-describedby={error ? ids.error : undefined}
-            className="min-w-0 flex-1 bg-transparent text-base text-navy outline-none placeholder:text-text-3"
+            className="h-full min-w-0 flex-1 bg-transparent text-base text-navy outline-none placeholder:text-text-3"
           />
           {!open && (
             <button

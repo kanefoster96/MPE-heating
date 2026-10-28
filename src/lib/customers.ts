@@ -310,6 +310,17 @@ export async function findOrCreateCustomer(
   return data.id as string;
 }
 
+/** Their record if they have one (linked to their login, else by their email), without making or linking anything: for reads on every page view. */
+export async function findCustomerForUser(userId: string, email: string | null | undefined): Promise<Customer | null> {
+  const admin = createAdminClient();
+  const { data: linked } = await admin.from("customers").select("*").eq("user_id", userId).maybeSingle();
+  if (linked) return mapCustomer(linked as Row);
+  const lower = email?.trim().toLowerCase();
+  if (!lower) return null;
+  const { data: byEmail } = await admin.from("customers").select("*").eq("email", lower).is("user_id", null).maybeSingle();
+  return byEmail ? mapCustomer(byEmail as Row) : null;
+}
+
 /**
  * The signed-in customer's own record: the one already linked to their
  * login, else the one with their email (linked now), else a new one. Never

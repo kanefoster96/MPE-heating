@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { categoriesFor, getAppointment, visitChain, type Appointment } from "@/lib/appointments";
 import { addCustomerNote, getCustomer, updateCustomer, type CustomerFields } from "@/lib/customers";
 import { deliverToCustomer, postCustomerVisitMessage, visitLink } from "@/lib/visit-notify";
-import { calloutAskedFor, calloutCreditFor, formatPence, invoiceNumber, payLink, paymentsForAppointments } from "@/lib/payments";
+import { calloutOpenFor, calloutCreditFor, formatPence, invoiceNumber, payLink, paymentsForAppointments } from "@/lib/payments";
 import { renderEmailLayout } from "@/lib/emails/layout";
 import { business } from "@/lib/content";
 import { KIND_LABEL, longDate } from "@/lib/day-plan";
@@ -50,7 +50,8 @@ function whenDone(day: string): string {
 /** The invoice or receipt for the visit, as a line in the summary. */
 async function paymentLine(appointmentId: string): Promise<{ text: string; href: string } | null> {
   const payments = ((await paymentsForAppointments([appointmentId])).get(appointmentId) ?? []).filter((p) => p.status !== "cancelled");
-  const open = payments.find((p) => p.status === "open");
+  // The newest: a return visit's invoice made as the job's finished, not an older one still open.
+  const open = [...payments].reverse().find((p) => p.status === "open");
   if (open) {
     return {
       text: `Your ${open.kind === "callout_fee" ? "call-out fee" : `invoice ${invoiceNumber(open.number)}`} (${formatPence(open.amountPence)}) is here: ${payLink(open)}`,
@@ -75,6 +76,8 @@ export async function completeJob(params: {
   returnNote?: string;
   /** Coming back without a price yet: on the team's list until a quote or invoice goes. Defaults to yes when coming back. */
   priceNeeded?: boolean;
+  /** Runs once the job's saved, before the summary goes: the return visit's invoice, so the summary links it (lib/app-finish.ts). */
+  beforeSummary?: () => Promise<void>;
 }): Promise<{ ok: true; sentVia: string[] } | { ok: false; error: string }> {
   const visit = await getAppointment(params.appointmentId);
   if (!visit) return { ok: false, error: "That visit's gone." };
@@ -106,7 +109,8 @@ export async function completeJob(params: {
   if (error) return { ok: false, error: "Couldn't save that. Please try again." };
   // Whether the price is still to send: only on the first finish, so saving it again later doesn't put
   // one that's been sent back on the list. On its own, so a database without the column still finishes jobs.
-  if (visit.status !== "done") {
+  // Saved again as fixed: nothing's owed.
+  if (visit.status !== "done" || !coming) {
     const { error: priceError } = await admin.from("appointments").update({ price_needed: coming && (params.priceNeeded ?? true) }).eq("id", visit.id);
     if (priceError) console.error("completeJob: saving price_needed failed (re-run the schema?)", visit.id, priceError);
   }
@@ -131,12 +135,14 @@ export async function completeJob(params: {
   // On the plan: their free yearly service is done, for the team's record.
   if (params.servicedToday) await recordPlanService(customer.id, visit.day);
 
+  await params.beforeSummary?.();
   if (!params.sendSummary) return { ok: true, sentVia: [] };
   const first = customer.name ? customer.name.split(" ")[0] : null;
   const pay = await paymentLine(visit.id);
   // The call-out they paid comes off the repair, as the site says, however many visits it takes.
   const credit = coming ? await calloutCreditFor(visit) : 0;
-  const feeOpen = coming && !credit && (await calloutAskedFor(visit));
+  // Still to pay (not already taken off an invoice for the return visit).
+  const feeOpen = coming && !credit && (await calloutOpenFor(visit));
   // Unpaid: it's due now (the site's "£50 on the day"), and comes off the bill later, said once, after the link.
   const creditLine = credit ? ` The ${formatPence(credit)} call-out you paid comes off the final bill.` : feeOpen ? " Your call-out fee comes off the final bill." : "";
   const next = coming ? ` We'll be back to finish the job: ${lowerFirst(returnNote)}. We'll be in touch to book a time, or reply with a day that suits.${feeOpen ? "" : creditLine}` : "";

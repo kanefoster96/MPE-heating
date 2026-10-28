@@ -268,7 +268,7 @@ export async function priceSent(customerId: string): Promise<void> {
 
 /** Visits finished as "coming back" whose price is still to send. */
 export async function pricesToSend(): Promise<Appointment[]> {
-  const { data } = await createAdminClient().from("appointments").select("*").eq("price_needed", true).eq("status", "done").order("completed_at").limit(200);
+  const { data } = await createAdminClient().from("appointments").select("*").eq("price_needed", true).eq("status", "done").eq("outcome", "return").order("completed_at").limit(200);
   return ((data ?? []) as Row[]).map(mapAppointment);
 }
 

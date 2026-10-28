@@ -421,7 +421,7 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     result.staffNudged += ids.length;
   });
 
-  // 5d. The month's calls and texts: Twilio's own total (every half hour), and a heads-up at each £5 of the £20.
+  // 5d. The month's calls and texts: Twilio's own total (every half hour), and a heads-up at each £5 of the £30.
   await stage("usage", async () => {
     await syncTwilioTotal();
     // Not out of hours: a £5 step passed overnight is told once we open.

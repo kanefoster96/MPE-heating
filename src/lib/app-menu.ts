@@ -93,7 +93,7 @@ export async function staffOverview(user: User, admin: boolean): Promise<{ name:
   ];
 
   if (admin) {
-    // Calls and texts against the month's £20 allowance (lib/twilio-usage.ts).
+    // Calls and texts against the month's £30 allowance (lib/twilio-usage.ts).
     const usage = await monthUsage().catch(() => null);
     if (usage) {
       const near = usage.spentPence >= usage.allowancePence * 0.75;

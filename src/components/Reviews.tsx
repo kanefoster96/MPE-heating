@@ -34,10 +34,11 @@ export function RatingCard({ external = false }: { external?: boolean }) {
   );
 }
 
-// The rating, then every real review as swipeable cards.
-export function Reviews() {
+// The rating, then every real review as swipeable cards. `cream` for a
+// page where the section above is white too (the homepage).
+export function Reviews({ tone = "page" }: { tone?: "page" | "cream" } = {}) {
   return (
-    <section className="overflow-x-clip bg-page py-12 lg:py-24">
+    <section className={`overflow-x-clip py-12 lg:py-24 ${tone === "cream" ? "bg-cream" : "bg-page"}`}>
       <div className="mx-auto max-w-6xl px-5 sm:px-6">
         <div className="grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-20">
           <Reveal>

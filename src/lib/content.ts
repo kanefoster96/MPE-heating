@@ -90,15 +90,23 @@ export type TwoTone = { lead: string; em: string };
 // The hero sells one thing: an emergency call-out for a broken-down
 // boiler, with the £50 explained up front. Layout as on kanvas.one.
 export const hero = {
-  // Proof pill above the headline: who we are, then a way to ask.
-  proof: { line1: "Family-run and Gas Safe registered", line2: CHAT_ON ? "Got a question? Live chat with us" : "Got a question? Email us" },
   // Dream outcome and time.
   headline: { lead: "Boiler broken down?", em: "We'll be round today." },
-  // Likelihood (Gas Safe, parts on the van) and the £50, risk removed.
-  subline:
-    "A Gas Safe engineer at your door for a £50 call-out. Go ahead with the repair and the £50 comes off your bill. Most faults fixed on the spot with parts from the van.",
+  // Likelihood (Gas Safe, price first) and the £50, risk removed: said once here, once in the steps.
+  subline: "A Gas Safe engineer today, the price agreed before any work starts, and the £50 call-out taken off your repair.",
   cta: "Book a same-day call-out",
-  // The orange card on the right: the £50 call-out, step by step.
+  // Under the button, quietly: proof.
+  trust: ["5-star on TrustATrader", "Gas Safe registered", "3-month guarantee"],
+  // Beside the hero (under it on a phone): what happens, in three steps.
+  steps: {
+    heading: "How your call-out works",
+    items: [
+      { title: "We find the fault today", text: "Book by midday and we're usually with you the same day. Most faults are fixed on the spot with parts from the van." },
+      { title: "You hear the price first", text: "Nothing starts until you've said yes." },
+      { title: "Fixed, and the £50 comes off", text: "Taken off your repair bill, and the repair's guaranteed for 3\u00a0months. Don't go ahead? It's all you pay." },
+    ],
+  },
+  // The MPE app's home screen (api/mobile/home): the £50 call-out, step by step.
   callOut: {
     heading: "Your £50 call-out",
     rows: [
@@ -111,9 +119,9 @@ export const hero = {
   },
 };
 
-// Lower on the homepage: new boilers, servicing and the maintenance plan,
-// each a small card of its own with its own booking form. No plan price
-// until MPE sets one.
+// New boilers, servicing and the maintenance plan as cards: the MPE app's
+// home screen uses the plan's (api/mobile/home). No plan price until MPE
+// sets one.
 export const homeExtras = {
   heading: ["Not broken down?", "We do the rest too."],
   newBoiler: {
@@ -317,42 +325,26 @@ export const aboutPageContent: ContentBlock[] = [
   },
 ];
 
-// How it works: three steps on one tilted card.
-export const howItWorks = {
-  heading: ["From cold house", "to cosy, in three steps."],
-  steps: [
-    { title: "You book", text: "Online or by phone." },
-    { title: "We come out today", text: "Book by midday and we're usually with you the same day. A Gas Safe engineer finds the fault and agrees the price first." },
-    { title: "Fixed. Heating's back on.", text: "Your £50 call-out comes back in full, and the repair's guaranteed for 3\u00a0months." },
-  ],
-  chips: { agreed: "Price agreed", refunded: "£50 refunded" },
-};
-
-// The four service tiles on the homepage. Each opens the page or the
-// booking flow for that trade.
-export const homeServices = {
-  heading: ["Gas, heating, plumbing", "and electrics."],
-  text: "One local team for the whole house, so it's one call whatever's broken.",
+// Lower on the homepage: everything that isn't a breakdown, as one list
+// of rows. Each opens its own page or booking form.
+export const homeMore = {
+  heading: ["Not broken down?", "We do the rest too."],
   items: [
-    { key: "boilers", title: "Boilers", text: "Breakdowns and repairs", href: "/boiler-repair" },
-    { key: "heating", title: "Heating", text: "Radiators and controls", href: "/book?path=boilers.radiators" },
-    { key: "plumbing", title: "Plumbing", text: "Leaks and hot water", href: "/book?path=plumbing" },
-    { key: "electrics", title: "Electrics", text: "Faults and fittings", href: "/book?path=electrics" },
+    { key: "service", title: "Annual service from £79", text: "About 45 minutes, and it keeps your boiler warranty valid.", href: "/servicing" },
+    { key: "newBoiler", title: "New boiler: free fixed-price quote", text: "No obligation, no pressure. Usually fitted in a day.", href: "/new-boilers" },
+    { key: "plan", title: "Maintenance plan", text: "Free call-outs all year round and a free yearly service.", href: "/book/plan" },
+    { key: "heating", title: "Heating", text: "Radiators and controls.", href: "/book?path=boilers.radiators" },
+    { key: "plumbing", title: "Plumbing", text: "Leaks and hot water.", href: "/book?path=plumbing" },
+    { key: "electrics", title: "Electrics", text: "Faults and fittings.", href: "/book?path=electrics" },
+    { key: "business", title: "Run a business?", text: "Priority call-outs, catering equipment, gas safety and EICR certificates, and maintenance contracts.", href: "/commercial" },
   ],
-  // Under the tiles: the way in for businesses (the commercial page says what we do for them).
-  business: {
-    title: "Run a business?",
-    text: "Priority call-outs, catering equipment, gas safety and EICR certificates, and maintenance contracts.",
-    cta: "See commercial services",
-    href: "/commercial",
-  },
 };
 
 // The navy card at the foot of the homepage.
 export const closingCard = {
   heading: ["Cold house", "right now?"],
-  text: "Book a same-day call-out. When we do the repair, your £50 comes back and the fix is guaranteed for 3\u00a0months.",
-  cta: "Book now",
+  text: "Book by midday and we're usually with you the same day, with the price agreed before any work starts.",
+  cta: "Book a same-day call-out",
 };
 
 // Four promise badges: a big short value and one line under it.

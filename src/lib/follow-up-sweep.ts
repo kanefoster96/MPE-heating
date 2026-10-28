@@ -4,7 +4,7 @@ import { addDays } from "@/lib/day-plan";
 import { pricesToSend, recordNotice, remindersDue, returnsToBook, type Appointment } from "@/lib/appointments";
 import { getSetting, setSetting } from "@/lib/settings";
 import { getCustomer } from "@/lib/customers";
-import { syncTwilioTotal, usageAlerts } from "@/lib/twilio-usage";
+import { syncTwilioTotal } from "@/lib/twilio-usage";
 import { openEnquiriesSince } from "@/lib/enquiries";
 import { sendVisitNotice } from "@/lib/visit-notify";
 import { sendEnquiryFollowUp } from "@/lib/enquiry-follow-up";
@@ -16,7 +16,7 @@ import { takeDueInstalments } from "@/lib/instalments";
 import { dropUnpaidDeposit, sendQuoteFollowUp } from "@/lib/quotes";
 import { sendCertificateRenewals } from "@/lib/job-files";
 import { sendDueMonthReport } from "@/lib/monthly-report";
-import { clockWord, teamHours, teamHoursOpen } from "@/lib/team-hours";
+import { clockWord, teamHours } from "@/lib/team-hours";
 import { formatPhone } from "@/lib/phone";
 
 /**
@@ -421,12 +421,8 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     result.staffNudged += ids.length;
   });
 
-  // 5d. The month's calls and texts: Twilio's own total (every half hour), and a heads-up at each £5 of the £30.
-  await stage("usage", async () => {
-    await syncTwilioTotal();
-    // Not out of hours: a £5 step passed overnight is told once we open.
-    if (await teamHoursOpen()) await usageAlerts();
-  });
+  // 5d. The month's calls and texts: Twilio's own total (every half hour), for Settings. No alerts.
+  await stage("usage", syncTwilioTotal);
 
   await stage("staff", async () => {
     if (minutes < STAFF_FROM || minutes >= STAFF_UNTIL) return;

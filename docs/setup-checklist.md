@@ -162,9 +162,8 @@ deployment.
 - [ ] **The £30 allowance** (excluding VAT): every call minute and text
       is logged and priced at Twilio's UK rates, at a fixed exchange rate,
       and checked every 30 minutes against Twilio's own month total (the
-      higher one counts), using the same Twilio keys. Admins get a
-      notification at every £5 up to £30, then every £5 over, with the
-      amount over and the expected overage for the month. The Menu's
+      higher one counts), using the same Twilio keys. Nobody's notified
+      about it: Kanvas One keeps an eye on each month's total. The Menu's
       "Calls and texts" card and **Settings → Calls and texts** show the
       month so far, the breakdown and the prices. By default calls and
       texts carry on after £30; the overage goes on Fergal's next

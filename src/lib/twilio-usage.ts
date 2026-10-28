@@ -9,8 +9,8 @@ import { getSetting } from "@/lib/settings";
  * with what it costs at Twilio's UK list prices, so the month's spend is
  * known as it happens. When the Twilio credentials are set, the sweep also
  * reads Twilio's own total for the month and the higher of the two is
- * used. The team are told at every £5 (£5, £10, … £30, then each £5
- * over), and can pause texts and calls once it's used, until the 1st.
+ * used. No alerts: the month's spend is in Settings and the Menu. Calls
+ * and texts can be paused once it's used, until the 1st (off by default).
  *
  * Twilio bills in dollars: one fixed rate to pounds (TWILIO_USD_TO_GBP).
  */
@@ -30,8 +30,6 @@ export const RATES_USD: Record<UsageKind | "number", number> = {
 const USD_TO_GBP = Number(process.env.TWILIO_USD_TO_GBP) || 0.79;
 /** The month's allowance, in pence before VAT. */
 export const ALLOWANCE_PENCE = Number(process.env.TWILIO_ALLOWANCE_PENCE) || 3000;
-/** Alerts at every £5 of it. */
-const STEP_PENCE = 500;
 
 const pence = (usd: number) => usd * USD_TO_GBP * 100;
 
@@ -188,44 +186,4 @@ export async function syncTwilioTotal(): Promise<void> {
     console.error("twilio usage: couldn't read Twilio's total", err);
     await admin.from("twilio_months").upsert({ month, checked_at: new Date().toISOString() }, { onConflict: "month" });
   }
-}
-
-/**
- * Tells the admins at every £5 of the month's spend, once each: how much of
- * the £30 is used, and once it's over, what's likely to go on the next
- * Kanvas One invoice. Run by the sweep every five minutes.
- */
-export async function usageAlerts(): Promise<number> {
-  const usage = await monthUsage();
-  const level = Math.floor(usage.spentPence / STEP_PENCE);
-  if (level < 1) return 0;
-  const admin = createAdminClient();
-  const { data: row } = await admin.from("twilio_months").select("alerted_level").eq("month", usage.month).maybeSingle();
-  if ((row?.alerted_level as number | null) != null && (row!.alerted_level as number) >= level) return 0;
-  await admin.from("twilio_months").upsert({ month: usage.month, alerted_level: level }, { onConflict: "month" });
-
-  const spent = poundsFromPence(usage.spentPence);
-  const allowance = poundsFromPence(usage.allowancePence);
-  const used = usage.spentPence >= usage.allowancePence;
-  const body = !used
-    ? `${spent} of your ${allowance} for calls and texts used this month (${Math.round((usage.spentPence / usage.allowancePence) * 100)}%). At this pace, about ${poundsFromPence(usage.projectedPence)} by the end of the month.`
-    : usage.pauseWhenUsed
-      ? `Your ${allowance} for calls and texts is used: they're paused until the 1st. Updates go by the app and email, and calls get a message pointing to the app. Turn this off in Settings to keep them going.`
-      : `${spent} on calls and texts this month: ${poundsFromPence(usage.overPence)} over your ${allowance}, about ${poundsFromPence(usage.projectedOverPence)} by the end of the month. The extra goes on your next Kanvas One invoice. You can pause them until the 1st in Settings.`;
-  const ids = await adminUserIds();
-  if (ids.length) {
-    const { pushToUsers } = await import("@/lib/push");
-    await pushToUsers(ids, {
-      title: used ? (usage.pauseWhenUsed ? "Calls and texts paused" : "Over your calls and texts allowance") : `Calls and texts: ${spent} of ${allowance}`,
-      body,
-      data: { kind: "link", href: "/staff/settings#usage" },
-    });
-  }
-  return 1;
-}
-
-/** The admins' accounts, for the allowance alerts (only they see the money). */
-async function adminUserIds(): Promise<string[]> {
-  const { getCoachRoster } = await import("@/lib/coach");
-  return (await getCoachRoster().catch(() => [])).filter((c) => c.role === "admin").map((c) => c.id);
 }

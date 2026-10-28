@@ -138,7 +138,7 @@ export const homeExtras = {
     points: ["Free call-outs all year round", "A free yearly service", "For homes, landlords and businesses"],
     cta: "Get the plan details",
     href: "/book/plan",
-    more: { label: "Business maintenance contracts", href: "/commercial" },
+    more: { label: "For a business: get a maintenance contract quote", href: "/book?path=commercial.contract" },
   },
 };
 
@@ -339,6 +339,13 @@ export const homeServices = {
     { key: "plumbing", title: "Plumbing", text: "Leaks and hot water", href: "/book?path=plumbing" },
     { key: "electrics", title: "Electrics", text: "Faults and fittings", href: "/book?path=electrics" },
   ],
+  // Under the tiles: the way in for businesses (the commercial page says what we do for them).
+  business: {
+    title: "Run a business?",
+    text: "Priority call-outs, catering equipment, gas safety and EICR certificates, and maintenance contracts.",
+    cta: "See commercial services",
+    href: "/commercial",
+  },
 };
 
 // The navy card at the foot of the homepage.

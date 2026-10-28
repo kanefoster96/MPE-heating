@@ -5,6 +5,7 @@ import { FeatureGrid } from "@/components/FeatureGrid";
 import { ChecklistSection } from "@/components/ChecklistSection";
 import { Reviews } from "@/components/Reviews";
 import { FinalCta } from "@/components/FinalCta";
+import { CommercialPicker } from "@/components/CommercialPicker";
 import { Footer } from "@/components/Footer";
 import { commercialPage } from "@/lib/content";
 import { featureIconMap } from "@/lib/featureIcons";
@@ -34,8 +35,8 @@ export default function CommercialPage() {
           subline={commercialPage.subline}
           cta={commercialPage.cta}
           type={commercialPage.enquiry}
-          shortCta="Get a quote"
           reassurance={commercialPage.reassurance}
+          action={<CommercialPicker className="mt-8" />}
         />
 
         <FeatureGrid
@@ -55,7 +56,7 @@ export default function CommercialPage() {
         />
 
         <Reviews />
-        <FinalCta heading={{ lead: "Downtime costs money.", em: "Let's get it sorted." }} cta="Get a commercial quote" shortCta="Get a quote" type="commercial" />
+        <FinalCta heading={{ lead: "Downtime costs money.", em: "Let's get it sorted." }} type="commercial" action={<CommercialPicker className="mt-8" />} />
       </main>
       <Footer />
       <JsonLd data={serviceJsonLd(commercialPage)} />

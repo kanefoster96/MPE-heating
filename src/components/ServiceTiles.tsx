@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { homeServices } from "@/lib/content";
-import { DropIcon, ElectricsIcon, FlameIcon, RadiatorIcon } from "./icons";
+import { ArrowRightIcon, BuildingIcon, DropIcon, ElectricsIcon, FlameIcon, RadiatorIcon } from "./icons";
 
 // Four trades as tiles: an icon in a tinted square, a name and one line.
-// Two by two on a phone, one row of four on desktop.
+// Two by two on a phone, one row of four on desktop. Under them, one row
+// for businesses, into the commercial page.
 const look = {
   boilers: { Icon: FlameIcon, tint: "bg-[#fff0e6] text-terracotta-deep" },
   heating: { Icon: RadiatorIcon, tint: "bg-[#fff0e6] text-terracotta-deep" },
@@ -41,6 +42,20 @@ export function ServiceTiles() {
             );
           })}
         </ul>
+        <Link
+          href={homeServices.business.href}
+          className="mt-3 flex items-center gap-3.5 rounded-[18px] border-[1.5px] border-edge p-4 transition-colors hover:border-navy/30 lg:mt-5 lg:p-6"
+        >
+          <span className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-xl bg-navy text-white">
+            <BuildingIcon className="h-[22px] w-[22px]" strokeWidth={2} aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[17px] font-bold">{homeServices.business.title}</span>
+            <span className="block text-sm leading-[1.35] text-text-2">{homeServices.business.text}</span>
+            <span className="mt-1 block text-sm font-semibold text-navy underline underline-offset-4">{homeServices.business.cta}</span>
+          </span>
+          <ArrowRightIcon className="h-5 w-5 flex-none text-text-3" strokeWidth={2.2} aria-hidden="true" />
+        </Link>
       </div>
     </section>
   );

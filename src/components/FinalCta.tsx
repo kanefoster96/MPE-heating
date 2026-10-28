@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { business, finalCta, type TwoTone } from "@/lib/content";
 import type { EnquiryType } from "@/lib/enquiry";
@@ -15,6 +16,7 @@ export function FinalCta({
   shortCta,
   type = "repair",
   secondary,
+  action,
 }: {
   heading?: TwoTone;
   cta?: string;
@@ -22,6 +24,8 @@ export function FinalCta({
   type?: EnquiryType;
   // A second, quieter action under the field, e.g. "Book something else".
   secondary?: { label: string; href: string };
+  // In place of the email field (and the number under it, which it carries itself).
+  action?: ReactNode;
 }) {
   return (
     <section className="bg-page py-14 lg:py-28">
@@ -32,7 +36,7 @@ export function FinalCta({
           emLine
           className="text-3xl sm:text-4xl lg:text-5xl"
         />
-        <RoundField cta={cta} shortCta={shortCta} type={type} className="mt-8" />
+        {action ?? <RoundField cta={cta} shortCta={shortCta} type={type} className="mt-8" />}
         {type === "repair" && <FeeNote compact className="mt-5" />}
         {secondary && (
           <Link
@@ -42,12 +46,14 @@ export function FinalCta({
             {secondary.label}
           </Link>
         )}
-        <p className="mt-4 text-sm text-text-2">
-          Or call{" "}
-          <a href={business.phoneHref} className="inline-flex min-h-11 items-center font-semibold text-navy">
-            {business.phoneDisplay}
-          </a>
-        </p>
+        {!action && (
+          <p className="mt-4 text-sm text-text-2">
+            Or call{" "}
+            <a href={business.phoneHref} className="inline-flex min-h-11 items-center font-semibold text-navy">
+              {business.phoneDisplay}
+            </a>
+          </p>
+        )}
       </Reveal>
     </section>
   );

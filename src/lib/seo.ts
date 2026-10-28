@@ -8,7 +8,7 @@ import type { HelpArticle } from "./help";
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://mpenortheast.co.uk";
 
-const phoneE164 = `+44${business.phoneHref.replace("tel:0", "")}`;
+const phoneE164 = business.phoneE164;
 
 // schema.org LocalBusiness (+ the more specific Plumber/Electrician/
 // HVACBusiness subtypes, since MPE covers all three trades) — rendered

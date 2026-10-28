@@ -3,13 +3,13 @@ import { londonInstant, londonNow } from "@/lib/schedule-time";
 import { getSetting } from "@/lib/settings";
 
 /**
- * MPE's calls and texts allowance: £20 a month (before VAT) of Twilio
+ * MPE's calls and texts allowance: £30 a month (before VAT) of Twilio
  * usage is included in the site's monthly fee from Kanvas One; anything
  * over is added to the next invoice. Every text and call is logged here
  * with what it costs at Twilio's UK list prices, so the month's spend is
  * known as it happens. When the Twilio credentials are set, the sweep also
  * reads Twilio's own total for the month and the higher of the two is
- * used. The team are told at every £5 (£5, £10, £15, £20, then each £5
+ * used. The team are told at every £5 (£5, £10, … £30, then each £5
  * over), and can pause texts and calls once it's used, until the 1st.
  *
  * Twilio bills in dollars: one fixed rate to pounds (TWILIO_USD_TO_GBP).
@@ -29,7 +29,7 @@ export const RATES_USD: Record<UsageKind | "number", number> = {
 
 const USD_TO_GBP = Number(process.env.TWILIO_USD_TO_GBP) || 0.79;
 /** The month's allowance, in pence before VAT. */
-export const ALLOWANCE_PENCE = Number(process.env.TWILIO_ALLOWANCE_PENCE) || 2000;
+export const ALLOWANCE_PENCE = Number(process.env.TWILIO_ALLOWANCE_PENCE) || 3000;
 /** Alerts at every £5 of it. */
 const STEP_PENCE = 500;
 
@@ -192,7 +192,7 @@ export async function syncTwilioTotal(): Promise<void> {
 
 /**
  * Tells the admins at every £5 of the month's spend, once each: how much of
- * the £20 is used, and once it's over, what's likely to go on the next
+ * the £30 is used, and once it's over, what's likely to go on the next
  * Kanvas One invoice. Run by the sweep every five minutes.
  */
 export async function usageAlerts(): Promise<number> {

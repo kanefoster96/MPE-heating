@@ -32,7 +32,7 @@ deployment.
       send" to a call-out finished as coming back. Until you do, jobs still
       finish, but nothing goes on the "price to send" list.
 - [ ] Re-run it after the calls and texts allowance update: it adds the
-      record of call minutes and texts (for the £20 allowance), and the
+      record of call minutes and texts (for the £30 allowance), and the
       once-only text after a first call.
 - [ ] Re-run it after the running-late update: it adds "won't be in" to
       visits and "how did they hear about us?" to customers.
@@ -159,15 +159,15 @@ deployment.
       (pointing them at the app and live chat), and never again to that
       number. Everything else goes by the app and email, or WhatsApp
       Business for someone with neither. The chat can't send texts.
-- [ ] **The £20 allowance** (excluding VAT): every call minute and text
+- [ ] **The £30 allowance** (excluding VAT): every call minute and text
       is logged and priced at Twilio's UK rates, at a fixed exchange rate,
       and checked every 30 minutes against Twilio's own month total (the
       higher one counts), using the same Twilio keys. Admins get a
-      notification at £5, £10, £15 and £20, then every £5 over, with the
+      notification at every £5 up to £30, then every £5 over, with the
       amount over and the expected overage for the month. The Menu's
       "Calls and texts" card and **Settings → Calls and texts** show the
       month so far, the breakdown and the prices. By default calls and
-      texts carry on after £20; the overage goes on Fergal's next
+      texts carry on after £30; the overage goes on Fergal's next
       Kanvas One invoice (billed outside this site). In Settings he can
       choose to pause once it's used: callers then hear a message pointing
       them to the app and website, and no texts go out, until the 1st.
@@ -202,7 +202,7 @@ deployment.
 | `TWILIO_API_KEY_SID` | Optional: the API key (`SK…`) | Config |
 | `TWILIO_API_KEY_SECRET` | Optional: the API key's secret | **Secret** |
 | `NEXT_PUBLIC_MPE_PHONE` | The same number: the site shows it instead of Fergal's | Public |
-| `TWILIO_ALLOWANCE_PENCE` | Optional: the month's calls and texts allowance, excluding VAT (default 2000, £20) | Config |
+| `TWILIO_ALLOWANCE_PENCE` | Optional: the month's calls and texts allowance, excluding VAT (default 3000, £30) | Config |
 | `TWILIO_USD_TO_GBP` | Optional: the fixed exchange rate for Twilio's dollar prices (default 0.79) | Config |
 | `OUTBOUND_CALLS_ON` | Leave unset. `0` switches off calls out from the Twilio number | Config |
 
@@ -213,7 +213,7 @@ MPE app" text. Ring again and don't answer: voicemail, and no second text.
 Calls from the app: once the number's set, the team's Call buttons offer
 **Call (uses call allowance)**: the engineer's phone rings first, and when
 they answer they're put through; the customer sees the Twilio number. The
-minutes come out of the £20 allowance, and it's hidden while calls and
+minutes come out of the £30 allowance, and it's hidden while calls and
 texts are paused. Then **Call using WhatsApp** (opens their WhatsApp chat)
 and **Use my own phone**. The phone that rings first is 07448 628 101,
 unless an engineer saves their own mobile (Call → "Ring my own mobile

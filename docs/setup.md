@@ -9,7 +9,7 @@ did before.
 | -------- | ------------------- |
 | Supabase | Live chat on the site (`/messages`), team login (`/login`), the team inbox (`/staff/messages`), booking forms saved as jobs, the schedule (`/staff/schedule`), customer pages (`/staff/customers`) and customer accounts (`/account`) |
 | Resend   | Booking forms emailed to MPE; emails to customers when an engineer replies |
-| Twilio   | Missed-call text backs, texts in and out, voicemail in the inbox |
+| Twilio   | Calls in (during opening hours), the one text after a first call, voicemail in the inbox |
 | Stripe   | Call-out fees and invoices paid online (Apple Pay, Google Pay, card), saved cards, Tap to Pay in the app |
 
 All the variable names are in `.env.example`. Set them in Vercel under
@@ -19,15 +19,14 @@ All the variable names are in `.env.example`. Set them in Vercel under
 
 ### Missed calls
 
-Every call to the Twilio number is answered by a greeting and goes to
-voicemail. The call is filed in the inbox, with the voicemail and its
-transcript.
+During the opening hours (Settings → Opening hours, 8am to 8pm until
+changed), a call to the Twilio number rings the team's mobile; not
+answered, or outside the hours, it goes to voicemail. The call is filed in
+the inbox, with the voicemail and its transcript.
 
-A UK mobile also gets one text back (at most one every 12 hours):
-
-> Thanks for calling MPE Heating. Our engineers are busy on a job right
-> now, but we'll call you back as soon as we can. Or start a live chat and
-> we'll reply there: …/messages
+A UK mobile also gets one text back after their first ever call, pointing
+them at the app and live chat. It's the only text MPE sends: never again to
+that number, and not if they have the app.
 
 ### Live chat
 
@@ -94,8 +93,10 @@ can reach them:
 - a message in their conversation, so the inbox keeps the record and their
   reply lands in the same thread;
 - an email, if we have their address;
-- a text, if we have a UK mobile and Twilio is set up;
 - a notification, if they have the MPE app.
+
+Never a text. Someone with no email or app gets it from the team's
+WhatsApp Business: the app opens their WhatsApp chat with it typed in.
 
 Moving a visit to another day or time tells them it's moved. Each visit's
 card shows what they were sent, how and when, with **Send again**. A
@@ -132,9 +133,8 @@ at the top of the schedule and badged on the Schedule tab. Each has:
 ### Automatic reminders and follow-ups
 
 These follow Kanvas Academy's approach to getting people booked and
-getting them to turn up. Each message goes once, by message, text, email
-and the app, whichever we have. Texts use plain characters only, so they
-don't cost extra.
+getting them to turn up. Each message goes once, by message, email and the
+app, whichever we have.
 
 | When | Who gets it | What it says |
 | ---- | ----------- | ------------ |
@@ -160,10 +160,11 @@ have gone and when. Jobs in the inbox show if they've been followed up.
 ### On my way
 
 On the day of a booked visit, its card on the schedule has **On my way?**
-with 15 min, 30 min, 45 min, 1 hour and 1½ hours. One tap texts the
-customer, e.g. "Fergal from MPE is on the way for your service and should
-be with you in about 30 minutes (around 9:45am)". It also goes in their
-chat and the app, and by email only if they've no mobile. Their visit page
+with 15 min, 30 min, 45 min, 1 hour and 1½ hours. One tap tells the
+customer, e.g. "your MPE engineer, Fergal, is on the way for your service
+and should be with you in about 30 minutes (around 9:45am)", in their chat
+and the app, or by email without the app. Someone with neither: the app
+offers to send it from WhatsApp Business. Their visit page
 shows "We're on the way: with you around 9:45am", and the card shows when
 it was sent. The engineer's first name comes from their profile; without
 one it says "your MPE engineer".
@@ -177,7 +178,7 @@ or **New quote** on a customer's page:
 - **Deposit to accept it** (optional), how long it's **open** (14 to 90
   days), and **Offer the rest monthly** (2 to 12 payments).
 
-It's sent by text, message, email and the app as a link to the quote, e.g.
+It's sent by message, email and the app as a link to the quote, e.g.
 "here's your quote Q-1001 for a new combi boiler: £2,450, with a £500
 deposit to book in". On the quote page they can:
 - **Accept and pay the deposit**, by Apple Pay, Google Pay or card. With
@@ -280,7 +281,7 @@ already paid" credit line. Remove that line if it shouldn't apply.
 
 Then choose how to take it:
 
-- **Send them the invoice.** It goes by message, text, email and the app,
+- **Send them the invoice.** It goes by message, email and the app,
   as a link to their invoice page. They pay with Apple Pay, Google Pay or
   card through Stripe. In the chat it shows as a card with **Pay**, which
   turns to **Paid ✓** by itself.
@@ -363,7 +364,7 @@ With no price set, the plan's booking form still takes enquiries, but no
 one can join online. Members keep the price they joined at.
 
 **Joining.** On a customer's page, **Send them the plan** sends their own
-link by message, text, email and the app. They choose monthly or yearly
+link by message, email and the app. They choose monthly or yearly
 and pay by Apple Pay, Google Pay or card. Customers can also join from
 their account. The team gets a push when someone joins, and the customer
 gets a welcome message.

@@ -39,7 +39,7 @@ const LABEL = "text-sm text-muted";
  * day. The customer is picked by searching, or added right here.
  *
  * With a customer, "let them know" (on by default) sends them the details
- * by message, email, text and app, whichever we have (lib/visit-notify.ts),
+ * by message, email and app, whichever we have (lib/visit-notify.ts),
  * and shows the words they'll get. Editing only sends when the day or time
  * changes; a customer's request is booked, and they're told, on save.
  */

@@ -1,5 +1,5 @@
 import { getCoachRoster } from "@/lib/coach";
-import { teamHours } from "@/lib/team-hours";
+import { teamHoursOpen } from "@/lib/team-hours";
 import { pushCoachesNewMessage } from "@/lib/push";
 
 /**
@@ -17,8 +17,8 @@ export async function chatRecipientIds(): Promise<string[]> {
 
 /** A customer (or website visitor) wrote in: push the team. */
 export async function notifyStaffOfFamilyMessage(params: { conversationId: string; fromName: string; body: string }): Promise<void> {
-  // 8pm to 8am it waits, unread, for the 8am summary (lib/follow-up-sweep.ts): nobody's woken by it.
-  if (!teamHours()) return;
+  // Out of hours it waits, unread, for the summary when we open (lib/follow-up-sweep.ts): nobody's woken by it.
+  if (!(await teamHoursOpen().catch(() => true))) return;
   try {
     await pushCoachesNewMessage({ ...params, recipientIds: await chatRecipientIds() });
   } catch (err) {

@@ -292,7 +292,6 @@ export async function sendReviewAsk(appointmentId: string, stage: 1 | 2): Promis
     headline: "How did we do?",
     staffId: null,
     pushHref: `/visit/${visit.publicToken}/review`,
-    smsOptOut: true,
     emailHtml: () =>
       renderEmailLayout({
         previewText: "How did we do? It takes 30 seconds.",

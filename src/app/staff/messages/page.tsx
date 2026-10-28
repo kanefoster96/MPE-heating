@@ -395,7 +395,7 @@ export default async function StaffMessagesPage({
                   href="/staff/messages/new"
                   className="mb-3 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 active:opacity-75"
                 >
-                  <PaperPlaneIcon /> Text a customer
+                  <PaperPlaneIcon /> Chat by mobile
                 </Link>
                 <form method="get" className="relative">
                   <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">

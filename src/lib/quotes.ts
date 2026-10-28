@@ -15,7 +15,7 @@ import { getAppointment, priceSent } from "@/lib/appointments";
  * Quotes, mostly for new boilers (Kanvas One's "quotes they accept online,
  * with the deposit paid"). After the quote visit Fergal writes it: a line
  * per part and the labour, what's included, any deposit, and how long it's
- * open. It's sent by text, message, email and the app as a link to the
+ * open. It's sent by message, email and the app as a link to the
  * quote. The customer accepts it there, paying the deposit if there is one
  * (Stripe Checkout, through a payment request like any other), or says no
  * thanks. Either way the team gets a push.
@@ -242,7 +242,7 @@ function quoteEmail(params: { name: string | null; heading: string; paragraphs: 
   });
 }
 
-/** The quote, by text, message, email and the app: what it's for, the price, the deposit, and the link. */
+/** The quote, by message, email and the app: what it's for, the price, the deposit, and the link. */
 export async function sendQuote(quote: Quote, customer: Customer, staffId: string | null): Promise<string[]> {
   const link = quoteLink(quote);
   const deposit = quote.depositPence > 0 ? `, with a ${formatPence(quote.depositPence)} deposit to book in` : "";
@@ -456,7 +456,6 @@ export async function sendQuoteFollowUp(id: string, stage: 1 | 2): Promise<boole
     headline: stage === 1 ? "Your quote" : "Your quote is still open",
     staffId: null,
     pushHref: `/quote/${quote.publicToken}`,
-    smsOptOut: true,
     emailHtml: () =>
       quoteEmail({
         name: customer.name,

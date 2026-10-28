@@ -393,8 +393,8 @@ export function ChatThread({
   const presenceChannelRef = useRef<ReturnType<ReturnType<typeof createClient>["channel"]> | null>(null);
   const typingRef = useRef(false);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Reply the way they last got in touch: a call or text gets a text back
-  // (where Text is allowed), anything else live chat.
+  // Reply the way they last got in touch: a text gets a text back where
+  // Text is allowed (MPE doesn't: staff/messages/[id]), anything else live chat.
   const [sendChannel, setSendChannel] = useState<ChatChannel>(() => {
     const lastFromThem = [...initialMessages].reverse().find((m) => !m.senderIsCoach);
     return channelPicker?.smsAllowed && lastFromThem?.channel === "sms" ? "sms" : "chat";

@@ -405,7 +405,7 @@ export default function VisitForm() {
                   <AppText weight="bold" style={{ fontSize: 15 }}>
                     Let them know
                   </AppText>
-                  <AppText style={{ color: colors.text2, fontSize: 13 }}>{draft.id ? "If it's booked or moved: by text, email and their chat." : "Their booking, by text, email and their chat."}</AppText>
+                  <AppText style={{ color: colors.text2, fontSize: 13 }}>{draft.id ? "If it's booked or moved: in the app or by email, else from your WhatsApp Business." : "Their booking: in the app or by email, else from your WhatsApp Business."}</AppText>
                 </View>
                 <Switch value={notifyThem} onValueChange={setNotifyThem} trackColor={{ true: colors.orangeDeep, false: colors.edge }} thumbColor="#fff" accessibilityLabel="Let them know" />
               </Card>

@@ -777,7 +777,7 @@ function VisitCard({
 
 /**
  * "On my way": one tap when setting off, with roughly how long. The
- * customer gets a text (and their chat and the app): who's coming and when.
+ * customer gets it in their chat and the app, or by email: who's coming and when.
  */
 function OnMyWay({ appointment: a }: { appointment: Appointment }) {
   return (

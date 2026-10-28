@@ -48,7 +48,7 @@ function Label({ children }: { children: ReactNode }) {
  * part and the labour (his products are one tap), what's included, any
  * deposit to accept it, how long it's open, and whether the rest can be
  * paid monthly once the work's done. The total and what's left after the
- * deposit update as he types. Sent to their chat, text and email.
+ * deposit update as he types. Sent to their chat, the app and email.
  */
 export default function NewQuote() {
   const params = useLocalSearchParams<{ visit?: string; customer?: string }>();

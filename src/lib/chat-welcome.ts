@@ -3,11 +3,11 @@ import { findOrCreateCustomer } from "@/lib/customers";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { normalizePhone } from "@/lib/phone";
 import { formatPostcode, isValidEmail, isValidPostcode } from "@/lib/validation";
-import { teamHours } from "@/lib/team-hours";
+import { hoursLabel, teamHours, teamHoursOpen } from "@/lib/team-hours";
 import {
-  AFTER_HOURS_BODY,
   APP_PROMPT_BODY,
-  DETAILS_ASK_AFTER_HOURS,
+  afterHoursBody,
+  detailsAskAfterHours,
   DETAILS_ASK_BOTH,
   DETAILS_ASK_EMAIL,
   DETAILS_ASK_MOBILE,
@@ -75,7 +75,7 @@ export async function ensureWelcome(conversationId: string): Promise<void> {
 }
 
 /**
- * 8pm to 8am: that the team aren't on the chat, when they're back, and the
+ * Out of hours: that the team aren't on the chat, when we're open, and the
  * gas emergency number. Once a night per conversation (12 hours apart).
  */
 async function sendAfterHours(admin: Admin, conversationId: string): Promise<void> {
@@ -90,7 +90,7 @@ async function sendAfterHours(admin: Admin, conversationId: string): Promise<voi
     console.error("chat flow: could not set after_hours_sent_at", error);
     return;
   }
-  if (data?.length) await sendAsMpe(admin, conversationId, AFTER_HOURS_BODY);
+  if (data?.length) await sendAsMpe(admin, conversationId, afterHoursBody(hoursLabel(await teamHours())));
 }
 
 async function sendAppPrompt(admin: Admin, conversationId: string): Promise<void> {
@@ -108,7 +108,7 @@ async function sendAppPrompt(admin: Admin, conversationId: string): Promise<void
 export async function afterCustomerMessage(conversationId: string, accountEmail: string | null, source: "web" | "app" = "web"): Promise<void> {
   try {
     const admin = createAdminClient();
-    const afterHours = !teamHours();
+    const afterHours = !(await teamHoursOpen().catch(() => true));
     // In the app they get a push when we reply, and are already in the app.
     if (source === "app") {
       await claimOnce(admin, conversationId, "app_prompt_sent_at");
@@ -129,9 +129,9 @@ export async function afterCustomerMessage(conversationId: string, accountEmail:
         return;
       }
       if (afterHours) {
-        // The ask says the team are back at 8am, so it counts as tonight's notice.
+        // The ask says when we're open, so it counts as tonight's notice.
         await admin.from("chat_conversations").update({ after_hours_sent_at: new Date().toISOString() }).eq("id", conversationId);
-        await sendAsMpe(admin, conversationId, DETAILS_ASK_AFTER_HOURS);
+        await sendAsMpe(admin, conversationId, detailsAskAfterHours(hoursLabel(await teamHours())));
       } else {
         await sendAsMpe(admin, conversationId, needEmail && needMobile ? DETAILS_ASK_BOTH : needEmail ? DETAILS_ASK_EMAIL : DETAILS_ASK_MOBILE);
       }

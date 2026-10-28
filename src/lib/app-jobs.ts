@@ -108,7 +108,7 @@ function visitCard(v: Appointment, today: string, payments: PaymentRequest[], ha
     steps.push(
       v.onMyWayAt
         ? { label: "On the way", detail: `Arriving around ${arrivalClock(v.onMyWayAt, v.onMyWayEta ?? 30)}`, state: "done" }
-        : { label: "On the way", detail: done ? undefined : "We'll text you when we set off.", state: done ? "done" : v.day === today ? "now" : "next" },
+        : { label: "On the way", detail: done ? undefined : "We'll let you know here when we set off.", state: done ? "done" : v.day === today ? "now" : "next" },
     );
   }
   if (comingBack) {

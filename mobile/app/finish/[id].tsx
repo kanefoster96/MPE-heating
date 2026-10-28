@@ -318,7 +318,7 @@ export default function FinishJob() {
                 <Card style={{ gap: 14 }}>
                   <Toggle
                     title={`Send ${first} a summary`}
-                    detail={d.outcome === "return" ? "What you found and that you'll be back, with their invoice or receipt." : "What we did, with their invoice or receipt. By message, email, text and the app."}
+                    detail={d.outcome === "return" ? "What you found and that you'll be back, with their invoice or receipt." : "What we did, with their invoice or receipt. By message, email and the app."}
                     value={d.sendSummary}
                     onChange={(v) => set({ sendSummary: v })}
                   />

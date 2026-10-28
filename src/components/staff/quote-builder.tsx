@@ -190,7 +190,7 @@ export function QuoteBuilder({
       >
         Send {firstName} the quote
       </button>
-      <p className="text-center text-xs text-muted">By text, message, email and the app, with a link to accept it online.</p>
+      <p className="text-center text-xs text-muted">By message, email and the app, with a link to accept it online.</p>
     </form>
   );
 }

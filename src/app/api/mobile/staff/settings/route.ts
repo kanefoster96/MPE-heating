@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   return mobileJson(await settingsData());
 }
 
-/** One section saved (`section`: plan, referrals or review). */
+/** One section saved (`section`: plan, referrals, review, usage or hours). */
 export async function POST(request: Request) {
   const caller = await mobileStaff(request);
   if (caller instanceof NextResponse) return caller;

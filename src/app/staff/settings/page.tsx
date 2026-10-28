@@ -4,16 +4,19 @@ import { requireStaff } from "@/lib/staff-auth";
 import { isAdmin } from "@/lib/coach";
 import { MAX_UPSELLS, SUGGESTED_PRODUCTS, defaultUpsellPrice, listProducts, type Product } from "@/lib/products";
 import { formatPence } from "@/lib/payments";
-import { addProduct, removeProduct, saveProduct, savePlanPrices, saveReferralRewards, saveReviewLink, saveUsagePause, toggleUpsell } from "./actions";
+import { addProduct, removeProduct, saveProduct, savePlanPrices, saveReferralRewards, saveOpeningHours, saveReviewLink, saveUsagePause, toggleUpsell } from "./actions";
 import { referralRewards } from "@/lib/referrals";
 import { PLAN_BENEFITS, planPrices } from "@/lib/maintenance-plan";
 import { getSetting } from "@/lib/settings";
 import { usageData } from "@/lib/app-business";
+import { clockWord, hoursLabel, teamHours } from "@/lib/team-hours";
 
 export const metadata: Metadata = { title: "Settings" };
 
 const FIELD =
   "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base outline-none focus:border-foreground/40 sm:text-sm";
+/** Every half hour, midnight to midnight, for the opening hours selects. */
+const HALF_HOURS = Array.from({ length: 49 }, (_, i) => i * 30);
 const pounds = (pence: number | null | undefined) => (pence ? (pence / 100).toString() : "");
 
 /**
@@ -24,17 +27,18 @@ const pounds = (pence: number | null | undefined) => (pence ? (pence / 100).toSt
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string; reviewDone?: string; reviewError?: string; planDone?: string; planError?: string; referralDone?: string; referralError?: string; usageDone?: string; usageError?: string }>;
+  searchParams: Promise<{ done?: string; error?: string; suggest?: string; name?: string; reviewDone?: string; reviewError?: string; planDone?: string; planError?: string; referralDone?: string; referralError?: string; usageDone?: string; usageError?: string; hoursDone?: string; hoursError?: string }>;
 }) {
   const params = await searchParams;
   const user = await requireStaff("/staff/settings");
   if (!(await isAdmin(user.id))) redirect("/staff/schedule");
-  const [products, googleReview, plan, referral, usage] = await Promise.all([
+  const [products, googleReview, plan, referral, usage, hours] = await Promise.all([
     listProducts(),
     getSetting("review_url").catch(() => null),
     planPrices(),
     referralRewards(),
     usageData().catch(() => null),
+    teamHours(),
   ]);
   const upsellCount = products.filter((p) => p.upsell).length;
   const have = new Set(products.map((p) => p.name.toLowerCase()));
@@ -45,6 +49,43 @@ export default async function SettingsPage({
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <p className="text-sm uppercase tracking-widest text-muted">MPE team</p>
       <h1 className="mt-1 text-3xl font-semibold tracking-tight">Settings</h1>
+
+      <section id="hours" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="hours-heading">
+        <h2 id="hours-heading" className="text-lg font-semibold">
+          Opening hours
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Every day. Calls to the MPE number ring you between these times, and customers&rsquo; messages notify you. Outside them, calls go to voicemail and
+          get the text back, the chat tells customers when you&rsquo;re open, and messages wait for one summary when you open. Now: {hoursLabel(hours)}.
+        </p>
+        {params.hoursDone && <p className="mt-3 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm text-success">{params.hoursDone}</p>}
+        {params.hoursError && <p className="mt-3 rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{params.hoursError}</p>}
+        <form action={saveOpeningHours} className="mt-4 grid gap-3 sm:grid-cols-2" data-opening-hours>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted">Open</span>
+            <select name="from" defaultValue={hours.from} className={`${FIELD} min-h-11`}>
+              {HALF_HOURS.slice(0, -1).map((m) => (
+                <option key={m} value={m}>
+                  {clockWord(m)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-muted">Close</span>
+            <select name="until" defaultValue={hours.until} className={`${FIELD} min-h-11`}>
+              {HALF_HOURS.slice(1).map((m) => (
+                <option key={m} value={m}>
+                  {m === 24 * 60 ? "Midnight" : clockWord(m)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" className="min-h-11 rounded-full bg-foreground px-5 text-sm font-semibold text-background hover:opacity-90 sm:col-span-2 sm:justify-self-start">
+            Save opening hours
+          </button>
+        </form>
+      </section>
 
       {usage && (
         <section id="usage" className="mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="usage-heading">

@@ -26,8 +26,8 @@ deployment.
 - [ ] **SQL editor:** paste in all of `supabase/schema.sql` and run it.
       Run it again after every update that changes it: it's safe to re-run.
 - [ ] Re-run it after the out-of-hours chat update: it adds the once-a-night
-      "we're back at 8am" note and the two-hour reminder for unanswered
-      chats. Until you do, the chat works but neither is sent.
+      "we're back at 8am" note (or whenever you open) and the two-hour
+      reminder for unanswered chats. Until you do, the chat works but neither is sent.
 - [ ] Re-run it after the "price to send" update: it adds "price still to
       send" to a call-out finished as coming back. Until you do, jobs still
       finish, but nothing goes on the "price to send" list.
@@ -105,11 +105,13 @@ deployment.
   - [ ] **A message comes in:** `<site>/api/webhooks/twilio`
 - [ ] Optional: create an API key (**Account → API keys & tokens →
       Create**, Standard) for sending.
-- [ ] Calls to it ring Fergal's mobile (07448 628 101, or each admin's
-      saved mobile), showing the caller's number, from **8am to 8pm**
-      every day. From 8pm to 8am they go straight to voicemail ("Our phones
-      are open from 8am to 8pm"), and the voicemail waits in their chat
-      for the morning without a notification. Not answered in 18
+- [ ] **Opening hours** (Settings → Opening hours, in the app or on the
+      website; 8am to 8pm every day until changed, in half hours). Calls
+      to the number ring Fergal's mobile (07448 628 101, or each admin's
+      saved mobile), showing the caller's number, only while open.
+      Outside them they go straight to voicemail ("Our phones are open
+      from 8am to 8pm", or whatever's set), and the voicemail waits in
+      their chat for the morning without a notification. Not answered in 18
       seconds: MPE's voicemail. Either way the call's logged in their chat.
       On their first ever call they get one text pointing them at the app
       and live chat (never again to that number, and not if they have the
@@ -117,13 +119,14 @@ deployment.
       while they're talking, or straight away if it's missed. For a caller
       with no email or app, Fergal also gets a notification as it rings,
       reminding him to ask.
-- [ ] **Out of hours (8pm to 8am)** for the chat too: nobody's notified of
-      a customer's message at night. At 8am the team get one summary
-      ("3 new messages since 8pm: Sam, Jo and 07700 900123"). A website
-      chat at night gets an automatic reply that the team are on the chat
-      from 8am to 8pm, with the gas emergency number (0800 111 999). Any
-      chat left unanswered for two hours in the day (counted from 8am for
-      overnight ones) reminds the team once.
+- [ ] **Out of hours** for the chat too (the same opening hours):
+      nobody's notified of a customer's message while closed. When you
+      open, the team get one summary ("3 new messages since 8pm: Sam, Jo
+      and 07700 900123"). A website chat while closed gets an automatic
+      reply that the team are on the chat during the opening hours, with
+      the gas emergency number (0800 111 999). Any chat left unanswered
+      for two hours while open (counted from opening for overnight ones)
+      reminds the team once.
 - [ ] **Plan members' call-outs are free, and said so:** a signed-in member
       sees "You're on the MPE maintenance plan, so your call-out's free" on
       the call-out form instead of the £50; their booking confirmation says
@@ -149,15 +152,13 @@ deployment.
 - [ ] Customers who've only phoned (no email, no app): booking them in
       asks for their email first. If they still have neither, the app
       offers **Open in WhatsApp Business**, with the message ready, for
-      their booking (and any move or cancellation), a quote, an invoice or
-      payment link, and a receipt. In their chat, messages go from
-      WhatsApp Business too. Texts are the same for every customer: the
-      one after their first call, "on my way" and "running late".
-- [ ] Texts are kept to two per customer: that one after their first
-      call, and "on my way" (plus "running late" when it happens). Anyone
-      with the app gets those as free notifications instead. Everything
-      else goes by the app and email (a failed monthly payment is texted
-      only if there's no email, which is rare: paying monthly needs one).
+      their booking (and any move or cancellation), "on my way", "running
+      late", a quote, an invoice or payment link, and a receipt. In their
+      chat, messages go from WhatsApp Business too.
+- [ ] **One text only:** the automatic one after a customer's first call
+      (pointing them at the app and live chat), and never again to that
+      number. Everything else goes by the app and email, or WhatsApp
+      Business for someone with neither. The chat can't send texts.
 - [ ] **The £20 allowance** (excluding VAT): every call minute and text
       is logged and priced at Twilio's UK rates, at a fixed exchange rate,
       and checked every 30 minutes against Twilio's own month total (the

@@ -70,7 +70,7 @@ export default function NewPaymentScreen() {
  * for. The invoice: a line per part or job (a minus is money off, like the
  * call-out fee they paid), his products as one-tap lines, money they're
  * owed from a referral, extras offered on their pay page, and paying
- * monthly. Then "Send to them" (their chat, text and email) or "Take
+ * monthly. Then "Send to them" (their chat, the app and email) or "Take
  * payment now" (the Payment sheet: Tap to Pay, card reader, saved card,
  * cash, all or part).
  */

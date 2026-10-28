@@ -16,7 +16,7 @@ import {
   setAppointmentStatus,
   updateAppointment,
 } from "@/lib/appointments";
-import { reachedThem, sendOnMyWay, sendRunningLate, sendVisitNotice, viaPhrase } from "@/lib/visit-notify";
+import { reachedThem, sendOnMyWay, sendRunningLate, sendVisitNotice, toldLine } from "@/lib/visit-notify";
 import type { NoticeType } from "@/lib/visit-copy";
 import { createCustomer, customerFieldsFromForm, customerLabel, listCustomers } from "@/lib/customers";
 import type { AppointmentStatus } from "@/lib/day-plan";
@@ -161,9 +161,9 @@ function sentParam(sent: string[] | null): Record<string, string> {
 export async function onMyWay(id: string, day: string, formData: FormData) {
   const user = await requireStaff("/staff/schedule");
   const eta = Number(formData.get("eta"));
-  const sent = await sendOnMyWay(id, user.id, eta);
+  const told = await sendOnMyWay(id, user.id, eta);
   revalidatePath("/staff/schedule");
-  const note = sent.length ? `Sent "on my way" by ${viaPhrase(sent)}.` : "Couldn't reach them: add a mobile or email to their customer page.";
+  const note = told.via.length ? `"On my way" sent. ${toldLine(told)}${told.whatsapp ? " Send it from WhatsApp Business in the MPE app." : ""}` : toldLine(told);
   redirect(dayHref(day, { success: "onmyway", note }) + `#visit-${id}`);
 }
 
@@ -172,7 +172,7 @@ export async function runningLate(id: string, day: string, formData: FormData) {
   const user = await requireStaff("/staff/schedule");
   const result = await sendRunningLate(id, user.id, Number(formData.get("minutes")));
   revalidatePath("/staff/schedule");
-  const note = !result ? "Couldn't move that visit." : `Now ${result.window}.${result.via.length ? ` Told them by ${viaPhrase(result.via)}.` : " Couldn't reach them: give them a call."}`;
+  const note = !result ? "Couldn't move that visit." : `Now ${result.window}. ${toldLine(result)}${result.whatsapp ? " Give them a call, or message them from WhatsApp Business." : ""}`;
   redirect(dayHref(day, { success: "onmyway", note }) + `#visit-${id}`);
 }
 

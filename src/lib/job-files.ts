@@ -203,7 +203,6 @@ export async function sendCertificateRenewals(budget: () => boolean): Promise<nu
       headline: "Your gas safety record is due",
       staffId: null,
       pushHref: "/account#files",
-      smsOptOut: true,
       emailHtml: () =>
         renderEmailLayout({
           previewText: `Runs out on ${longDate(row.expires_on as string)}`,

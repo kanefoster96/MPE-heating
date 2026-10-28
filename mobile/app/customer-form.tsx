@@ -75,7 +75,7 @@ export default function CustomerForm() {
       const who = values.name?.trim().split(" ")[0] || "They";
       const ok = await confirmAction(
         "No email?",
-        `Without an email or the MPE app, ${who === "They" ? "they" : who} only get${who === "They" ? "" : "s"} a text for the booking and when you're on the way. Your price and invoices go from your WhatsApp Business. Ask for their email, or ask them to install the app from the text we sent.`,
+        `${who === "They" ? "They have" : `${who} has`} no email or the MPE app, so their booking, "on my way", prices and invoices go from your WhatsApp Business. Ask for their email, or ask them to install the app from the text we sent.`,
         "Save without",
       );
       if (!ok) return;

@@ -40,8 +40,8 @@ function dayTime(iso: string): string {
 }
 
 const CHANNEL_LABEL: Record<Channel, string> = { chat: "Live chat", sms: "Text", email: "Email", whatsapp: "WhatsApp" };
-/** In the menu: a text uses the month's calls and texts allowance; WhatsApp Business is free. */
-const CHANNEL_MENU_LABEL: Record<Channel, string> = { chat: "Live chat", sms: "Text (uses allowance)", email: "Email", whatsapp: "WhatsApp Business" };
+/** In the menu. No texts: someone who's only phoned gets WhatsApp Business, which is free. */
+const CHANNEL_MENU_LABEL: Record<Channel, string> = { chat: "Live chat", sms: "Text", email: "Email", whatsapp: "WhatsApp Business" };
 const CHANNEL_ICON = { chat: "chatbubble-ellipses", sms: "chatbox-ellipses", email: "mail", whatsapp: "logo-whatsapp" } as const;
 const MENU_ICON = { chat: "chatbubble-ellipses-outline", sms: "chatbox-ellipses-outline", email: "mail-outline", whatsapp: "logo-whatsapp" } as const;
 
@@ -502,8 +502,8 @@ export function ChatThread({
         </View>
       )}
 
-      {staff && !data?.conversation.isTeam && channel === "sms" && (
-        // The number a text goes to (Kanvas Academy's): add one, or correct it.
+      {staff && !data?.conversation.isTeam && channel === "whatsapp" && (
+        // The number WhatsApp Business opens: add one, or correct it.
         <View style={{ borderTopWidth: 1, borderTopColor: colors.edge, backgroundColor: colors.page, paddingHorizontal: 14, paddingVertical: 4 }}>
           {editingPhone ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -532,14 +532,14 @@ export function ChatThread({
             </View>
           ) : (
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <AppText style={{ color: colors.text2, fontSize: 13 }}>{phone ? `Text number: ${phone}` : "No mobile number yet"}</AppText>
+              <AppText style={{ color: colors.text2, fontSize: 13 }}>{phone ? `WhatsApp number: ${phone}` : "No mobile number yet"}</AppText>
               <Pressable
                 onPress={() => {
                   setPhoneError(null);
                   setPhoneDraft(phone ?? "");
                   setEditingPhone(true);
                 }}
-                accessibilityLabel={phone ? "Change the text number" : "Add a mobile number"}
+                accessibilityLabel={phone ? "Change the WhatsApp number" : "Add a mobile number"}
                 style={({ pressed }) => [{ minHeight: 44, minWidth: 44, alignItems: "flex-end", justifyContent: "center" }, pressed && { opacity: 0.7 }]}
               >
                 <AppText weight="bold" style={{ color: colors.orangeDeep, fontSize: 13 }}>
@@ -562,7 +562,7 @@ export function ChatThread({
             onChangeText={setDraft}
             multiline
             onContentSizeChange={(e) => setInputHeight(Math.min(COMPOSER_MAX, Math.max(COMPOSER_MIN, e.nativeEvent.contentSize.height + 20)))}
-            placeholder={channel === "sms" && !phone ? "Add a mobile number above first…" : channel === "whatsapp" ? "Type it here, then send it in WhatsApp…" : "Type a message…"}
+            placeholder={channel === "whatsapp" ? (waNumber ? "Type it here, then send it in WhatsApp…" : "Add a mobile number above first…") : "Type a message…"}
             placeholderTextColor={colors.text2}
             accessibilityLabel="Message"
             style={{ height: draft ? inputHeight : COMPOSER_MIN, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, fontSize: 17, lineHeight: 22, fontFamily: fonts.regular, color: colors.navy, textAlignVertical: "top" }}
@@ -583,7 +583,7 @@ export function ChatThread({
                 </Pressable>
                 {channelMenu && (
                   <View style={{ position: "absolute", bottom: 48, left: 0, width: 220, borderRadius: 14, borderWidth: 1, borderColor: colors.edge, backgroundColor: colors.page, paddingVertical: 4, zIndex: 10, shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
-                    {(["chat", "sms", "email", ...(waNumber ? ["whatsapp"] : [])] as Channel[]).map((c) => (
+                    {(["chat", "email", "whatsapp"] as Channel[]).map((c) => (
                       <Pressable
                         key={c}
                         onPress={() => {
@@ -623,11 +623,11 @@ export function ChatThread({
                 setChannelMenu(false);
                 send(body);
               }}
-              disabled={!draft.trim() || !data || (channel === "sms" && !phone)}
+              disabled={!draft.trim() || !data || (channel === "whatsapp" && !waNumber)}
               accessibilityLabel="Send"
               style={({ pressed }) => [{ height: 44, justifyContent: "center" }, pressed && { opacity: 0.8 }]}
             >
-              <View style={{ height: 40, borderRadius: 20, paddingHorizontal: 20, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center", opacity: !draft.trim() || !data || (channel === "sms" && !phone) ? 0.45 : 1 }}>
+              <View style={{ height: 40, borderRadius: 20, paddingHorizontal: 20, backgroundColor: colors.orangeDeep, alignItems: "center", justifyContent: "center", opacity: !draft.trim() || !data || (channel === "whatsapp" && !waNumber) ? 0.45 : 1 }}>
                 {sending ? (
                   <ActivityIndicator color="#fff" />
                 ) : (

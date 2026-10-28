@@ -387,7 +387,7 @@ export function StepFlow({ flowKey }: { flowKey: FlowKey }) {
               {steps.some((st) => st.kind === "when") && (
                 <>
                   {" "}
-                  We&rsquo;ll text <strong className="text-navy">{phone.trim()}</strong> when your engineer&rsquo;s on the way.
+                  We&rsquo;ll email again when your engineer&rsquo;s on the way.
                 </>
               )}
             </p>

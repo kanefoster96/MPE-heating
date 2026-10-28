@@ -6,6 +6,7 @@ import { AppText, PressableScale, haptic } from "@/components/ui";
 import { apiPost } from "@/lib/api";
 import { useBusinessCall } from "@/components/business-call";
 import { openDirections } from "@/lib/open-link";
+import { reportSend, type WhatsAppHandoff } from "@/lib/whatsapp-handoff";
 import { colors } from "@/lib/theme";
 import type { StaffJob } from "@/lib/types";
 
@@ -64,7 +65,7 @@ function Big({ label, icon, onPress, tone = "orange" }: { label: string; icon: I
 /**
  * One of the day's visits, for the team: when, what, who and where, with
  * the buttons for the job in the order it happens. Call, directions and
- * their chat; then "On my way" (pick how long, they get a text), "Not in",
+ * their chat; then "On my way" (pick how long; WhatsApp Business for someone who's only phoned), "Not in",
  * and Finish (app/finish/[id].tsx: report, boiler, photos, certificates).
  * Once it's done and unpaid, Take payment. In a list, tapping the top
  * opens the job's page (app/job/[id].tsx); on that page `onPay` opens its
@@ -83,11 +84,11 @@ export function StaffJobCard({ job, day, onChanged, onPay }: { job: StaffJob; da
   async function runningLate(minutes: number) {
     setBusy(true);
     try {
-      const res = await apiPost<{ message: string }>("/api/mobile/staff/jobs/late", { id: job.id, minutes });
+      const res = await apiPost<{ message: string; whatsapp?: WhatsAppHandoff | null }>("/api/mobile/staff/jobs/late", { id: job.id, minutes });
       haptic.success();
       setLate(false);
-      Alert.alert("Arrival time updated", res.message);
       onChanged();
+      await reportSend("Arrival time updated", res);
     } catch (err) {
       haptic.warning();
       Alert.alert("Not sent", err instanceof Error ? err.message : "Please try again.");
@@ -99,10 +100,12 @@ export function StaffJobCard({ job, day, onChanged, onPay }: { job: StaffJob; da
   async function onMyWay(eta: number) {
     setBusy(true);
     try {
-      await apiPost("/api/mobile/staff/jobs/on-my-way", { id: job.id, eta });
+      const res = await apiPost<{ message: string; whatsapp?: WhatsAppHandoff | null }>("/api/mobile/staff/jobs/on-my-way", { id: job.id, eta });
       haptic.success();
       setPicking(false);
       onChanged();
+      // Someone who's only phoned: send it from WhatsApp Business.
+      if (res.whatsapp) await reportSend("On my way", res);
     } catch (err) {
       haptic.warning();
       Alert.alert("Not sent", err instanceof Error ? err.message : "Please try again.");

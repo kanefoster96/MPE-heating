@@ -70,7 +70,6 @@ export async function sendEnquiryFollowUp(e: Enquiry, stage: 1 | 2): Promise<str
     headline: stage === 1 ? `Still need a hand with ${ABOUT[e.category]}?` : "Just checking in",
     staffId: null,
     pushHref: `/request/${e.publicToken}`,
-    smsOptOut: true,
     emailHtml: () => followUpEmailHtml(e, stage, customer.name),
   });
 }

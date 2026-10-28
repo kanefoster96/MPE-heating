@@ -259,7 +259,6 @@ export async function sendPlanInvite(customerId: string, staffId: string): Promi
     headline: `Our ${PLAN_NAME.toLowerCase()}`,
     staffId,
     pushHref: `/plan/${member.publicToken}`,
-    smsOptOut: true,
     emailHtml: () =>
       planEmail({
         name: customer.name,
@@ -414,8 +413,6 @@ export async function planPaymentFailed(memberId: string, invoice: Stripe.Invoic
   await deliverToCustomer(customer, {
     body: `${hi(customer)}your maintenance plan payment of ${formatPence(invoice.amount_due)} didn't go through. We'll try again in a few days, or you can pay or update your card here: ${link}`,
     headline: "Plan payment didn't go through",
-    // Texted only if there's no email or app to tell them.
-    text: "fallback",
     staffId: null,
     pushHref: "/account#plan",
     emailHtml: () =>

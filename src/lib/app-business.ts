@@ -1,4 +1,5 @@
 import { customerLabel, getCustomers, listCustomers } from "@/lib/customers";
+import { forgetTeamHours, hoursLabel, teamHours } from "@/lib/team-hours";
 import { monthUsage, poundsFromPence, ratesInPence } from "@/lib/twilio-usage";
 import { formatPence } from "@/lib/payments";
 import { longDate } from "@/lib/day-plan";
@@ -242,12 +243,13 @@ export async function usageData() {
 }
 
 export async function settingsData() {
-  const [products, review, plan, referral, usage] = await Promise.all([
+  const [products, review, plan, referral, usage, hours] = await Promise.all([
     listProducts(),
     getSetting("review_url").catch(() => null),
     planPrices(),
     referralRewards(),
     usageData().catch(() => null),
+    teamHours(),
   ]);
   const have = new Set(products.map((p) => p.name.toLowerCase()));
   return {
@@ -260,6 +262,8 @@ export async function settingsData() {
     referrals: { referrerReward: pounds(referral?.referrerPence), friendReward: pounds(referral?.friendPence) },
     reviewUrl: review ?? "",
     usage,
+    /** Opening hours (lib/team-hours.ts), minutes after midnight, and as words. */
+    hours: { from: hours.from, until: hours.until, label: hoursLabel(hours) },
     maxUpsells: MAX_UPSELLS,
     products: products.map((p) => {
       const offer = p.upsellPricePence ?? defaultUpsellPrice(p.pricePence);
@@ -317,6 +321,15 @@ export async function saveSettings(section: string, body: Record<string, unknown
     const ok = (await Promise.all([setSetting("referral_referrer_pence", referrer ? String(referrer) : null), setSetting("referral_friend_pence", friend ? String(friend) : null)])).every(Boolean);
     if (!ok) return { ok: false, error: "Couldn't save that." };
     return { ok: true, message: referrer || friend ? "Referral rewards saved." : "Referrals switched off." };
+  }
+  if (section === "hours") {
+    const from = Number(body.from);
+    const until = Number(body.until);
+    const ok = (n: number) => Number.isInteger(n) && n >= 0 && n <= 24 * 60 && n % 30 === 0;
+    if (!ok(from) || !ok(until) || from >= until) return { ok: false, error: "Pick an opening time before the closing time." };
+    if (!(await setSetting("hours_from", String(from))) || !(await setSetting("hours_until", String(until)))) return { ok: false, error: "Couldn't save that." };
+    forgetTeamHours();
+    return { ok: true, message: `Open ${hoursLabel({ from, until })}, every day.` };
   }
   if (section === "usage") {
     const pause = body.pauseWhenUsed === true;

@@ -10,7 +10,7 @@ const CHANNELS: ChatChannel[] = ["chat", "email", "sms"];
 /**
  * Sends a message from the app: a customer into their own chat
  * (lib/customer-send.ts, the same as the website), or the team into any
- * conversation (lib/coach-send.ts, with email or text if they pick it).
+ * conversation (lib/coach-send.ts, with email if they pick it).
  * A photo is uploaded first, straight to the chat-attachments bucket, and
  * its path sent here.
  */

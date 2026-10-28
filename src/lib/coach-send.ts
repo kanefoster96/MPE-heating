@@ -7,8 +7,6 @@ import { resend, FROM_EMAIL } from "@/lib/resend";
 import { contactMessageEmailHtml } from "@/lib/emails/contact-message";
 import { notifyMemberOfReply } from "@/lib/chat-notify";
 import { hasPushDevice, pushMemberCoachReply } from "@/lib/push";
-import { sendSms } from "@/lib/twilio";
-import { isSmsOptedOut } from "@/lib/sms-opt-out";
 import type { SendMessageInput } from "@/lib/chat";
 import { chatBodyToPlainText } from "@/lib/chat-links";
 import { markTeamRead, notifyTeam } from "@/lib/team-chat";
@@ -25,8 +23,8 @@ export type CoachSendResult =
  *
  * Any coach can reply to any conversation — live presence in the thread is
  * what stops two people answering at once, not a lock. The message is
- * always saved in-app; "email" and "sms" deliver a copy on top of that, so
- * every channel lands in one unified thread.
+ * always saved in-app; "email" delivers a copy on top of that, so every
+ * channel lands in one unified thread. No texts: see below.
  */
 export async function deliverCoachMessage({
   user,
@@ -73,25 +71,10 @@ export async function deliverCoachMessage({
 
   // Fail before writing anything if the chosen channel can't be reached.
   let recipientEmail: string | null = null;
+  // The only text MPE sends is the automatic one after a call (lib/missed-calls.ts):
+  // someone who's only phoned or texted gets a reply from WhatsApp Business instead.
   if (channel === "sms") {
-    // Kanvas Academy keeps texts to admins (they cost per message). At MPE
-    // engineers answer customers who text or call too, so anyone on the
-    // team can text — still a deliberate choice in the composer each time.
-    // To go back to admins only: `if (!(await isAdmin(user.id))) return {...}`.
-    if (!existingConversation.phone) {
-      return {
-        success: false,
-        error: "Add a phone number for this conversation before texting them.",
-        status: 400,
-      };
-    }
-    if (await isSmsOptedOut(existingConversation.phone)) {
-      return {
-        success: false,
-        error: "This number has replied STOP and opted out of texts — use live chat or email.",
-        status: 400,
-      };
-    }
+    return { success: false, error: "Texts aren't sent from the chat: message them from WhatsApp Business instead.", status: 400 };
   }
   if (channel === "email") {
     recipientEmail = await getConversationMemberEmail(existingConversation);
@@ -143,9 +126,7 @@ export async function deliverCoachMessage({
   // Best-effort — the in-app message above is already saved either way, so
   // a delivery failure here shouldn't look like the whole send failed.
   try {
-    if (channel === "sms" && existingConversation.phone) {
-      await sendSms(existingConversation.phone, plainText);
-    } else if (channel === "email" && recipientEmail) {
+    if (channel === "email" && recipientEmail) {
       await resend.emails.send({
         from: FROM_EMAIL,
         to: recipientEmail,

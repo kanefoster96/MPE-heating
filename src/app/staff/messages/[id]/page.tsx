@@ -73,9 +73,10 @@ export default async function CoachConversationPage({
     ? { data: null }
     : await admin.auth.admin.getUserById(conversation.userId);
   const isGuest = !isTeam && isGuestUser(memberData?.user);
-  // Anyone on the team can text (lib/coach-send.ts). Left out for anonymous
-  // website visitors until they've left a mobile in the chat.
-  const smsAllowed = !isTeam && (!memberData?.user?.is_anonymous || !!conversation.phone);
+  // No texts from the chat: the only one MPE sends is the automatic one
+  // after a call (lib/missed-calls.ts). Someone who's only phoned gets a
+  // reply from WhatsApp Business, in the app.
+  const smsAllowed = false;
   const displayName = isTeam
     ? TEAM_CHAT_NAME
     : isGuest

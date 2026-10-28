@@ -10,7 +10,7 @@ import { callableUkNumber, coachPhoneOf } from "@/lib/coach-calls";
 import { business } from "@/lib/content";
 import { formatPhone } from "@/lib/phone";
 import { CLUB, clubLink } from "@/lib/club";
-import { teamHours } from "@/lib/team-hours";
+import { hoursLabel, teamHours, teamHoursOpen } from "@/lib/team-hours";
 
 /**
  * Calls to the MPE (Twilio) number. It rings Fergal first (every admin's
@@ -123,6 +123,8 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
   // The month's calls and texts allowance is used and Settings says pause:
   // a short message pointing at the app (about a penny), and it's logged.
   const paused = await usagePaused().catch(() => false);
+  // Within the opening hours set in Settings (lib/team-hours.ts) it rings the team; outside them, voicemail.
+  const open = await teamHoursOpen().catch(() => true);
   if (caller) {
     try {
       const conversation = await getOrCreateConversationByPhone(caller);
@@ -133,7 +135,7 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
           sender_id: conversation.userId,
           sender_is_coach: false,
           channel: "sms",
-          body: paused ? "Called the MPE number (calls paused for the month)" : teamHours() ? "Called the MPE number" : "Called the MPE number (out of hours: voicemail)",
+          body: paused ? "Called the MPE number (calls paused for the month)" : open ? "Called the MPE number" : "Called the MPE number (out of hours: voicemail)",
         });
         await bumpConversation(conversation.id);
         tip = await phoneOnlyTip(conversation.id, conversation.userId, conversation.guestEmail, conversation.guestName ?? formatPhone(caller));
@@ -151,12 +153,12 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
     return twiml(`<Say ${VOICE}>Thanks for calling ${SPOKEN_NAME}. Please message us in the MPE app or at ${SPOKEN_DOMAIN}, and an engineer will get back to you.</Say><Hangup/>`);
   }
 
-  // Out of hours (8pm to 8am, lib/team-hours.ts): straight to voicemail, nobody's phone rings, and nobody's
-  // woken by a notification; it's waiting in their chat in the morning.
-  if (!teamHours()) {
+  // Out of hours: straight to voicemail, with the text back. Nobody's phone rings and nobody's
+  // woken by a notification; it's waiting in their chat when we open.
+  if (!open) {
     await logUsage("call_in", 1);
     if (conversationId && caller) await textAfterCall(conversationId, caller, MISSED_CALL_TEXT).catch(() => false);
-    return voicemail(conversationId, true);
+    return voicemail(conversationId, hoursLabel(await teamHours()));
   }
 
   const numbers = await ringNumbers().catch(() => [] as string[]);
@@ -304,8 +306,8 @@ async function textAfterCall(conversationId: string, caller: string, body: strin
 }
 
 /** Nobody picked up (or it's out of hours): MPE's voicemail, filed in their chat. A withheld number is pointed at the website. */
-function voicemail(conversationId: string | null, closed = false): Response {
-  const why = closed ? "Our phones are open from 8am to 8pm." : "Sorry, our engineer can't get to the phone right now.";
+function voicemail(conversationId: string | null, closedHours: string | null = null): Response {
+  const why = closedHours ? `Our phones are open from ${xml(closedHours)}.` : "Sorry, our engineer can't get to the phone right now.";
   if (!conversationId) {
     return twiml(`<Say ${VOICE}>Thanks for calling ${SPOKEN_NAME}. ${why} Please visit ${SPOKEN_DOMAIN} to live chat with us.</Say><Hangup/>`);
   }
@@ -401,8 +403,8 @@ export async function handleRecording(conversationId: string | null, params: Rec
     attachment_name: `${label}.mp3`,
   });
   await bumpConversation(conversationId);
-  // Out of hours it waits, unread, in their chat for the morning: nobody's woken by it.
-  if (teamHours()) {
+  // Out of hours it waits, unread, in their chat for when we open: nobody's woken by it.
+  if (await teamHoursOpen().catch(() => true)) {
     await notifyStaffOfFamilyMessage({
       conversationId,
       fromName: conversation?.guest_name ? `${conversation.guest_name} (call)` : `Call from ${conversation?.phone ?? "unknown number"}`,

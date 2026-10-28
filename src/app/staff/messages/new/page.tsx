@@ -6,9 +6,10 @@ import { CHAT_ON } from "@/lib/chat-on";
 import { openChatByPhone } from "../actions";
 
 /**
- * Text a customer first: enter their mobile (and a name, if known) and land
- * in their conversation, where the composer's Text option sends the first
- * message by SMS. Opens the existing thread if that number already has one.
+ * A chat for a mobile number: enter it (and a name, if known) and land in
+ * their conversation, to keep notes with their jobs. Opens the existing
+ * thread if that number already has one. No texts from here: messages to
+ * someone who's only phoned go from WhatsApp Business, in the MPE app.
  */
 export default async function NewStaffChatPage({
   searchParams,
@@ -39,9 +40,10 @@ export default async function NewStaffChatPage({
       </Link>
 
       <p className="mt-6 text-sm uppercase tracking-widest text-muted">MPE team</p>
-      <h1 className="mt-1 text-3xl font-semibold tracking-tight">Text a customer</h1>
+      <h1 className="mt-1 text-3xl font-semibold tracking-tight">Open a chat by mobile</h1>
       <p className="mt-2 text-muted">
-        Enter their mobile. You&rsquo;ll land in their chat, where anything you send goes to them by text.
+        Enter their mobile. You&rsquo;ll land in their chat. Without an email or the MPE app they won&rsquo;t see it there: message them from
+        WhatsApp Business in the MPE app.
       </p>
 
       {error && (

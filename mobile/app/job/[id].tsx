@@ -124,7 +124,7 @@ function Job() {
     if (!data) return;
     if (!(await confirmAction("Cancel this visit?", "It stays on their history as cancelled.", "Cancel it"))) return;
     const name = data.job.customer?.name?.split(" ")[0];
-    const tell = data.job.customer && data.job.status !== "requested" ? await confirmAction(`Tell ${name ?? "them"}?`, "They're sent a message that it's cancelled, by text, email and their chat.", "Tell them") : false;
+    const tell = data.job.customer && data.job.status !== "requested" ? await confirmAction(`Tell ${name ?? "them"}?`, "They're sent a message that it's cancelled, in the app or by email.", "Tell them") : false;
     await act(tell ? "cancel" : "cancel_quietly");
   }
 

@@ -16,7 +16,7 @@ import { takeDueInstalments } from "@/lib/instalments";
 import { dropUnpaidDeposit, sendQuoteFollowUp } from "@/lib/quotes";
 import { sendCertificateRenewals } from "@/lib/job-files";
 import { sendDueMonthReport } from "@/lib/monthly-report";
-import { TEAM_FROM, TEAM_UNTIL, teamHours } from "@/lib/team-hours";
+import { clockWord, teamHours, teamHoursOpen } from "@/lib/team-hours";
 import { formatPhone } from "@/lib/phone";
 
 /**
@@ -49,7 +49,7 @@ import { formatPhone } from "@/lib/phone";
  *
  * Run every five minutes (vercel.json). Every stage checks its own "sent"
  * column first and sets it after, so a re-run never sends twice, and each
- * keeps to daytime London hours so no one gets a text in the night.
+ * keeps to daytime London hours so no one's woken in the night.
  */
 
 const HOUR_LEAD_EARLIEST = 70; // minutes before the window opens
@@ -353,16 +353,17 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
   });
 
   // 6. The team: new jobs and customers' requests waiting two hours.
-  // 5e. The team: what came in overnight (8pm to 8am, when nobody's notified), in one push from 8am.
+  // 5e. The team: what came in while we were closed (nobody's notified then), in one push once we open.
   await stage("overnight", async () => {
-    // Only first thing: a sweep that first runs late in the day (a deploy, say) doesn't send it at teatime.
-    if (minutes < TEAM_FROM || minutes >= TEAM_FROM + 120) return;
+    // Only first thing after opening: a sweep that first runs late in the day (a deploy, say) doesn't send it at teatime.
+    const hours = await teamHours();
+    if (minutes < hours.from || minutes >= hours.from + 120) return;
     if ((await getSetting("overnight_summary_for")) === today) return;
     // Marked first: a slow push mustn't mean a second one five minutes later.
     if (!(await setSetting("overnight_summary_for", today))) return;
-    // 8pm yesterday to 8am today, London time: 11 or 13 hours on the nights the clocks change.
-    const since = londonInstant(addDays(today, -1), TEAM_UNTIL).toISOString();
-    const until = londonInstant(today, TEAM_FROM).toISOString();
+    // Closing yesterday to opening today, London time (right across the nights the clocks change).
+    const since = londonInstant(addDays(today, -1), hours.until).toISOString();
+    const until = londonInstant(today, hours.from).toISOString();
     const { data: rows } = await admin.from("chat_messages").select("conversation_id").eq("sender_is_coach", false).gte("created_at", since).lt("created_at", until);
     const found = [...new Set((rows ?? []).map((r) => r.conversation_id as string))];
     if (!found.length) return;
@@ -372,17 +373,19 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
     const names = named.map((c) => c.name);
     await pushToUsers(await chatRecipientIds(), {
       title: "Overnight",
-      body: `${names.length} new message${names.length === 1 ? "" : "s"} since 8pm: ${listNames(names)}.`,
+      body: `${names.length} new message${names.length === 1 ? "" : "s"} since ${clockWord(hours.until)}: ${listNames(names)}.`,
       data: named.length === 1 ? { kind: "chat", conversationId: named[0].id } : { kind: "link", href: "/staff/messages" },
     });
     result.staffNudged += names.length;
   });
 
-  // 5f. The team: a customer's message with no reply for two hours (counted from 8am for
+  // 5f. The team: a customer's message with no reply for two hours (counted from opening for
   // one that came in overnight). Once each. A new booking's chased by the stage below instead.
   await stage("chats", async () => {
-    if (minutes < TEAM_FROM || minutes >= TEAM_UNTIL) return;
-    const eight = Date.now() - (minutes - TEAM_FROM) * 60_000;
+    const hours = await teamHours();
+    if (minutes < hours.from || minutes >= hours.until) return;
+    // Counted from opening for one that came in out of hours.
+    const eight = Date.now() - (minutes - hours.from) * 60_000;
     const due = Date.now() - 2 * 3_600_000;
     const { data: convos } = await admin
       .from("chat_conversations")
@@ -421,8 +424,8 @@ export async function runFollowUpSweep(): Promise<SweepResult> {
   // 5d. The month's calls and texts: Twilio's own total (every half hour), and a heads-up at each £5 of the £20.
   await stage("usage", async () => {
     await syncTwilioTotal();
-    // Not at night: a £5 step passed overnight is told at 8am.
-    if (teamHours()) await usageAlerts();
+    // Not out of hours: a £5 step passed overnight is told once we open.
+    if (await teamHoursOpen()) await usageAlerts();
   });
 
   await stage("staff", async () => {

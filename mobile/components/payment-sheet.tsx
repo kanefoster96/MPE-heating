@@ -85,7 +85,7 @@ function Choice({ icon, label, detail, onPress, disabled }: { icon: IconName; la
  *  - Tap to Pay on the phone, or a Bluetooth card reader, recorded
  *    automatically like any card payment;
  *  - the card they saved with MPE, once Fergal's checked with them;
- *  - the payment link, to their chat, text and email, to pay with Apple
+ *  - the payment link, to their chat, the app and email, to pay with Apple
  *    Pay there and then;
  *  - cash, all of it or part: part comes off what's left, and the rest is
  *    taken by card or the link;
@@ -339,7 +339,7 @@ export function PaymentSheet({ visible, context, onClose, onDone }: { visible: b
                   <Choice
                     icon="paper-plane-outline"
                     label={busy === "resend" ? "Sending…" : "Send the payment link"}
-                    detail="To their chat, by text and email. They can pay with Apple Pay there and then."
+                    detail="To their chat, the app and email. They can pay with Apple Pay there and then."
                     disabled={!!busy}
                     onPress={sendLink}
                   />

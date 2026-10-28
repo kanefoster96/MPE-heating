@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/staff-auth";
 import { isAdmin } from "@/lib/coach";
 import { archiveProduct, createProduct, productFromForm, setUpsell, updateProduct } from "@/lib/products";
 import { parseReviewUrl, setSetting } from "@/lib/settings";
+import { saveSettings } from "@/lib/app-business";
 
 async function requireAdmin() {
   const user = await requireStaff("/staff/settings");
@@ -115,4 +116,14 @@ export async function saveUsagePause(pause: boolean) {
   if (!(await setSetting("twilio_pause_when_used", pause ? "1" : null))) redirect(to({ usageError: "Couldn't save that." }));
   revalidatePath("/staff/settings");
   redirect(to({ usageDone: pause ? "Calls and texts will pause once the allowance is used, until the 1st." : "Calls and texts keep going after the allowance." }));
+}
+
+/** Opening hours (lib/team-hours.ts): when calls ring and messages notify. */
+export async function saveOpeningHours(formData: FormData) {
+  await requireAdmin();
+  const to = (params: Record<string, string>) => `/staff/settings?${new URLSearchParams(params).toString()}#hours`;
+  const result = await saveSettings("hours", { from: Number(formData.get("from")), until: Number(formData.get("until")) });
+  if (!result.ok) redirect(to({ hoursError: result.error }));
+  revalidatePath("/staff/settings");
+  redirect(to({ hoursDone: result.message ?? "Opening hours saved." }));
 }

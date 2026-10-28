@@ -3,15 +3,13 @@ import { getOrCreateConversation, getOrCreateConversationByPhone } from "@/lib/c
 import { replyToForConversation } from "@/lib/chat-notify";
 import { notifyStaffOfFamilyMessage } from "@/lib/chat-routing";
 import { resend, FROM_EMAIL } from "@/lib/resend";
-import { sendSms, smsAllowed } from "@/lib/twilio";
-import { SmsOptedOutError } from "@/lib/sms-opt-out";
 import { pushToUsers } from "@/lib/push";
 import { CLUB, CLUB_SITE_URL } from "@/lib/club";
 import { business } from "@/lib/content";
 import { getAppointment, recordNotice, shiftWindow, type Appointment } from "@/lib/appointments";
 import { getCustomer, type Customer } from "@/lib/customers";
 import { visitEmailHtml } from "@/lib/emails/visit";
-import { noticeBody, noticeHeadline, shortNotice, smsText, type NoticeType } from "@/lib/visit-copy";
+import { noticeBody, noticeHeadline, type NoticeType } from "@/lib/visit-copy";
 import { staffIdentity } from "@/lib/staff-identity";
 import { renderEmailLayout } from "@/lib/emails/layout";
 import { KIND_LABEL, windowLabel } from "@/lib/day-plan";
@@ -26,14 +24,12 @@ import { formatLondonClock } from "@/lib/schedule-time";
  *   reply lands in the same thread;
  * - an email, if we have their address (replies come back to the chat once
  *   CHAT_REPLY_DOMAIN is set);
- * - a text, if we have a UK mobile and Twilio is set up;
  * - a push, if they have the MPE app.
  *
  * Each is best effort: one failing never stops the others. Returns how it
- * went, e.g. ["chat", "email", "text"], for the team's "sent by" line.
+ * went, e.g. ["chat", "app", "email"], for the team's "sent by" line.
  */
 
-const TWILIO_ON = !!(process.env.TWILIO_PHONE_NUMBER && (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_API_KEY_SECRET));
 const RESEND_ON = !!process.env.RESEND_API_KEY;
 
 /** The customer's page for this visit. */
@@ -63,19 +59,8 @@ export type Delivery = {
   pushHref: string;
   /** The member of staff it's from; none for automatic messages. */
   staffId: string | null;
-  /** "if-no-text": the hour-before message, where an email would arrive too late to matter. */
-  email?: "always" | "if-no-text";
-  /**
-   * Whether it goes by text when the app can't reach them: "always" for
-   * what can't wait (on my way, running late), "fallback" for a failed
-   * monthly payment when there's no email either. Left out: never (the app
-   * and email only), which is most messages.
-   */
-  text?: "always" | "fallback";
-  /** A shorter version for the text (one segment, under 160 characters). */
-  smsBody?: string;
-  /** Adds "Reply STOP to opt out." to the text: for anything not about a booked visit. */
-  smsOptOut?: boolean;
+  /** "if-no-app": only when the app can't reach them (reminders, "on my way"). */
+  email?: "always" | "if-no-app";
   /** A payment request: the chat shows it as a Pay card (lib/payments.ts). */
   paymentRequestId?: string;
 };
@@ -83,7 +68,9 @@ export type Delivery = {
 /**
  * Sends one message to a customer every way we can reach them, and says
  * which worked: their conversation (the record, and where replies land),
- * a text to a UK mobile, an email, and the app.
+ * the app and an email. Never a text: the only one MPE sends is the one
+ * after a call (lib/missed-calls.ts). Someone who's only phoned gets it
+ * from the team's WhatsApp Business instead (whatsappHandoff, below).
  */
 export async function deliverToCustomer(customer: Customer, d: Delivery): Promise<string[]> {
   const via: string[] = [];
@@ -115,8 +102,7 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
     console.error("deliverToCustomer: chat failed", err);
   }
 
-  // 2. The app: free, so it comes first. Someone with the app (notifications
-  // on) gets it there instead of a text, which costs per message.
+  // 2. The app.
   let inApp = false;
   if (customer.userId) {
     const { count } = await admin.from("push_tokens").select("token", { count: "exact", head: true }).eq("user_id", customer.userId);
@@ -125,23 +111,8 @@ export async function deliverToCustomer(customer: Customer, d: Delivery): Promis
     if (inApp) via.push("app");
   }
 
-  // 3. A text, to a UK mobile, only when the app can't reach them, and only
-  // for what can't wait: "on my way" and running late (`text: "always"`).
-  // A failed monthly payment (`"fallback"`) is texted only if there's no
-  // email either. Everything else: the app and email.
-  const wantsText = d.text === "always" || (d.text === "fallback" && !(RESEND_ON && customer.email));
-  const smsBody = d.text ? smsText(d.smsBody ?? d.body, CLUB.name, d.smsOptOut) : "";
-  if (TWILIO_ON && wantsText && !inApp && customer.phoneE164?.startsWith("+447") && (await smsAllowed())) {
-    try {
-      await sendSms(customer.phoneE164, smsBody);
-      via.push("text");
-    } catch (err) {
-      if (!(err instanceof SmsOptedOutError)) console.error("deliverToCustomer: text failed", err);
-    }
-  }
-
-  // 4. Email: always for what they'll want to keep, else only if nothing else reached them.
-  if (RESEND_ON && customer.email && (d.email !== "if-no-text" || (!via.includes("text") && !inApp))) {
+  // 3. Email: always for what they'll want to keep, else only if the app didn't reach them.
+  if (RESEND_ON && customer.email && (d.email !== "if-no-app" || !inApp)) {
     try {
       const replyTo = conversationId ? await replyToForConversation(conversationId) : null;
       const { error } = await resend.emails.send({
@@ -190,7 +161,7 @@ export async function sendVisitNotice(
  * see it (they've only phoned: no email, no app), the message ready to send
  * from WhatsApp Business instead.
  */
-export async function sendVisitNoticeForTeam(appointmentId: string, type: NoticeType, staffId: string): Promise<{ via: string[]; whatsapp: WhatsAppHandoff | null; name: string | null }> {
+export async function sendVisitNoticeForTeam(appointmentId: string, type: NoticeType, staffId: string): Promise<Told> {
   const sent = await deliverVisitNotice(appointmentId, type, staffId);
   if (!sent) return { via: [], whatsapp: null, name: null };
   return { via: sent.via, whatsapp: reachedThem(sent.via) ? null : handoffMessage(sent.customer, sent.body), name: sent.customer.name };
@@ -234,14 +205,10 @@ async function deliverVisitNotice(appointmentId: string, type: NoticeType, staff
     headline: noticeHeadline(type, facts),
     staffId,
     pushHref: type === "service_due" ? "/book/service" : `/visit/${appointment.publicToken}`,
-    // Reminders don't need an email as well as a text; confirmations and changes do.
-    email: type === "hour" || type === "reminder" ? "if-no-text" : "always",
-    smsOptOut: type === "service_due",
-    // Texts cost, so they're the same for everyone: running late (and "on my way", sendOnMyWay).
-    // A booking, a move or a cancellation for someone with no email or app goes from the
-    // team's WhatsApp Business instead (sendVisitNoticeForTeam).
-    text: type === "late" ? "always" : undefined,
-    smsBody: shortNotice(type, facts, { name: customer.name, engineer, appLink: `${CLUB_SITE_URL.replace(/\/$/, "")}/app` }),
+    // Reminders don't need an email as well as the app; confirmations and changes do.
+    email: type === "hour" || type === "reminder" ? "if-no-app" : "always",
+    // Someone with no email or app gets a booking, a move, a cancellation or running late
+    // from the team's WhatsApp Business instead (sendVisitNoticeForTeam).
     emailHtml: (canReplyByEmail) =>
       visitEmailHtml({
         type,
@@ -262,8 +229,8 @@ async function deliverVisitNotice(appointmentId: string, type: NoticeType, staff
 }
 
 /**
- * Whether a message reached them somewhere they'll see it: the app, a text
- * or an email. Their conversation alone doesn't count: someone who's only
+ * Whether a message reached them somewhere they'll see it: the app or an
+ * email. Their conversation alone doesn't count: someone who's only
  * ever phoned can't see it (no app, not signed in on the website).
  */
 export function reachedThem(via: string[]): boolean {
@@ -293,13 +260,23 @@ export function handoffMessage(customer: Pick<Customer, "phoneE164">, body: stri
   return { phone, text: `${body}\n\nFor updates on your job and to chat with us, get the ${CLUB.name} app: ${CLUB_SITE_URL.replace(/\/$/, "")}/app` };
 }
 
+/** How a message to a customer went: how it reached them, and the WhatsApp Business message when it didn't. */
+export type Told = { via: string[]; whatsapp: WhatsAppHandoff | null; name: string | null };
+
+/** "Sam was told by the app and email.", or that it hasn't reached them (no email, no app). */
+export function toldLine(told: Told): string {
+  const who = told.name ? told.name.split(" ")[0] : null;
+  if (!told.via.length) return `Couldn't reach ${who ?? "them"}: add a mobile or email to their customer page.`;
+  return reachedThem(told.via) ? `${who ? `${who} was` : "They were"} told by ${viaPhrase(told.via)}.` : `It hasn't reached ${who ?? "them"}: no email or the ${CLUB.name} app.`;
+}
+
 /** What the team's told when it only reached their conversation. */
 export function notReachedLine(customer: Pick<Customer, "name">): string {
   const who = customer.name ? customer.name.split(" ")[0] : "They";
   return `Saved, but it hasn't reached ${customer.name ? who : "them"}: no email or the ${CLUB.name} app.`;
 }
 
-/** "by message, email and text". */
+/** "by message, the app and email". */
 export function viaPhrase(via: string[]): string {
   const words = via.map((v) => (v === "chat" ? "message" : v === "app" ? "the app" : v));
   if (words.length <= 1) return words.join("");
@@ -345,14 +322,14 @@ export function arrivalClock(fromIso: string, etaMinutes: number): string {
 
 /**
  * "On my way": one tap on the visit card when the engineer sets off. The
- * customer gets a text (an email only if there's no text, it'd arrive too
- * late to matter), a message in their chat and the app: who's coming, and
- * roughly when.
+ * customer gets it in their chat and the app, or by email without the app:
+ * who's coming, and roughly when. Someone with neither gets it from the
+ * team's WhatsApp Business (the route returns the message ready).
  */
-export async function sendOnMyWay(appointmentId: string, staffId: string, etaMinutes: number): Promise<string[]> {
+export async function sendOnMyWay(appointmentId: string, staffId: string, etaMinutes: number): Promise<Told> {
   const appointment = await getAppointment(appointmentId);
   const customer = appointment?.customerId ? await getCustomer(appointment.customerId) : null;
-  if (!appointment || !customer || appointment.status !== "booked") return [];
+  if (!appointment || !customer || appointment.status !== "booked") return { via: [], whatsapp: null, name: null };
   const eta = (ON_MY_WAY_ETAS as readonly number[]).includes(etaMinutes) ? etaMinutes : 30;
   const now = new Date().toISOString();
   let engineer: string | null = null;
@@ -371,13 +348,10 @@ export async function sendOnMyWay(appointmentId: string, staffId: string, etaMin
   const body = `${hi}${who} is on the way for ${what} and should be with you in about ${eta} minutes (around ${arrive}). If you won't be in, let us know: ${visitLink(appointment)}`;
   const via = await deliverToCustomer(customer, {
     body,
-    // One of the two texts a customer gets (the other's after their first call).
-    text: "always",
-    smsBody: `${hi}${engineer ? `${engineer}, your MPE engineer,` : "your MPE engineer"} is on the way. With you around ${arrive}. Reply if anything's changed.`,
     headline: "Your MPE engineer is on the way",
     staffId,
     pushHref: `/visit/${appointment.publicToken}`,
-    email: "if-no-text",
+    email: "if-no-app",
     emailHtml: () =>
       renderEmailLayout({
         previewText: `With you around ${arrive}`,
@@ -388,7 +362,7 @@ export async function sendOnMyWay(appointmentId: string, staffId: string, etaMin
       }),
   });
   await createAdminClient().from("appointments").update({ on_my_way_at: now, on_my_way_eta: eta }).eq("id", appointment.id);
-  return via;
+  return { via, whatsapp: reachedThem(via) ? null : handoffMessage(customer, body), name: customer.name };
 }
 
 /** "Running late" choices: the arrival window moves on by this much. */
@@ -400,10 +374,10 @@ export const LATE_MINUTES = [30, 60, 90, 120] as const;
  * to say they won't be in. The window's a safety net, so this is for when
  * even that won't be met.
  */
-export async function sendRunningLate(appointmentId: string, staffId: string, minutes: number): Promise<{ via: string[]; window: string } | null> {
+export async function sendRunningLate(appointmentId: string, staffId: string, minutes: number): Promise<(Told & { window: string }) | null> {
   const by = (LATE_MINUTES as readonly number[]).includes(minutes) ? minutes : 60;
   const moved = await shiftWindow(appointmentId, by);
   if (!moved || !moved.customerId) return null;
-  const via = await sendVisitNotice(appointmentId, "late", staffId);
-  return { via, window: windowLabel(moved.start, moved.end) };
+  const told = await sendVisitNoticeForTeam(appointmentId, "late", staffId);
+  return { ...told, window: windowLabel(moved.start, moved.end) };
 }

@@ -15,6 +15,7 @@ type Settings = {
   referrals: { referrerReward: string; friendReward: string };
   reviewUrl: string;
   usage: Usage | null;
+  hours: { from: number; until: number; label: string };
   maxUpsells: number;
   products: Product[];
   suggestions: { name: string; description: string; price: string; from: string | null; why: string }[];
@@ -71,6 +72,38 @@ function Section({ title, intro, children }: { title: string; intro?: string; ch
       {intro && <AppText style={{ color: colors.text2, fontSize: 14, lineHeight: 20 }}>{intro}</AppText>}
       {children}
     </Card>
+  );
+}
+
+/** "8am", "8:30am", "12pm". */
+function clock(minutes: number): string {
+  const h24 = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}${m ? `:${String(m).padStart(2, "0")}` : ""}${h24 < 12 ? "am" : "pm"}`;
+}
+
+/** A time, half an hour at a time. */
+function TimeStepper({ label, value, onChange, min, max }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number }) {
+  const step = (by: number) => onChange(Math.min(max, Math.max(min, value + by)));
+  const button = (icon: "remove" | "add", by: number, name: string) => (
+    <PressableScale onPress={() => step(by)} accessibilityLabel={`${name} ${label.toLowerCase()} time`}>
+      <View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.edge, alignItems: "center", justifyContent: "center" }}>
+        <Ionicons name={icon} size={20} color={colors.navy} />
+      </View>
+    </PressableScale>
+  );
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <AppText weight="semibold" style={{ fontSize: 15, flex: 1 }}>
+        {label}
+      </AppText>
+      {button("remove", -30, "Earlier")}
+      <AppText weight="bold" style={{ fontSize: 16, minWidth: 64, textAlign: "center" }} accessibilityLiveRegion="polite">
+        {clock(value === 24 * 60 ? 0 : value)}
+      </AppText>
+      {button("add", 30, "Later")}
+    </View>
   );
 }
 
@@ -155,6 +188,7 @@ export default function SettingsScreen() {
   const [plan, setPlan] = useState<Settings["plan"] | null>(null);
   const [referrals, setReferrals] = useState<Settings["referrals"] | null>(null);
   const [review, setReview] = useState<string | null>(null);
+  const [hours, setHours] = useState<{ from: number; until: number } | null>(null);
   const [edits, setEdits] = useState<Record<string, Draft>>({});
   const [draft, setDraft] = useState<Draft>(EMPTY);
 
@@ -166,6 +200,7 @@ export default function SettingsScreen() {
       setPlan(d.plan);
       setReferrals(d.referrals);
       setReview(d.reviewUrl);
+      setHours({ from: d.hours.from, until: d.hours.until });
       setEdits(Object.fromEntries(d.products.map((p) => [p.id, { name: p.name, description: p.description, price: p.price, upsellPrice: p.upsellPrice }])));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't load settings.");
@@ -223,6 +258,17 @@ export default function SettingsScreen() {
             />
           }
         >
+          {hours && (
+            <Section
+              title="Opening hours"
+              intro="Every day. Calls to the MPE number ring you between these times, and customers' messages notify you. Outside them, calls go to voicemail and get the text back, the chat tells customers when you're open, and messages wait for one summary when you open."
+            >
+              <TimeStepper label="Open" value={hours.from} min={0} max={hours.until - 30} onChange={(from) => setHours({ ...hours, from })} />
+              <TimeStepper label="Close" value={hours.until} min={hours.from + 30} max={24 * 60} onChange={(until) => setHours({ ...hours, until })} />
+              <Save title="Save opening hours" onPress={() => send(PATH, { section: "hours", from: hours.from, until: hours.until })} />
+            </Section>
+          )}
+
           {data.usage && <UsageSection usage={data.usage} onPause={(pause) => send(PATH, { section: "usage", pauseWhenUsed: pause })} />}
 
           <Section

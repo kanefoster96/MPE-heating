@@ -28,6 +28,16 @@ export const metadata: Metadata = {
 // The live chat (Kanvas Academy's, with MPE's welcome, details ask and app
 // suggestion — lib/chat-welcome.ts). A visitor with no account gets an
 // anonymous session straight away, so they can type with no form first.
+/** Whether this guest's chat has a reply from the team in it (so a reply email opened here is theirs). */
+async function hasOurReply(userId: string): Promise<boolean> {
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  const { data: convo } = await admin.from("chat_conversations").select("id").eq("user_id", userId).maybeSingle();
+  if (!convo) return false;
+  const { count } = await admin.from("chat_messages").select("id", { count: "exact", head: true }).eq("conversation_id", convo.id as string).eq("sender_is_coach", true).not("sender_id", "is", null);
+  return !!count;
+}
+
 export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ continue?: string; sent?: string; error?: string }> }) {
   const params = await searchParams;
   if (!CHAT_ON) {
@@ -50,7 +60,8 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
 
   // From a reply email, on a device that isn't the one they chatted on: their conversation's
   // under the email they gave, so a sign-in link to it opens it, history and all.
-  if (!user && params.continue) {
+  // On another device, or one with its own guest chat that isn't the one with our reply: offer theirs.
+  if (params.continue && (!user || (user.is_anonymous && !(await hasOurReply(user.id))))) {
     return (
       <MessagesScreen title={`Chat with ${CLUB.name}`} subtitle="Live chat">
         <div className="flex-1 overflow-y-auto px-6 py-8">

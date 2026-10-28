@@ -282,6 +282,11 @@ export async function calloutCreditFor(visit: JobScope): Promise<number> {
   return Math.max(0, paidFees - credited);
 }
 
+/** Whether a call-out fee on this job is still to pay. */
+export async function calloutOpenFor(visit: JobScope): Promise<boolean> {
+  return (await jobPayments(visit)).some((r) => r.kind === "callout_fee" && r.status === "open");
+}
+
 /** Whether a call-out fee's already been asked for on this job (so there's never a second). */
 export async function calloutAskedFor(visit: JobScope): Promise<boolean> {
   return (await jobPayments(visit)).some((r) => r.kind === "callout_fee");
@@ -492,6 +497,17 @@ export async function createPaymentRequest(params: {
     return { ok: false, error: "Couldn't save that. Please try again." };
   }
   let request = mapRow(data as Row);
+  // A call-out paid ahead for a visit that was cancelled (lib/callout-prepay.ts) is on no visit, so it
+  // counts for the next one. Credited here, it's used up: it moves onto this job, so it's never taken off twice.
+  if (params.kind === "invoice" && params.appointmentId && params.lines.some((l) => l.amountPence < 0 && /call-out/i.test(l.description))) {
+    await createAdminClient()
+      .from("payment_requests")
+      .update({ appointment_id: params.appointmentId })
+      .eq("customer_id", customer.id)
+      .eq("kind", "callout_fee")
+      .eq("status", "paid")
+      .is("appointment_id", null);
+  }
   // The repair's invoice, with the call-out fee still unpaid: the £50 comes
   // off the repair, so the fee's dropped (and its reminders with it), and
   // they're told so with this invoice.

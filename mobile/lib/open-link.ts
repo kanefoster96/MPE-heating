@@ -41,8 +41,8 @@ export async function openSignedIn(path: string): Promise<void> {
  */
 export async function openBooking(url: string, signedIn: boolean): Promise<void> {
   if (!signedIn) return openInApp(url);
-  const path = url.startsWith(SITE_URL) ? url.slice(SITE_URL.length) || "/" : url;
-  if (!path.startsWith("/")) return openInApp(url);
+  // The path, whichever of the site's addresses the link came with (the site can send its own domain).
+  const path = url.startsWith("/") ? url : (url.match(/^https?:\/\/[^/]+(\/.*)?$/)?.[1] ?? "/");
   return openSignedIn(`${path}${path.includes("?") ? "&" : "?"}from=app`);
 }
 

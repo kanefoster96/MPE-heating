@@ -42,7 +42,7 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white/85 backdrop-blur">
       <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="shrink-0" aria-label={`${business.name} home`}>
+        <Link href="/" className="inline-flex min-h-11 shrink-0 items-center" aria-label={`${business.name} home`}>
           <Image
             src="/mpe-logo.png"
             alt={business.fullName}

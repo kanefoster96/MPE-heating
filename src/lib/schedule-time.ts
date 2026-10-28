@@ -65,6 +65,19 @@ const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, 
  * in UTC, so the local getters show BST check-ins and messages an hour
  * early.
  */
+/** The moment a London wall-clock time happens ("2026-10-24", 20:00), right across a clock change. */
+export function londonInstant(dateISO: string, minutes: number): Date {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  let guess = Date.UTC(y, m - 1, d, Math.floor(minutes / 60), minutes % 60);
+  // London is UTC or UTC+1: two corrections settle it.
+  for (let i = 0; i < 2; i++) {
+    const seen = londonNow(new Date(guess));
+    const dayShift = seen.dateISO === dateISO ? 0 : seen.dateISO > dateISO ? 1440 : -1440;
+    guess -= (dayShift + seen.minutes - minutes) * 60_000;
+  }
+  return new Date(guess);
+}
+
 export function londonParts(at: Date | string): LondonParts {
   const date = typeof at === "string" ? new Date(at) : at;
   const parts = new Intl.DateTimeFormat("en-GB", {

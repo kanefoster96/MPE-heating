@@ -44,7 +44,7 @@ export function FinalCta({
         )}
         <p className="mt-4 text-sm text-text-2">
           Or call{" "}
-          <a href={business.phoneHref} className="font-semibold text-navy">
+          <a href={business.phoneHref} className="inline-flex min-h-11 items-center font-semibold text-navy">
             {business.phoneDisplay}
           </a>
         </p>

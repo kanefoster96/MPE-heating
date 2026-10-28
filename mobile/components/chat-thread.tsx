@@ -213,6 +213,10 @@ export function ChatThread({
     // WhatsApp Business: their chat opens with the message typed, and he sends it there.
     if (channel === "whatsapp" && !photo) {
       if (waNumber) openExternal(`https://wa.me/${waNumber}?text=${encodeURIComponent(body.trim())}`);
+      else {
+        setDraft(body);
+        Alert.alert("No WhatsApp number", "Add their mobile number first, or pick another way to send it.");
+      }
       return;
     }
     const stand: ChatMessage = {

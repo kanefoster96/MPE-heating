@@ -162,7 +162,7 @@ export async function handleIncomingCall(from: string | undefined): Promise<Resp
   const numbers = await ringNumbers().catch(() => [] as string[]);
   // Someone we can only reach on this number: a tip on Fergal's lock screen as it rings.
   if (tip && conversationId && numbers.length) {
-    await pushToUsers(await chatRecipientIds(), {
+    await pushToUsers(await chatRecipientIds().catch(() => [] as string[]), {
       title: `${tip.name} is calling`,
       body: tip.textedBefore
         ? "No email or app for them yet. They had the MPE app link by text last time: ask them to install it, so job updates and your arrival time reach them free."
@@ -217,7 +217,8 @@ export async function handleAfterDial(conversationId: string | null, caller: str
   // The minutes, for the calls and texts allowance: an outbound call is two calls out
   // (his phone, then theirs); one in is the call in, plus the minutes put through to him.
   if (outbound) {
-    if (answered) await logUsage("call_forward", 2 * billedMinutes(seconds));
+    // His phone's leg runs from when he picks up (about half a minute of ringing them first), answered or not; theirs only if they answer.
+    await logUsage("call_forward", billedMinutes(seconds + 30) + (answered ? billedMinutes(seconds) : 0));
   } else if (answered) {
     await logUsage("call_in", billedMinutes(seconds + RING_SECONDS));
     await logUsage("call_forward", billedMinutes(seconds));
@@ -226,6 +227,7 @@ export async function handleAfterDial(conversationId: string | null, caller: str
   }
   // Fergal's own call from the MPE number (lib/coach-calls.ts): already logged; they get the app text if they picked up.
   if (outbound) {
+    if (answered && conversationId) await markAnswered(conversationId);
     if (answered && conversationId && caller) await textAfterCall(conversationId, caller, AFTER_CALL_TEXT).catch(() => false);
     return twiml("<Hangup/>");
   }
@@ -255,7 +257,21 @@ export async function handleAfterDial(conversationId: string | null, caller: str
       console.error("after call: failed to file it", err);
     }
   }
+  // After "Call answered" is in their chat, so that note doesn't count as them waiting.
+  if (answered && conversationId) await markAnswered(conversationId);
   return answered ? twiml("<Hangup/>") : voicemail(conversationId);
+}
+
+/** A call that was answered is a reply: their chat isn't "waiting" for one (lib/follow-up-sweep.ts). */
+async function markAnswered(conversationId: string): Promise<void> {
+  await createAdminClient()
+    .from("chat_conversations")
+    .update({ staff_nudged_at: new Date().toISOString() })
+    .eq("id", conversationId)
+    .then(
+      () => {},
+      () => {},
+    );
 }
 
 /**

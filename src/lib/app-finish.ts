@@ -1,9 +1,10 @@
 import { getAppointment, returnVisitFor } from "@/lib/appointments";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { customerLabel, getCustomer } from "@/lib/customers";
 import { KIND_LABEL, longDate, windowLabel } from "@/lib/day-plan";
 import { completeJob, getJobReview } from "@/lib/job-completion";
 import { CERT_LABEL, CERT_TYPES, fileLabel, filesForCustomer } from "@/lib/job-files";
-import { calloutCreditFor, cancelPaymentRequest, createPaymentRequest, formatPence, invoiceNumber, payLink, paymentsForAppointments, resendPaymentLink, type PaymentRequest } from "@/lib/payments";
+import { calloutCreditFor, createPaymentRequest, formatPence, invoiceNumber, payLink, paymentsForAppointments, resendPaymentLink, type PaymentRequest } from "@/lib/payments";
 import { londonNow } from "@/lib/schedule-time";
 import { notReachedLine, reachedThem, viaPhrase, whatsappHandoff, type WhatsAppHandoff } from "@/lib/visit-notify";
 
@@ -95,8 +96,11 @@ export async function finish(id: string, body: FinishBody, staffId: string): Pro
   const coming = body.outcome === "return";
   const price = coming && (body.price === "take" || body.price === "send" || body.price === "later") ? body.price : null;
 
-  // The price is known: the invoice is made first, so the summary they get carries its link.
-  let invoice: { id: string; amount: string; request: PaymentRequest } | null = null;
+  // The price is known: checked now, and its invoice made once the job's saved and before the
+  // summary goes (completeJob's beforeSummary), so the summary carries its link and a save that
+  // fails leaves nothing half done. Not again on a job that's already finished (a retry).
+  const made: { invoice: { id: string; amount: string; request: PaymentRequest } | null; error: string | null } = { invoice: null, error: null };
+  let makeInvoice: (() => Promise<void>) | undefined;
   if (price === "take" || price === "send") {
     const visit = await getAppointment(id);
     if (!visit?.customerId) return { ok: false, error: "There's no customer on this job to invoice." };
@@ -104,20 +108,25 @@ export async function finish(id: string, body: FinishBody, staffId: string): Pro
     if (!note) return { ok: false, error: "Say what you're coming back for, e.g. fit the new diverter valve." };
     const pence = Math.round(Number(text(body.pricePounds, 20).replace(/[£,\s]/g, "")) * 100);
     if (!Number.isFinite(pence) || pence < 100) return { ok: false, error: "Enter the price for the return visit, e.g. 180." };
-    // The call-out they've paid comes off, as the site says; one still unpaid is dropped instead (createPaymentRequest).
-    const credit = await calloutCreditFor(visit);
-    const created = await createPaymentRequest({
-      staffId,
-      customerId: visit.customerId,
-      appointmentId: visit.id,
-      kind: "invoice",
-      description: `Return visit: ${note}`,
-      lines: [{ description: note.charAt(0).toUpperCase() + note.slice(1), amountPence: pence }, ...(credit ? [{ description: "Call-out fee already paid", amountPence: -credit }] : [])],
-      // Sent with the summary below; on its own if there's no summary.
-      send: false,
-    });
-    if (!created.ok) return created.error === "Check the amounts." ? { ok: false, error: "Check the price: it needs to be more than the call-out they've paid." } : created;
-    invoice = { id: created.request.id, amount: formatPence(created.request.amountPence), request: created.request };
+    const customerId = visit.customerId;
+    if (visit.status !== "done") {
+      makeInvoice = async () => {
+        // The call-out they've paid comes off, as the site says; one still unpaid is dropped instead (createPaymentRequest).
+        const credit = await calloutCreditFor(visit);
+        const created = await createPaymentRequest({
+          staffId,
+          customerId,
+          appointmentId: visit.id,
+          kind: "invoice",
+          description: `Return visit: ${note}`,
+          lines: [{ description: note.charAt(0).toUpperCase() + note.slice(1), amountPence: pence }, ...(credit ? [{ description: "Call-out fee already paid", amountPence: -credit }] : [])],
+          // Sent with the summary; on its own if there's no summary.
+          send: false,
+        });
+        if (created.ok) made.invoice = { id: created.request.id, amount: formatPence(created.request.amountPence), request: created.request };
+        else made.error = created.error !== "Check the amounts." ? created.error : pence - credit < 100 ? "the price needs to be more than the call-out they've paid" : "that's more than can be taken in one go";
+      };
+    }
   }
 
   const result = await completeJob({
@@ -137,11 +146,15 @@ export async function finish(id: string, body: FinishBody, staffId: string): Pro
     outcome: body.outcome === "return" ? "return" : "fixed",
     returnNote: text(body.returnNote, 300),
     ...(price ? { priceNeeded: price === "later" } : {}),
+    beforeSummary: makeInvoice,
   });
-  if (!result.ok) {
-    // Not saved: the invoice goes too, so trying again doesn't make a second.
-    if (invoice) await cancelPaymentRequest(invoice.id);
-    return result;
+  if (!result.ok) return result;
+  const invoice = made.invoice;
+  const invoiceError = made.error;
+  if (invoiceError) {
+    // Saved, but no invoice: the price is still owed them, so it goes on the list.
+    await createAdminClient().from("appointments").update({ price_needed: true }).eq("id", id).then(() => {}, () => {});
+    return { ok: true, message: `Saved: you're coming back. The invoice didn't go: ${invoiceError}. Send the price from the job.` };
   }
   // Sent with the summary; on its own if there wasn't one.
   const invoiceVia = invoice && price === "send" ? (body.sendSummary === true ? result.sentVia : await resendPaymentLink(invoice.id, staffId)) : [];

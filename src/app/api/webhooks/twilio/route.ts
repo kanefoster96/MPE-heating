@@ -59,9 +59,9 @@ export async function POST(request: Request) {
 
   const from = paramsObject.From;
   const body = paramsObject.Body;
+  // Counted against the month's calls and texts allowance (lib/twilio-usage.ts), picture-only ones too.
+  if (from) await logUsage("text_in", Math.max(1, Number(paramsObject.NumSegments) || 1));
   if (!from || !body) return twimlResponse(200);
-  // Counted against the month's calls and texts allowance (lib/twilio-usage.ts).
-  await logUsage("text_in", Math.max(1, Number(paramsObject.NumSegments) || 1));
 
   const keyword = smsKeywordFor(body);
 
